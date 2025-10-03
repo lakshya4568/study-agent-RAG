@@ -8,6 +8,17 @@ rules.push({
   use: [{ loader: 'style-loader' }, { loader: 'css-loader' }],
 });
 
+rules.push({
+  test: /\.tsx?$/,
+  exclude: /node_modules/,
+  use: {
+    loader: 'ts-loader',
+    options: {
+      transpileOnly: true,
+    },
+  },
+});
+
 export const rendererConfig: Configuration = {
   module: {
     rules,
