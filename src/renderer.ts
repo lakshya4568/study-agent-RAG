@@ -27,7 +27,26 @@
  */
 
 import './index.css';
+import './globals.css';
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { App } from './ui/App';
 
 console.log(
   '👋 This message is being logged by "renderer.js", included via webpack',
 );
+
+// Mount React app
+window.addEventListener('DOMContentLoaded', () => {
+  console.log('MCP Client API available:', !!window.mcpClient);
+  
+  if (window.mcpClient) {
+    console.log('MCP Client methods:', Object.keys(window.mcpClient));
+  }
+
+  const container = document.getElementById('root');
+  if (container) {
+    const root = createRoot(container);
+    root.render(React.createElement(App));
+  }
+});
