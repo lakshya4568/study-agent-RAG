@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, screen } from 'electron';
 import { MCPClientManager, logger } from './client';
 import type { MCPServerConfig, ServerInfo, ToolExecutionResult } from './client/types';
 
@@ -17,10 +17,14 @@ if (require('electron-squirrel-startup')) {
 const mcpManager = new MCPClientManager();
 
 const createWindow = (): void => {
-  // Create the browser window.
+  // Get primary display work area size
+  const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+  
+  // Create the browser window with dynamic screen dimensions
   const mainWindow = new BrowserWindow({
-    height: 600,
-    width: 800,
+    width,
+    height,
+    autoHideMenuBar: true,
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
       contextIsolation: true,
