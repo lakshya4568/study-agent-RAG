@@ -109,3 +109,6 @@ tasks/
 
 .github
 .taskmaster
+
+
+.env.example

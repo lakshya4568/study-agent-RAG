@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, screen } from 'electron';
 import { MCPClientManager, logger } from './client';
 import type { MCPServerConfig, ServerInfo, ToolExecutionResult } from './client/types';
 
@@ -17,10 +17,14 @@ if (require('electron-squirrel-startup')) {
 const mcpManager = new MCPClientManager();
 
 const createWindow = (): void => {
-  // Create the browser window.
+  // Get primary display work area size
+  const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+  
+  // Create the browser window with dynamic screen dimensions
   const mainWindow = new BrowserWindow({
-    height: 600,
-    width: 800,
+    width,
+    height,
+    autoHideMenuBar: true,
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
       contextIsolation: true,
@@ -56,6 +60,16 @@ app.on('activate', () => {
   // dock icon is clicked and there are no other windows open.
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
+  }
+});
+
+// Log GPU child process exits so we can monitor stability without noisy Chromium errors
+app.on('child-process-gone', (_event, details) => {
+  if (details.type === 'GPU') {
+    logger.warn('GPU process exited, continuing with software rendering', {
+      reason: details.reason,
+      exitCode: details.exitCode,
+    });
   }
 });
 
