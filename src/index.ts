@@ -63,6 +63,16 @@ app.on('activate', () => {
   }
 });
 
+// Log GPU child process exits so we can monitor stability without noisy Chromium errors
+app.on('child-process-gone', (_event, details) => {
+  if (details.type === 'GPU') {
+    logger.warn('GPU process exited, continuing with software rendering', {
+      reason: details.reason,
+      exitCode: details.exitCode,
+    });
+  }
+});
+
 // Cleanup on quit
 app.on('before-quit', async () => {
   logger.info('Application quitting, cleaning up MCP connections...');
