@@ -34,7 +34,7 @@ async function testChromaDBIntegration() {
     console.log(`   ✅ Vector store created successfully!`);
     console.log(`   - Collection: study_materials`);
     console.log(
-      `   - ChromaDB URL: ${process.env.CHROMA_URL || "http://localhost:8000"}`
+      "   - Mode: embedded/in-memory ChromaDB (no external server required)"
     );
 
     // Test 3: Similarity Search
@@ -63,8 +63,9 @@ async function testChromaDBIntegration() {
   } catch (error) {
     console.error("\n❌ Test failed:", error);
     if (error instanceof Error && error.message.includes("ChromaDB")) {
-      console.error("\n💡 Make sure ChromaDB is running:");
-      console.error("   docker run -p 8000:8000 chromadb/chroma\n");
+      console.error(
+        "\n💡 ChromaDB is running in embedded/in-memory mode. If this failed, check that your NVIDIA_API_KEY is set and that documents were loaded correctly."
+      );
     }
     process.exit(1);
   }

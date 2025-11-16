@@ -1,9 +1,11 @@
 import path from "node:path";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { Chroma } from "@langchain/community/vectorstores/chroma";
+import type { ChromaClient } from "chromadb";
 import type { Document } from "@langchain/core/documents";
 import { createNVIDIAEmbeddings } from "../models/nvidia-embeddings";
 import { logger } from "../client/logger";
+import { InMemoryChromaClient } from "./in-memory-chroma-client";
 
 const CHROMA_COLLECTION_NAME = "study_materials";
 
@@ -29,8 +31,9 @@ export async function createStudyMaterialVectorStore(
   logger.info(`Split into ${chunks.length} chunks for embedding`);
 
   try {
-    // Create in-memory ChromaDB vector store with NVIDIA embeddings
-    // No external server needed - fully embedded
+    // Create in-memory ChromaDB vector store (no external HTTP server)
+    const inMemoryIndex = new InMemoryChromaClient() as unknown as ChromaClient;
+
     const vectorStore = await Chroma.fromDocuments(
       chunks,
       createNVIDIAEmbeddings(),
@@ -39,6 +42,7 @@ export async function createStudyMaterialVectorStore(
         collectionMetadata: {
           "hnsw:space": "cosine",
         },
+        index: inMemoryIndex,
       }
     );
 
