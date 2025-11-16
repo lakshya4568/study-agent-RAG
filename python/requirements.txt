@@ -1,0 +1,2 @@
+langchain-nvidia-ai-endpoints>=0.3.0
+langchain-core>=0.3.0

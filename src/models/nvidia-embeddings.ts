@@ -1,115 +1,313 @@
-import {
-  OpenAIEmbeddings,
-  type OpenAIEmbeddingsParams,
-} from "@langchain/openai";
-import type { OpenAI as OpenAIClient } from "openai";
+import { spawn, ChildProcess } from "child_process";
+import path from "path";
+import { Embeddings } from "@langchain/core/embeddings";
+import { logger } from "../client/logger";
 
-// Latest NVIDIA Retrieval QA embedding model (see docs.api.nvidia.com/nim/reference/nvidia-nv-embedqa-e5-v5)
-// NVIDIA exposes a single model identifier and expects clients to set the appropriate
-// input type (query vs passage) at call time; LangChain handles batching/query/document flows.
-const NVIDIA_EMBED_MODEL = "nvidia/nv-embedqa-e5-v5";
-const NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1";
+/**
+ * NVIDIA's latest NeMo Retriever embedding model
+ * Uses Python langchain-nvidia-ai-endpoints via child process bridge
+ * Model: nvidia/llama-3.2-nemoretriever-300m-embed-v2
+ */
+const NVIDIA_EMBED_MODEL = "nvidia/llama-3.2-nemoretriever-300m-embed-v2";
 
-type NvidiaInputType = "query" | "passage";
-type NvidiaEmbeddingRequest = Parameters<
-  OpenAIClient["embeddings"]["create"]
->[0] & {
-  input_type: NvidiaInputType;
-};
+interface JsonRpcRequest {
+  jsonrpc: string;
+  method: string;
+  params?: Record<string, any>;
+  id: number;
+}
 
-type OpenAIEmbeddingsCtorParams = ConstructorParameters<
-  typeof OpenAIEmbeddings
->[0];
+interface JsonRpcResponse {
+  jsonrpc: string;
+  result?: any;
+  error?: {
+    code: number;
+    message: string;
+  };
+  id: number | null;
+}
 
-class NvidiaEmbeddings extends OpenAIEmbeddings {
-  constructor(fields?: OpenAIEmbeddingsCtorParams) {
-    super(fields);
+interface JsonRpcNotification {
+  jsonrpc: string;
+  method: string;
+  params?: Record<string, any>;
+}
+
+/**
+ * NVIDIA Embeddings using official Python langchain-nvidia-ai-endpoints
+ * Communicates with Python service via JSON-RPC over stdin/stdout
+ */
+export class NvidiaEmbeddings extends Embeddings {
+  private pythonProcess: ChildProcess | null = null;
+  private requestId = 0;
+  private pendingRequests: Map<
+    number,
+    { resolve: (value: any) => void; reject: (error: Error) => void }
+  > = new Map();
+  private initPromise: Promise<void> | null = null;
+  private isReady = false;
+  private buffer = "";
+
+  constructor() {
+    super({});
+    logger.info(`Initializing NVIDIA Embeddings: ${NVIDIA_EMBED_MODEL}`);
   }
 
-  private chunkArray<T>(items: T[]): T[][] {
-    if (items.length === 0) {
+  /**
+   * Initialize the Python embeddings service
+   */
+  private async initialize(): Promise<void> {
+    if (this.initPromise) {
+      return this.initPromise;
+    }
+
+    this.initPromise = new Promise((resolve, reject) => {
+      const pythonScript = path.join(
+        __dirname,
+        "..",
+        "..",
+        "python",
+        "nvidia_embeddings_service.py"
+      );
+
+      logger.debug(`Starting Python service: ${pythonScript}`);
+
+      // Check for NVIDIA API key
+      if (!process.env.NVIDIA_API_KEY) {
+        reject(
+          new Error(
+            "NVIDIA_API_KEY is not set. Add it to your environment before running the agent."
+          )
+        );
+        return;
+      }
+
+      // Spawn Python process
+      this.pythonProcess = spawn("python", [pythonScript], {
+        env: {
+          ...process.env,
+          PYTHONUNBUFFERED: "1",
+        },
+      });
+
+      // Handle stdout (JSON-RPC responses)
+      this.pythonProcess.stdout?.on("data", (data: Buffer) => {
+        this.buffer += data.toString();
+        const lines = this.buffer.split("\n");
+        this.buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+
+          try {
+            const message: JsonRpcResponse | JsonRpcNotification =
+              JSON.parse(line);
+
+            // Handle ready notification
+            if ("method" in message && message.method === "ready") {
+              logger.info("Python embeddings service is ready");
+              this.isReady = true;
+              resolve();
+              continue;
+            }
+
+            // Handle response
+            if ("id" in message && message.id !== null) {
+              const pending = this.pendingRequests.get(message.id);
+              if (pending) {
+                this.pendingRequests.delete(message.id);
+                if (message.error) {
+                  pending.reject(new Error(message.error.message));
+                } else {
+                  pending.resolve(message.result);
+                }
+              }
+            }
+          } catch (error) {
+            logger.error("Failed to parse Python response:", error);
+          }
+        }
+      });
+
+      // Handle stderr (logs and errors)
+      this.pythonProcess.stderr?.on("data", (data: Buffer) => {
+        logger.error("Python service error:", data.toString());
+      });
+
+      // Handle process exit
+      this.pythonProcess.on("exit", (code) => {
+        logger.warn(`Python service exited with code ${code}`);
+        this.isReady = false;
+        this.pythonProcess = null;
+
+        // Reject all pending requests
+        for (const [id, pending] of this.pendingRequests.entries()) {
+          pending.reject(new Error("Python service terminated"));
+          this.pendingRequests.delete(id);
+        }
+
+        if (!this.isReady) {
+          reject(
+            new Error(`Python service failed to start (exit code ${code})`)
+          );
+        }
+      });
+
+      // Timeout if service doesn't start
+      setTimeout(() => {
+        if (!this.isReady) {
+          this.cleanup();
+          reject(new Error("Python service initialization timeout"));
+        }
+      }, 30000); // 30 second timeout
+    });
+
+    return this.initPromise;
+  }
+
+  /**
+   * Send JSON-RPC request to Python service
+   */
+  private async sendRequest(
+    method: string,
+    params?: Record<string, any>
+  ): Promise<any> {
+    if (!this.isReady) {
+      await this.initialize();
+    }
+
+    if (!this.pythonProcess || !this.pythonProcess.stdin) {
+      throw new Error("Python service is not available");
+    }
+
+    return new Promise((resolve, reject) => {
+      const id = ++this.requestId;
+      const request: JsonRpcRequest = {
+        jsonrpc: "2.0",
+        method,
+        params,
+        id,
+      };
+
+      this.pendingRequests.set(id, { resolve, reject });
+
+      const requestStr = JSON.stringify(request) + "\n";
+      this.pythonProcess!.stdin!.write(requestStr, (error) => {
+        if (error) {
+          this.pendingRequests.delete(id);
+          reject(error);
+        }
+      });
+
+      // Request timeout
+      setTimeout(() => {
+        if (this.pendingRequests.has(id)) {
+          this.pendingRequests.delete(id);
+          reject(new Error(`Request timeout: ${method}`));
+        }
+      }, 60000); // 60 second timeout
+    });
+  }
+
+  /**
+   * Embed documents (passages) for storage in vector database
+   */
+  async embedDocuments(texts: string[]): Promise<number[][]> {
+    if (texts.length === 0) {
+      logger.warn("embedDocuments called with empty array");
       return [];
     }
-    const chunks: T[][] = [];
-    for (let i = 0; i < items.length; i += this.batchSize) {
-      chunks.push(items.slice(i, i + this.batchSize));
+
+    logger.debug(`Embedding ${texts.length} documents as passages`);
+
+    try {
+      const result = await this.sendRequest("embed_documents", {
+        documents: texts,
+      });
+
+      logger.info(
+        `Successfully embedded ${result.count} documents (${result.dimensions}D)`
+      );
+      return result.embeddings;
+    } catch (error) {
+      logger.error("Failed to embed documents:", error);
+      throw error;
     }
-    return chunks;
   }
 
-  private sanitizeInput(text: string): string {
-    return this.stripNewLines ? text.replace(/\n/g, " ") : text;
-  }
-
-  private buildRequest(
-    input: string | string[],
-    inputType: NvidiaInputType
-  ): NvidiaEmbeddingRequest {
-    const params: NvidiaEmbeddingRequest = {
-      model: this.model,
-      input,
-      input_type: inputType,
-    };
-
-    if (this.dimensions) {
-      params.dimensions = this.dimensions;
+  /**
+   * Embed a query for similarity search
+   */
+  async embedQuery(text: string): Promise<number[]> {
+    if (!text || text.trim().length === 0) {
+      throw new Error("Cannot embed empty query");
     }
 
-    return params;
+    logger.debug(`Embedding query: ${text.substring(0, 50)}...`);
+
+    try {
+      const result = await this.sendRequest("embed_query", {
+        query: text,
+      });
+
+      logger.debug(
+        `Query embedded successfully (${result.dimensions} dimensions)`
+      );
+      return result.embedding;
+    } catch (error) {
+      logger.error("Failed to embed query:", error);
+      throw error;
+    }
   }
 
-  override async embedDocuments(texts: string[]): Promise<number[][]> {
-    const normalized = texts.map((text) => this.sanitizeInput(text));
-    const batches = this.chunkArray(normalized);
-    const responses = await Promise.all(
-      batches.map((batch) =>
-        this.embeddingWithRetry(this.buildRequest(batch, "passage"))
-      )
-    );
-
-    const embeddings: number[][] = [];
-    responses.forEach(({ data }) => {
-      data.forEach((entry) => embeddings.push(entry.embedding));
-    });
-    return embeddings;
+  /**
+   * Get model information
+   */
+  async getModelInfo(): Promise<{
+    model: string;
+    provider: string;
+    type: string;
+  }> {
+    try {
+      return await this.sendRequest("get_model_info");
+    } catch (error) {
+      logger.error("Failed to get model info:", error);
+      throw error;
+    }
   }
 
-  override async embedQuery(text: string): Promise<number[]> {
-    const sanitized = this.sanitizeInput(text);
-    const { data } = await this.embeddingWithRetry(
-      this.buildRequest(sanitized, "query")
-    );
-    return data[0].embedding;
+  /**
+   * Clean up Python process
+   */
+  cleanup(): void {
+    if (this.pythonProcess) {
+      logger.info("Shutting down Python embeddings service");
+      this.pythonProcess.kill();
+      this.pythonProcess = null;
+      this.isReady = false;
+      this.pendingRequests.clear();
+    }
   }
 }
 
-function getRequiredApiKey(): string {
-  const key = process.env.NVIDIA_API_KEY;
-  if (!key) {
-    throw new Error(
-      "NVIDIA_API_KEY is not set. Add it to your environment before running the agent."
-    );
-  }
-  return key;
+/**
+ * Factory function to create NVIDIA Embeddings instance
+ * Uses official Python langchain-nvidia-ai-endpoints under the hood
+ *
+ * @returns Configured NVIDIA embeddings instance
+ */
+export function createNVIDIAEmbeddings(): NvidiaEmbeddings {
+  logger.info("Creating NVIDIA Embeddings client (Python bridge)");
+  return new NvidiaEmbeddings();
 }
 
-export function createNVIDIAEmbeddings(
-  overrides: OpenAIEmbeddingsCtorParams = {}
-): OpenAIEmbeddings {
-  const { configuration, ...rest } = overrides ?? {};
-
-  return new NvidiaEmbeddings({
-    modelName: NVIDIA_EMBED_MODEL,
-    openAIApiKey: getRequiredApiKey(),
-    configuration: {
-      baseURL: NVIDIA_BASE_URL,
-      ...configuration,
-    },
-    ...rest,
-  });
-}
-
+/**
+ * Default configuration for NVIDIA embeddings
+ * Useful for debugging and configuration reference
+ */
 export const nvidiaEmbeddingDefaults = {
   modelName: NVIDIA_EMBED_MODEL,
-  baseURL: NVIDIA_BASE_URL,
+  provider: "NVIDIA",
+  type: "retrieval-embeddings",
+  apiEndpoint: "https://integrate.api.nvidia.com/v1",
 };
