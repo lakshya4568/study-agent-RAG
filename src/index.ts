@@ -1,6 +1,11 @@
 import "dotenv/config";
 import { app, BrowserWindow, ipcMain, screen } from "electron";
-import { MCPClientManager, logger, initializeFileLogging } from "./client";
+import {
+  MCPClientManager,
+  logger,
+  initializeFileLogging,
+  ConfigManager,
+} from "./client";
 import type {
   MCPServerConfig,
   ServerInfo,
@@ -22,6 +27,7 @@ if (require("electron-squirrel-startup")) {
 // Initialize MCP Client Manager
 const mcpManager = new MCPClientManager();
 const studyAgentService = new StudyAgentService();
+const configManager = new ConfigManager();
 
 const createWindow = (): void => {
   // Get primary display work area size
@@ -56,6 +62,11 @@ app.on("ready", async () => {
   // Initialize file logging now that app is ready
   await initializeFileLogging();
   createWindow();
+
+  // Warm up the Study Agent so the UI immediately shows status
+  studyAgentService.initialize().catch((error) => {
+    logger.error("Study agent failed to initialize on startup", error);
+  });
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common
@@ -207,6 +218,37 @@ ipcMain.handle(
   ): Promise<Awaited<ReturnType<typeof studyAgentService.sendMessage>>> => {
     logger.info("Agent invocation requested", { threadId: payload.threadId });
     return studyAgentService.sendMessage(payload.message, payload.threadId);
+  }
+);
+
+ipcMain.handle("agent:getStatus", async () => {
+  await studyAgentService.initialize().catch((error) => {
+    logger.warn(
+      "Agent status requested before initialization completed",
+      error
+    );
+  });
+  return studyAgentService.getStatus();
+});
+
+ipcMain.handle(
+  "agent:reloadDocuments",
+  async (_event, documentPaths: string[]) => {
+    logger.info("Agent document reload requested", { documentPaths });
+    await studyAgentService.reloadDocuments(documentPaths);
+    return studyAgentService.getStatus();
+  }
+);
+
+ipcMain.handle("config:getSummary", () => {
+  return configManager.getSummary();
+});
+
+ipcMain.handle(
+  "config:update",
+  async (_event, values: Record<string, string | undefined>) => {
+    await configManager.update(values);
+    return configManager.getSummary();
   }
 );
 

@@ -6,8 +6,12 @@ import type {
   MCPServerConfig,
   ServerInfo,
   ToolExecutionResult,
+  ConfigSummaryItem,
 } from "./client/types";
-import type { AgentInvocationResult } from "./agent/StudyAgentService";
+import type {
+  AgentInvocationResult,
+  AgentStatus,
+} from "./agent/StudyAgentService";
 
 declare global {
   interface Window {
@@ -36,6 +40,14 @@ declare global {
         threadId: string;
         message: string;
       }) => Promise<AgentInvocationResult>;
+      getStatus: () => Promise<AgentStatus>;
+      reloadDocuments: (documentPaths: string[]) => Promise<AgentStatus>;
+    };
+    appConfig: {
+      getSummary: () => Promise<ConfigSummaryItem[]>;
+      update: (
+        values: Record<string, string | undefined>
+      ) => Promise<ConfigSummaryItem[]>;
     };
   }
 }

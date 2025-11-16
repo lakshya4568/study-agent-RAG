@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
-import { MessageSquare, Server, Activity } from 'lucide-react';
-import { MainLayout, Sidebar, TopBar } from './components/layout';
-import { Badge } from './components/ui';
-import { Chat } from './views/Chat';
-import { ServerManager } from './views/ServerManager';
+import React, { useState } from "react";
+import { MessageSquare, Server, Activity, Settings } from "lucide-react";
+import { MainLayout, Sidebar, TopBar } from "./components/layout";
+import { Badge } from "./components/ui";
+import { Chat } from "./views/Chat";
+import { ServerManager } from "./views/ServerManager";
+import { AgentConsole } from "./views/AgentConsole";
 
 export const App: React.FC = () => {
-  const [activeView, setActiveView] = useState<'chat' | 'servers'>('chat');
+  const [activeView, setActiveView] = useState<"chat" | "servers" | "agent">(
+    "chat"
+  );
 
   const sidebarHeader = (
     <div className="flex items-center gap-3">
@@ -31,20 +34,28 @@ export const App: React.FC = () => {
 
   const sidebarItems = [
     {
-      id: 'chat',
+      id: "chat",
       icon: MessageSquare,
-      label: 'Chat',
-      description: 'AI Study Assistant',
-      onClick: () => setActiveView('chat'),
-      active: activeView === 'chat',
+      label: "Chat",
+      description: "AI Study Assistant",
+      onClick: () => setActiveView("chat"),
+      active: activeView === "chat",
     },
     {
-      id: 'servers',
+      id: "servers",
       icon: Server,
-      label: 'Servers',
-      description: 'Manage MCP Servers',
-      onClick: () => setActiveView('servers'),
-      active: activeView === 'servers',
+      label: "Servers",
+      description: "Manage MCP Servers",
+      onClick: () => setActiveView("servers"),
+      active: activeView === "servers",
+    },
+    {
+      id: "agent",
+      icon: Settings,
+      label: "Agent Console",
+      description: "Status & configuration",
+      onClick: () => setActiveView("agent"),
+      active: activeView === "agent",
     },
   ];
 
@@ -68,12 +79,20 @@ export const App: React.FC = () => {
       }
       topBar={
         <TopBar
-          title={activeView === 'chat' ? 'Study Assistant' : 'MCP Servers'}
+          title={
+            activeView === "chat"
+              ? "Study Assistant"
+              : activeView === "servers"
+                ? "MCP Servers"
+                : "Agent Console"
+          }
           actions={topBarActions}
         />
       }
     >
-      {activeView === 'chat' ? <Chat /> : <ServerManager />}
+      {activeView === "chat" && <Chat />}
+      {activeView === "servers" && <ServerManager />}
+      {activeView === "agent" && <AgentConsole />}
     </MainLayout>
   );
 };

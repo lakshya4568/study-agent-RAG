@@ -3,7 +3,7 @@
  * Type definitions for MCP Client
  */
 
-import { Tool } from '@modelcontextprotocol/sdk/types.js';
+import { Tool } from "@modelcontextprotocol/sdk/types.js";
 
 /**
  * Configuration for connecting to an MCP server
@@ -25,10 +25,10 @@ export interface MCPServerConfig {
  * Status of an MCP server connection
  */
 export enum ServerStatus {
-  DISCONNECTED = 'disconnected',
-  CONNECTING = 'connecting',
-  CONNECTED = 'connected',
-  ERROR = 'error',
+  DISCONNECTED = "disconnected",
+  CONNECTING = "connecting",
+  CONNECTED = "connected",
+  ERROR = "error",
 }
 
 /**
@@ -50,6 +50,15 @@ export interface ToolExecutionResult {
   error?: string;
 }
 
+export interface ConfigSummaryItem {
+  key: string;
+  value?: string;
+  maskedValue?: string;
+  isSecret: boolean;
+  isSet: boolean;
+  description?: string;
+}
+
 /**
  * Configuration manager interface
  */
@@ -57,4 +66,7 @@ export interface IConfigManager {
   get<T>(key: string): T | undefined;
   set<T>(key: string, value: T): void;
   getAll(): Record<string, unknown>;
+  getSummary(): ConfigSummaryItem[];
+  update(values: Record<string, string | undefined>): Promise<void>;
+  getEnvPath(): string;
 }

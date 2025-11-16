@@ -79,4 +79,19 @@ contextBridge.exposeInMainWorld("studyAgent", {
   sendMessage: (payload: { threadId: string; message: string }) => {
     return ipcRenderer.invoke("agent:sendMessage", payload);
   },
+  getStatus: () => {
+    return ipcRenderer.invoke("agent:getStatus");
+  },
+  reloadDocuments: (documentPaths: string[]) => {
+    return ipcRenderer.invoke("agent:reloadDocuments", documentPaths);
+  },
+});
+
+contextBridge.exposeInMainWorld("appConfig", {
+  getSummary: () => {
+    return ipcRenderer.invoke("config:getSummary");
+  },
+  update: (values: Record<string, string | undefined>) => {
+    return ipcRenderer.invoke("config:update", values);
+  },
 });

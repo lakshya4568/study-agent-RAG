@@ -2,23 +2,61 @@
  * ConfigManager - Handles loading and accessing configuration
  */
 
-import * as dotenv from 'dotenv';
-import { IConfigManager } from './types';
+import * as dotenv from "dotenv";
+import fs from "node:fs";
+import path from "node:path";
+import { IConfigManager, ConfigSummaryItem } from "./types";
+
+const SECRET_KEYS = new Set([
+  "NVIDIA_API_KEY",
+  "GEMINI_API_KEY",
+  "ANTHROPIC_API_KEY",
+  "OPENAI_API_KEY",
+]);
+
+const KNOWN_KEYS: Array<{ key: string; description?: string }> = [
+  {
+    key: "NVIDIA_API_KEY",
+    description: "Required for NVIDIA NIM chat + embeddings",
+  },
+  {
+    key: "GEMINI_API_KEY",
+    description: "Optional Gemini provider for experimentation",
+  },
+  {
+    key: "ANTHROPIC_API_KEY",
+    description: "Optional Anthropic fallback",
+  },
+  {
+    key: "MCP_SERVER_PATH",
+    description: "Default MCP server entry point (absolute path)",
+  },
+  {
+    key: "MCP_SERVER_COMMAND",
+    description: "Executable used to launch MCP server",
+  },
+];
 
 export class ConfigManager implements IConfigManager {
   private config: Record<string, unknown> = {};
+  private readonly envPath: string;
 
-  constructor() {
-    // Load environment variables from .env file
-    dotenv.config();
-    
-    // Store relevant env vars
-    this.config = {
-      GEMINI_API_KEY: process.env.GEMINI_API_KEY,
-      ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
-      MCP_SERVER_PATH: process.env.MCP_SERVER_PATH,
-      MCP_SERVER_COMMAND: process.env.MCP_SERVER_COMMAND,
-    };
+  constructor(envPath?: string) {
+    this.envPath = envPath ?? path.resolve(process.cwd(), ".env");
+
+    if (fs.existsSync(this.envPath)) {
+      const parsed = dotenv.parse(fs.readFileSync(this.envPath));
+      this.config = { ...parsed };
+    }
+
+    dotenv.config({ path: this.envPath });
+
+    // Ensure runtime process.env values are reflected in the in-memory cache
+    for (const key of Object.keys(process.env)) {
+      if (process.env[key] !== undefined) {
+        this.config[key] = process.env[key] as string;
+      }
+    }
   }
 
   /**
@@ -43,6 +81,69 @@ export class ConfigManager implements IConfigManager {
   }
 
   /**
+   * Return human-friendly summary of the current configuration without leaking secrets
+   */
+  getSummary(): ConfigSummaryItem[] {
+    const keys = new Set([
+      ...KNOWN_KEYS.map((entry) => entry.key),
+      ...Object.keys(this.config),
+    ]);
+
+    return Array.from(keys).map((key) => {
+      const value = this.config[key];
+      const isSecret = SECRET_KEYS.has(key);
+      const description = KNOWN_KEYS.find(
+        (entry) => entry.key === key
+      )?.description;
+
+      return {
+        key,
+        description,
+        isSecret,
+        isSet: Boolean(value),
+        value: !isSecret ? (value as string | undefined) : undefined,
+        maskedValue: isSecret
+          ? this.maskValue(value as string | undefined)
+          : undefined,
+      } satisfies ConfigSummaryItem;
+    });
+  }
+
+  /**
+   * Update configuration values and persist to the .env file
+   */
+  async update(values: Record<string, string | undefined>): Promise<void> {
+    let mutated = false;
+
+    for (const [key, value] of Object.entries(values)) {
+      if (value === undefined || value === null || value === "") {
+        if (key in this.config) {
+          delete this.config[key];
+          delete process.env[key];
+          mutated = true;
+        }
+        continue;
+      }
+
+      if (this.config[key] !== value) {
+        this.config[key] = value;
+        process.env[key] = value;
+        mutated = true;
+      }
+    }
+
+    if (mutated) {
+      await fs.promises.writeFile(this.envPath, this.serializeConfig(), {
+        encoding: "utf-8",
+      });
+    }
+  }
+
+  getEnvPath(): string {
+    return this.envPath;
+  }
+
+  /**
    * Validate that required configuration is present
    */
   validate(requiredKeys: string[]): boolean {
@@ -53,5 +154,25 @@ export class ConfigManager implements IConfigManager {
       }
     }
     return true;
+  }
+
+  private maskValue(value?: string): string | undefined {
+    if (!value) return undefined;
+    if (value.length <= 4) {
+      return "*".repeat(value.length);
+    }
+    const start = value.slice(0, 4);
+    const end = value.slice(-4);
+    return `${start}****${end}`;
+  }
+
+  private serializeConfig(): string {
+    return Object.entries(this.config)
+      .map(([key, rawValue]) => {
+        const value = rawValue ?? "";
+        const sanitized = String(value).replace(/\n/g, "\\n");
+        return `${key}=${sanitized}`;
+      })
+      .join("\n");
   }
 }

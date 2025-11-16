@@ -28,6 +28,31 @@ export interface AgentInvocationResult {
   error?: string;
 }
 
+export interface AgentStatus {
+  initialized: boolean;
+  graphReady: boolean;
+  vectorStoreReady: boolean;
+  lastInitDurationMs?: number;
+  lastInitError?: string;
+  lastInvocationLatencyMs?: number;
+  documents: {
+    requested: string[];
+    loadedCount: number;
+    fallbackUsed: boolean;
+  };
+  mcpTools: {
+    enabled: boolean;
+    toolCount: number;
+    toolNames: string[];
+  };
+  environment: {
+    nvidiaApiKey: boolean;
+    geminiApiKey: boolean;
+    anthropicApiKey: boolean;
+  };
+  timestamp: number;
+}
+
 interface StudyAgentOptions {
   documentPaths?: string[];
 }
@@ -46,44 +71,143 @@ export class StudyAgentService {
   private vectorStore?: Chroma;
   private mcpTools?: LoadedStudyTools;
   private initPromise?: Promise<void>;
+  private options: StudyAgentOptions = {};
+  private currentDocumentPaths: string[] = [];
+  private loadedDocumentCount = 0;
+  private fallbackContextUsed = false;
+  private lastInvocationLatencyMs?: number;
+  private lastInitDurationMs?: number;
+  private lastInitError?: string;
 
-  constructor(private readonly options: StudyAgentOptions = {}) {}
+  constructor(options: StudyAgentOptions = {}) {
+    this.options = { ...options };
+  }
 
   async initialize(): Promise<void> {
     if (this.initPromise) {
       return this.initPromise;
     }
 
-    this.initPromise = this.setup();
+    this.initPromise = this.setup().catch((error) => {
+      this.initPromise = undefined;
+      throw error;
+    });
     return this.initPromise;
   }
 
   private async setup(): Promise<void> {
-    const docs = await loadStudyDocuments(this.resolveDocumentList());
+    const initStart = performance.now();
+    try {
+      logger.info("StudyAgentService setup: loading study documents...");
+      this.currentDocumentPaths = this.resolveDocumentList();
+      const docs = await loadStudyDocuments(this.currentDocumentPaths);
+      logger.info(`StudyAgentService setup: loaded ${docs.length} documents`);
 
-    if (docs.length === 0) {
-      docs.push(
-        new Document({
-          pageContent:
-            "Study Agent fallback context. Add documents to the repository (README, component docs) for richer answers.",
-        })
+      let fallbackInjected = false;
+      if (docs.length === 0) {
+        docs.push(
+          new Document({
+            pageContent:
+              "Study Agent fallback context. Add documents to the repository (README, component docs) for richer answers.",
+          })
+        );
+        logger.warn(
+          "StudyAgentService setup: no documents found, using fallback context"
+        );
+        fallbackInjected = true;
+      }
+
+      this.loadedDocumentCount = docs.length;
+      this.fallbackContextUsed = fallbackInjected;
+
+      logger.info("StudyAgentService setup: creating vector store");
+      this.vectorStore = await createStudyMaterialVectorStore(docs);
+      logger.info("StudyAgentService setup: vector store ready");
+
+      logger.info("StudyAgentService setup: loading MCP tools");
+      try {
+        this.mcpTools = await loadStudyMCPTools();
+        logger.info("StudyAgentService setup: MCP tools ready");
+      } catch (error) {
+        logger.warn(
+          "StudyAgentService setup: MCP tools unavailable, continuing without them",
+          error
+        );
+        this.mcpTools = undefined;
+      }
+
+      logger.info("StudyAgentService setup: building study mentor graph");
+      this.graph = await createStudyMentorGraph(
+        this.vectorStore,
+        this.mcpTools?.tools ?? []
       );
+      logger.info("Study agent initialized successfully.");
+      this.lastInitError = undefined;
+    } catch (error) {
+      this.lastInitError =
+        error instanceof Error ? error.message : String(error);
+      throw error;
+    } finally {
+      this.lastInitDurationMs = performance.now() - initStart;
     }
+  }
 
-    this.vectorStore = await createStudyMaterialVectorStore(docs);
-    this.mcpTools = await loadStudyMCPTools();
-    this.graph = await createStudyMentorGraph(
-      this.vectorStore,
-      this.mcpTools.tools
-    );
-    logger.info("Study agent initialized successfully.");
+  getStatus(): AgentStatus {
+    return {
+      initialized: Boolean(this.graph),
+      graphReady: Boolean(this.graph),
+      vectorStoreReady: Boolean(this.vectorStore),
+      lastInitDurationMs: this.lastInitDurationMs,
+      lastInitError: this.lastInitError,
+      lastInvocationLatencyMs: this.lastInvocationLatencyMs,
+      documents: {
+        requested: this.currentDocumentPaths,
+        loadedCount: this.loadedDocumentCount,
+        fallbackUsed: this.fallbackContextUsed,
+      },
+      mcpTools: {
+        enabled: Boolean(this.mcpTools?.tools?.length),
+        toolCount: this.mcpTools?.tools.length ?? 0,
+        toolNames: this.mcpTools?.tools.map((tool) => tool.name) ?? [],
+      },
+      environment: {
+        nvidiaApiKey: Boolean(process.env.NVIDIA_API_KEY),
+        geminiApiKey: Boolean(process.env.GEMINI_API_KEY),
+        anthropicApiKey: Boolean(process.env.ANTHROPIC_API_KEY),
+      },
+      timestamp: Date.now(),
+    };
   }
 
   private resolveDocumentList(): string[] {
     if (this.options.documentPaths?.length) {
-      return this.options.documentPaths;
+      return this.options.documentPaths.map((docPath) =>
+        path.isAbsolute(docPath)
+          ? docPath
+          : path.resolve(process.cwd(), docPath)
+      );
     }
     return DEFAULT_DOCS.map((doc) => path.resolve(process.cwd(), doc));
+  }
+
+  async reloadDocuments(documentPaths: string[]): Promise<void> {
+    if (this.initPromise) {
+      await this.initPromise.catch(() => undefined);
+    }
+    await this.dispose();
+    const cleaned = documentPaths
+      .map((docPath) => docPath.trim())
+      .filter((docPath) => docPath.length > 0)
+      .map((docPath) =>
+        path.isAbsolute(docPath)
+          ? docPath
+          : path.resolve(process.cwd(), docPath)
+      );
+    this.options = {
+      ...this.options,
+      documentPaths: cleaned.length ? cleaned : undefined,
+    };
+    await this.initialize();
   }
 
   async sendMessage(
@@ -93,10 +217,16 @@ export class StudyAgentService {
     const start = performance.now();
     try {
       await this.initialize();
+      logger.info(
+        `StudyAgentService sendMessage: initialized and processing thread ${threadId}`
+      );
       if (!this.graph) {
         throw new Error("Study agent graph not ready");
       }
 
+      logger.info(
+        `StudyAgentService sendMessage: invoking graph for message: ${message.substring(0, 100)}`
+      );
       const response: Partial<StudyAgentStateType> = await this.graph.invoke(
         {
           messages: [new HumanMessage(message)],
@@ -107,9 +237,13 @@ export class StudyAgentService {
           configurable: { thread_id: threadId },
         }
       );
+      logger.info("StudyAgentService sendMessage: graph invocation completed");
 
       const messages = response.messages || [];
       const finalMessage = messages[messages.length - 1];
+      logger.info(
+        `StudyAgentService sendMessage: returning ${messages.length} messages for thread ${threadId}`
+      );
       return {
         success: true,
         finalMessage:
@@ -125,6 +259,8 @@ export class StudyAgentService {
         success: false,
         error: error instanceof Error ? error.message : String(error),
       };
+    } finally {
+      this.lastInvocationLatencyMs = performance.now() - start;
     }
   }
 
@@ -162,5 +298,8 @@ export class StudyAgentService {
       }
       this.mcpTools = undefined;
     }
+    this.graph = undefined;
+    this.vectorStore = undefined;
+    this.initPromise = undefined;
   }
 }
