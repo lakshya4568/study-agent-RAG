@@ -57,7 +57,7 @@ class DatabaseManager {
   constructor() {
     const userDataPath = app.getPath("userData");
     const dbDir = path.join(userDataPath, "database");
-    
+
     // Ensure database directory exists
     if (!fs.existsSync(dbDir)) {
       fs.mkdirSync(dbDir, { recursive: true });
@@ -154,9 +154,9 @@ class DatabaseManager {
     `);
 
     // Initialize vector store state if not exists
-    const stateCheck = this.db.prepare(
-      "SELECT COUNT(*) as count FROM vector_store_state"
-    ).get() as { count: number };
+    const stateCheck = this.db
+      .prepare("SELECT COUNT(*) as count FROM vector_store_state")
+      .get() as { count: number };
 
     if (stateCheck.count === 0) {
       this.db
@@ -276,9 +276,7 @@ class DatabaseManager {
       .run(threadId);
 
     this.db
-      .prepare(
-        "UPDATE conversation_threads SET message_count = 0 WHERE id = ?"
-      )
+      .prepare("UPDATE conversation_threads SET message_count = 0 WHERE id = ?")
       .run(threadId);
 
     logger.info(`Cleared messages for thread: ${threadId}`);
@@ -448,9 +446,9 @@ class DatabaseManager {
     ).count;
 
     const messages = (
-      this.db
-        .prepare("SELECT COUNT(*) as count FROM chat_messages")
-        .get() as { count: number }
+      this.db.prepare("SELECT COUNT(*) as count FROM chat_messages").get() as {
+        count: number;
+      }
     ).count;
 
     const documents = (

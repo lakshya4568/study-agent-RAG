@@ -88,6 +88,9 @@ contextBridge.exposeInMainWorld("studyAgent", {
   addDocuments: (documentPaths: string[]) => {
     return ipcRenderer.invoke("agent:addDocuments", documentPaths);
   },
+  openFileDialog: () => {
+    return ipcRenderer.invoke("agent:openFileDialog");
+  },
 });
 
 contextBridge.exposeInMainWorld("appConfig", {
@@ -96,5 +99,32 @@ contextBridge.exposeInMainWorld("appConfig", {
   },
   update: (values: Record<string, string | undefined>) => {
     return ipcRenderer.invoke("config:update", values);
+  },
+});
+
+contextBridge.exposeInMainWorld("database", {
+  saveMessage: (message: ChatMessage) => {
+    return ipcRenderer.invoke("db:saveMessage", message);
+  },
+  getMessages: (threadId: string, limit?: number) => {
+    return ipcRenderer.invoke("db:getMessages", threadId, limit);
+  },
+  clearMessages: (threadId: string) => {
+    return ipcRenderer.invoke("db:clearMessages", threadId);
+  },
+  createThread: (id: string, title: string) => {
+    return ipcRenderer.invoke("db:createThread", id, title);
+  },
+  getAllThreads: () => {
+    return ipcRenderer.invoke("db:getAllThreads");
+  },
+  getAllDocuments: () => {
+    return ipcRenderer.invoke("db:getAllDocuments");
+  },
+  deleteDocument: (id: string) => {
+    return ipcRenderer.invoke("db:deleteDocument", id);
+  },
+  getStats: () => {
+    return ipcRenderer.invoke("db:getStats");
   },
 });

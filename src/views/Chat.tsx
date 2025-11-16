@@ -110,21 +110,50 @@ export const Chat: React.FC = () => {
   } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const threadIdRef = useRef<string>(`thread-${Date.now()}`);
 
   useEffect(() => {
     loadTools();
-    setMessages([
-      {
-        id: "welcome",
-        role: "system",
-        content:
-          "👋 Hey there! I'm Alex, your AI Study Mentor! 🎓\n\n✨ I'm here to help you:\n\n📚 **Study Smart** - Upload documents, create summaries, flashcards & quizzes\n💬 **Learn Better** - Ask questions, explore concepts, get explanations\n🎯 **Stay Organized** - Build study plans and track progress\n\n**Quick tip:** You can upload PDFs, text files, or markdown docs to add to my knowledge base!\n\nWhat would you like to learn today?",
-        timestamp: new Date(),
-      },
-    ]);
+    loadMessagesFromDb();
   }, []);
+
+  const loadMessagesFromDb = async () => {
+    try {
+      const dbMessages = await window.database.getMessages(threadIdRef.current);
+      if (dbMessages.length > 0) {
+        const loadedMessages: Message[] = dbMessages.map((msg) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date(msg.timestamp),
+        }));
+        setMessages(loadedMessages);
+      } else {
+        // Create thread and show welcome message
+        await window.database.createThread(
+          threadIdRef.current,
+          "New Conversation"
+        );
+        const welcomeMsg: Message = {
+          id: "welcome",
+          role: "system",
+          content:
+            "👋 Hey there! I'm Alex, your AI Study Mentor! 🎓\n\n✨ I'm here to help you:\n\n📚 **Study Smart** - Upload documents, create summaries, flashcards & quizzes\n💬 **Learn Better** - Ask questions, explore concepts, get explanations\n🎯 **Stay Organized** - Build study plans and track progress\n\n**Quick tip:** You can upload PDFs, text files, or markdown docs to add to my knowledge base!\n\nWhat would you like to learn today?",
+          timestamp: new Date(),
+        };
+        setMessages([welcomeMsg]);
+        await window.database.saveMessage({
+          id: welcomeMsg.id,
+          threadId: threadIdRef.current,
+          role: welcomeMsg.role,
+          content: welcomeMsg.content,
+          timestamp: welcomeMsg.timestamp.getTime(),
+        });
+      }
+    } catch (error) {
+      console.error("Failed to load messages from database:", error);
+    }
+  };
 
   useEffect(() => {
     scrollToBottom();
@@ -156,6 +185,15 @@ export const Chat: React.FC = () => {
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setLoading(true);
+
+    // Save user message to database
+    await window.database.saveMessage({
+      id: userMessage.id,
+      threadId: threadIdRef.current,
+      role: userMessage.role,
+      content: userMessage.content,
+      timestamp: userMessage.timestamp.getTime(),
+    });
 
     try {
       if (!window.studyAgent) {
@@ -201,6 +239,15 @@ export const Chat: React.FC = () => {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, assistantMessage]);
+
+      // Save assistant message to database
+      await window.database.saveMessage({
+        id: assistantMessage.id,
+        threadId: threadIdRef.current,
+        role: assistantMessage.role,
+        content: assistantMessage.content,
+        timestamp: assistantMessage.timestamp.getTime(),
+      });
     } catch (err) {
       const errorMessage: Message = {
         id: `msg-${Date.now()}`,
@@ -219,8 +266,9 @@ export const Chat: React.FC = () => {
     inputRef.current?.focus();
   };
 
-  const handleClearChat = () => {
+  const handleClearChat = async () => {
     if (confirm("Are you sure you want to clear the chat?")) {
+      await window.database.clearMessages(threadIdRef.current);
       setMessages([
         {
           id: "welcome",
@@ -239,29 +287,20 @@ export const Chat: React.FC = () => {
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
+  const handleFileUpload = async () => {
     setUploading(true);
     setUploadStatus(null);
 
     try {
-      const filePaths: string[] = [];
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        // For Electron, we get the full absolute path from the file object
-        // The .path property contains the absolute path in Electron
-        const filePath = (file as any).path;
+      // Open native file dialog
+      const dialogResult = await window.studyAgent.openFileDialog();
 
-        if (!filePath) {
-          throw new Error(
-            `Could not get file path for "${file.name}". Make sure you're running in Electron environment.`
-          );
-        }
-
-        filePaths.push(filePath);
+      if (!dialogResult.success || dialogResult.filePaths.length === 0) {
+        setUploading(false);
+        return;
       }
+
+      const filePaths = dialogResult.filePaths;
 
       if (!window.studyAgent) {
         throw new Error("Study agent runtime is unavailable.");
@@ -283,6 +322,15 @@ export const Chat: React.FC = () => {
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, successMsg]);
+
+        // Save success message to database
+        await window.database.saveMessage({
+          id: successMsg.id,
+          threadId: threadIdRef.current,
+          role: successMsg.role,
+          content: successMsg.content,
+          timestamp: successMsg.timestamp.getTime(),
+        });
       } else {
         throw new Error(result.errors.join(", ") || "Upload failed");
       }
@@ -300,12 +348,17 @@ export const Chat: React.FC = () => {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
+
+      // Save error message to database
+      await window.database.saveMessage({
+        id: errorMessage.id,
+        threadId: threadIdRef.current,
+        role: errorMessage.role,
+        content: errorMessage.content,
+        timestamp: errorMessage.timestamp.getTime(),
+      });
     } finally {
       setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-
       // Clear status after 5 seconds
       setTimeout(() => setUploadStatus(null), 5000);
     }
@@ -414,19 +467,11 @@ export const Chat: React.FC = () => {
               variant="ghost"
               size="sm"
               icon={<Upload className="w-4 h-4" />}
-              onClick={() => fileInputRef.current?.click()}
+              onClick={handleFileUpload}
               disabled={uploading}
             >
               {uploading ? "Uploading..." : "Upload Docs"}
             </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept=".pdf,.txt,.md,.mdx"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
             <Button
               variant="ghost"
               size="sm"
