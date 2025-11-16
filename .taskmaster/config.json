@@ -9,7 +9,7 @@
     "research": {
       "provider": "gemini-cli",
       "modelId": "gemini-2.5-pro",
-      "maxTokens": 8700,
+      "maxTokens": 65536,
       "temperature": 0.1
     },
     "fallback": {
@@ -34,10 +34,5 @@
     "azureOpenaiBaseURL": "https://your-endpoint.openai.azure.com/",
     "userId": "1234567890"
   },
-  "claudeCode": {},
-  "grokCli": {
-    "timeout": 120000,
-    "workingDirectory": null,
-    "defaultModel": "grok-4-latest"
-  }
+  "claudeCode": {}
 }

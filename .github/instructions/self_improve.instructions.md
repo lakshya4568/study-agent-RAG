@@ -38,7 +38,7 @@ applyTo: "**/*"
     where: { status: 'ACTIVE' }
   });
   
-  // Consider adding to [prisma.instructions.md]
+  // Consider adding to [prisma.instructions.md](.github/instructions/prisma.instructions.md):
   // - Standard select fields
   // - Common where conditions
   // - Performance optimization patterns
@@ -68,5 +68,4 @@ applyTo: "**/*"
   - Update references to external docs
   - Maintain links between related rules
   - Document breaking changes
-
-**Note:** When creating or updating rules, ensure they follow a consistent format with clear examples, proper categorization, and actionable guidance. Rules should be stored in the `.github/instructions/` directory with descriptive filenames ending in `.instructions.md`.
+Follow [vscode_rules.instructions.md](.github/instructions/vscode_rules.instructions.md) for proper rule formatting and structure.

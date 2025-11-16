@@ -103,12 +103,12 @@ dev-debug.log
 *.sw?
 # OS specific
 
-# Task files
-tasks.json
-tasks/ 
-
 .github
 .taskmaster
 
 
 .env.example
+
+# Task files
+tasks.json
+tasks/ 
