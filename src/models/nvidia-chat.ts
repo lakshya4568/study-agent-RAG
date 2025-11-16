@@ -1,6 +1,7 @@
 import { ChatOpenAI } from "@langchain/openai";
 
-const NVIDIA_CHAT_MODEL = "meta/llama-3.1-8b-instruct";
+// Upgraded to 70B model for better reasoning and complex queries
+const NVIDIA_CHAT_MODEL = "meta/llama-3.1-70b-instruct";
 const NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1";
 
 function getRequiredApiKey(): string {

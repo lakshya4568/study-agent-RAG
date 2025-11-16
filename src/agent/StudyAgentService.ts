@@ -2,7 +2,7 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import dotenv from "dotenv";
 import { HumanMessage } from "@langchain/core/messages";
-import type { MemoryVectorStore } from "langchain/vectorstores/memory";
+import { Chroma } from "@langchain/community/vectorstores/chroma";
 import { createStudyMentorGraph } from "./graph";
 import { loadStudyDocuments } from "../rag/document-loader";
 import { createStudyMaterialVectorStore } from "../rag/vector-store";
@@ -43,7 +43,7 @@ type StudyAgentGraph = Awaited<ReturnType<typeof createStudyMentorGraph>>;
 
 export class StudyAgentService {
   private graph?: StudyAgentGraph;
-  private vectorStore?: MemoryVectorStore;
+  private vectorStore?: Chroma;
   private mcpTools?: LoadedStudyTools;
   private initPromise?: Promise<void>;
 

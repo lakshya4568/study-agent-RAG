@@ -10,7 +10,11 @@
     "make": "electron-forge make",
     "publish": "electron-forge publish",
     "lint": "eslint --ext .ts --ext .tsx ./src ./forge.config.ts ./webpack.main.config.ts ./webpack.renderer.config.ts ./webpack.rules.ts ./webpack.plugins.ts",
-    "build:mcp": "tsc -p tsconfig.mcp.json"
+    "build:mcp": "tsc -p tsconfig.mcp.json",
+    "test:nvidia": "ts-node tests/test-nvidia-api.ts",
+    "test:chromadb": "ts-node tests/test-chromadb-rag.ts",
+    "test:agent": "ts-node tests/test-agent-e2e.ts",
+    "test:all": "npm run test:nvidia && npm run test:chromadb && npm run test:agent"
   },
   "keywords": [],
   "author": "Lakshya Sharma <lakshya4568@gmail.com>",
@@ -54,6 +58,8 @@
     "@tailwindcss/postcss": "^4.1.14",
     "@types/uuid": "^10.0.0",
     "autoprefixer": "^10.4.21",
+    "chromadb": "^3.1.4",
+    "chromadb-default-embed": "^2.14.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dotenv": "^16.4.5",

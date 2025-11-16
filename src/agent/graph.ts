@@ -1,13 +1,13 @@
 import { StateGraph, START, END, MemorySaver } from "@langchain/langgraph";
 import type { CompiledStateGraph } from "@langchain/langgraph";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
-import type { MemoryVectorStore } from "langchain/vectorstores/memory";
+import { Chroma } from "@langchain/community/vectorstores/chroma";
 import type { StudyAgentStateType } from "./state";
 import { StudyAgentState } from "./state";
 import { queryNode, retrieveNode, generateNode } from "./nodes";
 
 export async function createStudyMentorGraph(
-  vectorStore: MemoryVectorStore,
+  vectorStore: Chroma,
   tools: ConstructorParameters<typeof ToolNode>[0]
 ): Promise<
   CompiledStateGraph<StudyAgentStateType, Partial<StudyAgentStateType>>

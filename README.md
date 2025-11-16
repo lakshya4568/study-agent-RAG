@@ -1,20 +1,101 @@
-# Study Agent MCP Client (Electron + TypeScript)
+# 🧠 AI Study Agent - RAG-Powered Learning Assistant
 
-An agent-ready, desktop Model Context Protocol (MCP) client for study workflows: summarization, flashcards, quiz generation, and mentoring. Built with Electron Forge (Webpack + TypeScript) and designed to connect to any MCP-compliant server while remaining LLM and framework agnostic.
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Electron](https://img.shields.io/badge/Electron-47848F?style=flat&logo=electron&logoColor=white)](https://www.electronjs.org/)
+[![NVIDIA](https://img.shields.io/badge/NVIDIA-76B900?style=flat&logo=nvidia&logoColor=white)](https://build.nvidia.com/)
+[![LangChain](https://img.shields.io/badge/LangChain-121212?style=flat)](https://js.langchain.com/)
+[![ChromaDB](https://img.shields.io/badge/ChromaDB-FF6B6B?style=flat)](https://www.trychroma.com/)
 
-This README explains the architecture, project structure, how the app works, and three production-capable AI agent implementations you can adopt without code snippets: (1) LangChain-based RAG, (2) NVIDIA NeMo/Agent Toolkit path, and (3) Google Vertex AI Agent Builder path. It also details how MCP fits into the design for tool discovery and execution.
+An intelligent desktop study assistant powered by **NVIDIA NIM models**, **LangChain**, and **ChromaDB**. Uses Retrieval-Augmented Generation (RAG) to provide accurate, context-aware answers from your study materials.
 
-## Project status
+## ✨ Features
 
-Early-stage application scaffold with a working Electron runtime, modular client/transport layers, and UI foundations. The MCP client manager, session wiring, and transport abstractions are in place to support multi-server connections, tool discovery, and tool execution. You will integrate your preferred agent stack (LangChain, NVIDIA, or Google) following the guidance below.
+- 🤖 **Advanced AI Models**: NVIDIA's latest embedding (nv-embedqa-e5-v5) and chat models (Llama 3.1 70B)
+- 📚 **RAG Pipeline**: Retrieve relevant context from your documents before answering
+- 🗄️ **Persistent Storage**: ChromaDB vector database for efficient semantic search
+- 📝 **Multi-Format Support**: PDF, Markdown, text files, and code files
+- 🎯 **Source Citations**: Automatic citation of sources in responses
+- 💬 **Conversational Memory**: Context-aware multi-turn conversations
+- 🔧 **MCP Integration**: Extensible tool system via Model Context Protocol
+- 🎨 **Modern UI**: React + Tailwind CSS with Electron
 
-## Key capabilities
+## 🚀 Quick Start
 
-- Universal MCP client: discover tools from any MCP server, run tools via a unified API, and orchestrate multiple servers at once
-- Agent-ready design: isolate transports, sessions, and tool registry for clean integration with agent frameworks
-- Study workflows by composition: PDF summarization, flashcard generation, quiz creation (e.g., via a Google Forms MCP server), and mentoring
-- Desktop-first: Electron app with strict isolation between main and renderer via a preload boundary
-- Strong typing and modularity: TypeScript-first design with focused separation of concerns
+### Prerequisites
+
+- Node.js 18+
+- Docker (for ChromaDB)
+- NVIDIA API Key ([Get one free](https://build.nvidia.com/))
+
+### Installation
+
+1. **Clone and install**
+
+   ```bash
+   git clone <repo-url>
+   cd study-agent-RAG
+   npm install
+   ```
+
+2. **Setup environment**
+
+   ```bash
+   cp .env.example .env
+   # Edit .env and add your NVIDIA_API_KEY
+   ```
+
+3. **Start ChromaDB**
+
+   ```bash
+   docker run -p 8000:8000 chromadb/chroma
+   ```
+
+4. **Build and run**
+
+   ```bash
+   npm run build:mcp
+   npm start
+   ```
+
+**Quick verification**: Run `.\verify-setup.ps1` to check all prerequisites.
+
+## 📖 Documentation
+
+- **[Complete Setup Guide](SETUP_GUIDE.md)** - Detailed installation and configuration
+- **[Implementation Summary](IMPLEMENTATION_SUMMARY.md)** - Technical details and architecture
+- **[Component Guide](COMPONENT_USAGE_GUIDE.md)** - UI components reference
+
+## 🧪 Testing
+
+```bash
+# Test NVIDIA API integration
+npm run test:nvidia
+
+# Test ChromaDB and RAG pipeline
+npm run test:chromadb
+
+# Test full agent end-to-end
+npm run test:agent
+
+# Run all tests
+npm run test:all
+```
+
+## 🎯 Technology Stack
+
+### AI & ML
+
+- **NVIDIA NIM**: Latest embedding and chat models
+- **LangChain**: AI application framework
+- **LangGraph**: State machine orchestration
+- **ChromaDB**: Vector database for embeddings
+
+### Application
+
+- **Electron**: Cross-platform desktop app
+- **React**: UI framework
+- **TypeScript**: Type-safe development
+- **Tailwind CSS**: Styling
 
 ## How the app is organized
 

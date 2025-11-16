@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { app, BrowserWindow, ipcMain, screen } from "electron";
-import { MCPClientManager, logger } from "./client";
+import { MCPClientManager, logger, initializeFileLogging } from "./client";
 import type {
   MCPServerConfig,
   ServerInfo,
@@ -52,7 +52,11 @@ const createWindow = (): void => {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.on("ready", createWindow);
+app.on("ready", async () => {
+  // Initialize file logging now that app is ready
+  await initializeFileLogging();
+  createWindow();
+});
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits

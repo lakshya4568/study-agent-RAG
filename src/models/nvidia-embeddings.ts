@@ -3,7 +3,10 @@ import {
   type OpenAIEmbeddingsParams,
 } from "@langchain/openai";
 
-const NVIDIA_EMBED_MODEL = "nvidia/nv-embed-qa";
+// Latest NVIDIA embedding model optimized for Q&A and semantic search
+// Using -passage suffix for document/passage embeddings (for indexing)
+// Note: For queries, use -query suffix instead
+const NVIDIA_EMBED_MODEL = "nvidia/nv-embedqa-e5-v5-passage";
 const NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1";
 
 function getRequiredApiKey(): string {
