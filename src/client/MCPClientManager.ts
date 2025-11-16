@@ -3,9 +3,14 @@
  * MCPClientManager - Manages multiple MCP server connections
  */
 
-import { MCPSession } from './MCPSession';
-import { MCPServerConfig, ServerInfo, ServerStatus, ToolExecutionResult } from './types';
-import { Tool } from '@modelcontextprotocol/sdk/types.js';
+import { MCPSession } from "./MCPSession";
+import {
+  MCPServerConfig,
+  ServerInfo,
+  ServerStatus,
+  ToolExecutionResult,
+} from "./types";
+import { Tool } from "@modelcontextprotocol/sdk/types.js";
 
 export class MCPClientManager {
   private sessions = new Map<string, MCPSession>();
@@ -19,6 +24,13 @@ export class MCPClientManager {
     }
 
     const session = new MCPSession(config);
+
+    // Register callback for tool changes
+    session.onToolsChanged(() => {
+      console.log(`[MCPClientManager] Tools changed for server ${config.id}`);
+      // Could emit an event here if needed for UI updates
+    });
+
     this.sessions.set(config.id, session);
 
     try {
@@ -131,8 +143,8 @@ export class MCPClientManager {
    * Disconnect from all servers
    */
   async disconnectAll(): Promise<void> {
-    const disconnectPromises = Array.from(this.sessions.values()).map((session) =>
-      session.disconnect()
+    const disconnectPromises = Array.from(this.sessions.values()).map(
+      (session) => session.disconnect()
     );
     await Promise.all(disconnectPromises);
     this.sessions.clear();

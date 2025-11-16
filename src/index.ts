@@ -240,6 +240,14 @@ ipcMain.handle(
   }
 );
 
+ipcMain.handle(
+  "agent:addDocuments",
+  async (_event, documentPaths: string[]) => {
+    logger.info("Agent add documents requested", { documentPaths });
+    return await studyAgentService.addDocuments(documentPaths);
+  }
+);
+
 ipcMain.handle("config:getSummary", () => {
   return configManager.getSummary();
 });

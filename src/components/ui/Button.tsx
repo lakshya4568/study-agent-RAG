@@ -1,44 +1,47 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { cn } from '../../lib/utils';
+import React from "react";
+import { motion } from "framer-motion";
+import { cn } from "../../lib/utils";
 
 interface ButtonProps {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
-  size?: 'sm' | 'md' | 'lg';
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
+  size?: "sm" | "md" | "lg";
   children: React.ReactNode;
   icon?: React.ReactNode;
   loading?: boolean;
   className?: string;
   disabled?: boolean;
   onClick?: () => void;
-  type?: 'button' | 'submit' | 'reset';
+  type?: "button" | "submit" | "reset";
 }
 
 export const Button: React.FC<ButtonProps> = ({
-  variant = 'primary',
-  size = 'md',
+  variant = "primary",
+  size = "md",
   children,
   icon,
   loading = false,
   className,
   disabled,
   onClick,
-  type = 'button',
+  type = "button",
 }) => {
-  const baseStyles = 'inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed';
-  
+  const baseStyles =
+    "inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed";
+
   const variants = {
-    primary: 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg hover:shadow-xl hover:scale-105',
-    secondary: 'bg-white/10 backdrop-blur-md text-white border border-white/20 hover:bg-white/20',
-    outline: 'border-2 border-purple-500 text-purple-600 hover:bg-purple-50',
-    ghost: 'text-gray-600 hover:bg-gray-100',
-    danger: 'bg-red-500 text-white hover:bg-red-600 shadow-lg',
+    primary:
+      "bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg hover:shadow-xl hover:scale-105 shadow-emerald-500/30",
+    secondary:
+      "bg-white/10 backdrop-blur-md text-white border border-white/20 hover:bg-white/20",
+    outline: "border-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50",
+    ghost: "text-gray-600 hover:bg-emerald-50",
+    danger: "bg-red-500 text-white hover:bg-red-600 shadow-lg",
   };
-  
+
   const sizes = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2 text-base',
-    lg: 'px-6 py-3 text-lg',
+    sm: "px-3 py-1.5 text-sm",
+    md: "px-4 py-2 text-base",
+    lg: "px-6 py-3 text-lg",
   };
 
   return (

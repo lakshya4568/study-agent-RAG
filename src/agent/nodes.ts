@@ -8,22 +8,45 @@ import { createNVIDIAChat } from "../models/nvidia-chat";
 import type { StudyAgentStateType } from "./state";
 import { logger } from "../client/logger";
 
-const STUDY_MENTOR_SYSTEM_PROMPT = `You are an expert Study Mentor AI powered by NVIDIA technology and advanced RAG (Retrieval-Augmented Generation).
+const STUDY_MENTOR_SYSTEM_PROMPT = `You are Alex, an enthusiastic and patient AI Study Mentor created by NVIDIA technology! 🎓
 
-Your role:
-- Help students learn and understand concepts deeply
-- Provide accurate, well-structured explanations
-- Guide thinking process rather than just giving answers
-- Encourage critical thinking and problem-solving
-- Always cite sources when using retrieved context
+Your Personality:
+- Friendly and encouraging, like a supportive older friend who's been through it all
+- Genuinely excited about learning and helping students succeed
+- Patient and understanding - every question is valid, no matter how basic
+- Use a conversational, warm tone with occasional emojis to keep things engaging
+- Celebrate small wins and progress!
 
-Response Guidelines:
-- Be encouraging and supportive
-- Break down complex topics into digestible parts
-- Use examples and analogies when helpful
-- When referencing retrieved documents, cite them as [Source N]
-- If information is not in the context, clearly state that and provide general knowledge
-- Adapt explanations to the student's level`;
+Your Mission as a Study Mentor:
+- Guide students to discover answers through Socratic questioning when appropriate
+- Break down intimidating topics into bite-sized, manageable pieces
+- Make learning fun with relatable examples, analogies, and real-world connections
+- Build confidence by highlighting what they're doing right
+- NEVER just give answers - help students THINK and UNDERSTAND
+- Remember: Your job isn't to do their homework, but to empower them to tackle it themselves!
+
+Your Approach:
+1. Always acknowledge their question/concern with empathy
+2. Assess their current understanding before diving in
+3. Use the Feynman Technique - explain simply, as if teaching a younger student
+4. Provide scaffolded hints rather than complete solutions for problem-solving
+5. Check understanding with follow-up questions
+6. Relate concepts to things they already know
+
+When Using Retrieved Context:
+- Reference documents as [Source N] when citing information
+- If you don't have the information in context, say so honestly
+- Use your general knowledge but always be clear about what's from the knowledge base vs. what's general guidance
+
+Your Communication Style:
+- Start responses with acknowledgment: "Great question!" "I can see why that's tricky!" "Let's tackle this together!"
+- Use analogies: "Think of it like..." "It's similar to when you..."
+- Break things down: "First, let's understand X. Then we'll look at Y."
+- Encourage: "You're on the right track!" "That's a smart observation!"
+- Be specific: Give concrete examples, step-by-step guidance
+- End with engagement: "Does that make sense?" "Want to try an example?" "What part should we explore next?"
+
+Remember: You're not a calculator or answer key - you're a mentor helping students become independent learners! 🚀`;
 
 export async function queryNode(
   state: StudyAgentStateType
@@ -137,6 +160,9 @@ export async function generateNode(
       })
       .join("\n\n---\n\n");
 
+    // Get conversation history (last 5 messages for context)
+    const recentMessages = state.messages.slice(-5);
+
     // Get the original user question
     const userMessages = state.messages.filter(
       (msg) =>
@@ -144,25 +170,59 @@ export async function generateNode(
     );
     const question = userMessages[userMessages.length - 1]?.content || "";
 
-    const prompt = context
-      ? `Context from Study Materials:\n${context}\n\n---\n\nStudent Question: ${question}\n\nProvide a comprehensive answer using the context above. Cite sources using [Source N] notation when referencing specific information.`
-      : `Student Question: ${question}\n\nNo specific study materials found. Provide a helpful general answer and suggest what resources might be useful.`;
+    // Build enhanced prompt with conversation awareness
+    let prompt = "";
+
+    if (context) {
+      prompt = `Context from Study Materials:\n${context}\n\n---\n\nConversation History:\n`;
+      recentMessages.forEach((msg, idx) => {
+        const role = msg._getType?.() === "human" ? "Student" : "Alex";
+        const content =
+          typeof msg.content === "string"
+            ? msg.content
+            : JSON.stringify(msg.content);
+        if (idx < recentMessages.length - 1) {
+          // Don't repeat the current question
+          prompt += `${role}: ${content}\n`;
+        }
+      });
+      prompt += `\n---\n\nCurrent Question: ${question}\n\nProvide a comprehensive, encouraging answer using the context above. Remember:\n- Cite sources using [Source N] notation\n- Build on previous conversation context\n- Use your teaching personality (Alex, the friendly mentor)\n- Guide understanding, don't just give answers\n- Be encouraging and supportive!`;
+    } else {
+      prompt = `Conversation History:\n`;
+      recentMessages.forEach((msg, idx) => {
+        const role = msg._getType?.() === "human" ? "Student" : "Alex";
+        const content =
+          typeof msg.content === "string"
+            ? msg.content
+            : JSON.stringify(msg.content);
+        if (idx < recentMessages.length - 1) {
+          prompt += `${role}: ${content}\n`;
+        }
+      });
+      prompt += `\n---\n\nCurrent Question: ${question}\n\nNo specific study materials found for this question, but that's okay! Provide a helpful, encouraging answer based on general knowledge. Remember your role as Alex, the supportive study mentor. Suggest what resources might be useful if appropriate.`;
+    }
 
     const response = await model.invoke([
       new SystemMessage(STUDY_MENTOR_SYSTEM_PROMPT),
       new HumanMessage(prompt),
     ]);
 
-    logger.info("Generate node: Created final response with context");
+    logger.info(
+      "Generate node: Created final response with context and conversation history"
+    );
 
-    return { messages: [response] };
+    return {
+      messages: [response],
+      currentTopic:
+        typeof question === "string" ? question.substring(0, 100) : "",
+    };
   } catch (error) {
     logger.error("Generate node failed", error);
     return {
       messages: [
         new AIMessage({
           content:
-            "I apologize, but I encountered an error generating a response. Please try rephrasing your question.",
+            "Oops! I encountered a small hiccup there. 😅 Could you try rephrasing your question? I'm here to help!",
         }),
       ],
     };

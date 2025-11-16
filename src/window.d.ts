@@ -42,6 +42,11 @@ declare global {
       }) => Promise<AgentInvocationResult>;
       getStatus: () => Promise<AgentStatus>;
       reloadDocuments: (documentPaths: string[]) => Promise<AgentStatus>;
+      addDocuments: (documentPaths: string[]) => Promise<{
+        success: boolean;
+        addedCount: number;
+        errors: string[];
+      }>;
     };
     appConfig: {
       getSummary: () => Promise<ConfigSummaryItem[]>;

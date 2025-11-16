@@ -11,47 +11,16 @@ import { logger } from "../client/logger";
 import type { BaseMessage } from "@langchain/core/messages";
 import { Document } from "@langchain/core/documents";
 import type { StudyAgentStateType } from "./state";
+import type {
+  AgentMessageDTO,
+  AgentInvocationResult,
+  AgentStatus,
+} from "./types";
+
+// Re-export types for convenience
+export type { AgentMessageDTO, AgentInvocationResult, AgentStatus };
 
 dotenv.config();
-
-export interface AgentMessageDTO {
-  role: string;
-  content: string;
-  name?: string;
-}
-
-export interface AgentInvocationResult {
-  success: boolean;
-  finalMessage?: string;
-  messages?: AgentMessageDTO[];
-  latencyMs?: number;
-  error?: string;
-}
-
-export interface AgentStatus {
-  initialized: boolean;
-  graphReady: boolean;
-  vectorStoreReady: boolean;
-  lastInitDurationMs?: number;
-  lastInitError?: string;
-  lastInvocationLatencyMs?: number;
-  documents: {
-    requested: string[];
-    loadedCount: number;
-    fallbackUsed: boolean;
-  };
-  mcpTools: {
-    enabled: boolean;
-    toolCount: number;
-    toolNames: string[];
-  };
-  environment: {
-    nvidiaApiKey: boolean;
-    geminiApiKey: boolean;
-    anthropicApiKey: boolean;
-  };
-  timestamp: number;
-}
 
 interface StudyAgentOptions {
   documentPaths?: string[];
@@ -208,6 +177,84 @@ export class StudyAgentService {
       documentPaths: cleaned.length ? cleaned : undefined,
     };
     await this.initialize();
+  }
+
+  /**
+   * Add new documents to the vector store without full reinitialization
+   */
+  async addDocuments(
+    documentPaths: string[]
+  ): Promise<{ success: boolean; addedCount: number; errors: string[] }> {
+    try {
+      await this.initialize();
+
+      if (!this.vectorStore) {
+        throw new Error("Vector store not initialized");
+      }
+
+      logger.info(
+        `Adding ${documentPaths.length} new documents to vector store`
+      );
+      const resolvedPaths = documentPaths.map((docPath) =>
+        path.isAbsolute(docPath)
+          ? docPath
+          : path.resolve(process.cwd(), docPath)
+      );
+
+      const newDocs = await loadStudyDocuments(resolvedPaths);
+
+      if (newDocs.length === 0) {
+        return {
+          success: false,
+          addedCount: 0,
+          errors: ["No valid documents could be loaded"],
+        };
+      }
+
+      // Important: Split documents into chunks before adding to vector store
+      // NVIDIA embedding model has a 512 token limit
+      const { RecursiveCharacterTextSplitter } = await import(
+        "@langchain/textsplitters"
+      );
+      const splitter = new RecursiveCharacterTextSplitter({
+        chunkSize: 400,
+        chunkOverlap: 50,
+        separators: ["\n\n", "\n", ". ", " ", ""],
+      });
+      const chunks = await splitter.splitDocuments(newDocs);
+
+      logger.info(
+        `Split ${newDocs.length} documents into ${chunks.length} chunks`
+      );
+
+      // Add chunked documents to existing vector store
+      await this.vectorStore.addDocuments(chunks);
+
+      // Update tracking
+      this.currentDocumentPaths = [
+        ...this.currentDocumentPaths,
+        ...resolvedPaths,
+      ];
+      this.loadedDocumentCount += newDocs.length;
+
+      logger.info(
+        `Successfully added ${newDocs.length} documents (${chunks.length} chunks) to vector store`
+      );
+
+      return {
+        success: true,
+        addedCount: newDocs.length,
+        errors: [],
+      };
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      logger.error(`Failed to add documents: ${errorMsg}`);
+      return {
+        success: false,
+        addedCount: 0,
+        errors: [errorMsg],
+      };
+    }
   }
 
   async sendMessage(

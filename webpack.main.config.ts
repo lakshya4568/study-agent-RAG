@@ -18,7 +18,7 @@ export const mainConfig: Configuration = {
     extensions: [".js", ".ts", ".jsx", ".tsx", ".css", ".json"],
   },
   node: {
-    __dirname: false,
-    __filename: false,
+    __dirname: true,
+    __filename: true,
   },
 };

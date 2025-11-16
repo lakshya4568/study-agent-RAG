@@ -16,7 +16,7 @@ import {
   LoadingSpinner,
   TextArea,
 } from "../components/ui";
-import type { AgentStatus } from "../agent/StudyAgentService";
+import type { AgentStatus } from "../agent/types";
 import type { ConfigSummaryItem } from "../client/types";
 
 interface ConfigFormState {

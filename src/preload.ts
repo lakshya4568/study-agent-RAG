@@ -85,6 +85,9 @@ contextBridge.exposeInMainWorld("studyAgent", {
   reloadDocuments: (documentPaths: string[]) => {
     return ipcRenderer.invoke("agent:reloadDocuments", documentPaths);
   },
+  addDocuments: (documentPaths: string[]) => {
+    return ipcRenderer.invoke("agent:addDocuments", documentPaths);
+  },
 });
 
 contextBridge.exposeInMainWorld("appConfig", {

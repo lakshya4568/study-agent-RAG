@@ -21,9 +21,13 @@ export async function createStudyMaterialVectorStore(
     `Initializing in-memory ChromaDB vector store with ${documents.length} documents`
   );
 
+  // NVIDIA embedding model has a 512 token limit
+  // Using smaller chunks to ensure we stay within the limit
+  // Tokens ≈ characters/4, so 512 tokens ≈ 2048 chars max
+  // We use 400 chars per chunk to be safe (≈100 tokens)
   const splitter = new RecursiveCharacterTextSplitter({
-    chunkSize: 1000,
-    chunkOverlap: 200,
+    chunkSize: 400,
+    chunkOverlap: 50,
     separators: ["\n\n", "\n", ". ", " ", ""],
   });
 
