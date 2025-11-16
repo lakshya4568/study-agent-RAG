@@ -5,7 +5,7 @@
 
 import { MCPSession } from './MCPSession';
 import { MCPServerConfig, ServerInfo, ServerStatus, ToolExecutionResult } from './types';
-import { Tool } from '@modelcontextprotocol/sdk/types';
+import { Tool } from '@modelcontextprotocol/sdk/types.js';
 
 export class MCPClientManager {
   private sessions = new Map<string, MCPSession>();

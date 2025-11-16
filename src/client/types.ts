@@ -3,7 +3,7 @@
  * Type definitions for MCP Client
  */
 
-import { Tool } from '@modelcontextprotocol/sdk/types';
+import { Tool } from '@modelcontextprotocol/sdk/types.js';
 
 /**
  * Configuration for connecting to an MCP server

@@ -3,9 +3,9 @@
  * MCPSession - Manages a connection to a single MCP server
  */
 
-import { Client } from '@modelcontextprotocol/sdk/client/index';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio';
-import { Tool } from '@modelcontextprotocol/sdk/types';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { MCPServerConfig, ServerStatus, ToolExecutionResult } from './types';
 
 export class MCPSession {

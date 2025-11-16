@@ -1,18 +1,7 @@
-import type { Configuration } from 'webpack';
+import type { Configuration } from "webpack";
 
-import { rules } from './webpack.rules';
-import { plugins } from './webpack.plugins';
-
-rules.push({
-  test: /\.tsx?$/,
-  exclude: /node_modules/,
-  use: {
-    loader: 'ts-loader',
-    options: {
-      transpileOnly: true,
-    },
-  },
-});
+import { rules } from "./webpack.rules";
+import { plugins } from "./webpack.plugins";
 
 export const rendererConfig: Configuration = {
   module: {
@@ -20,6 +9,6 @@ export const rendererConfig: Configuration = {
   },
   plugins,
   resolve: {
-    extensions: ['.js', '.ts', '.jsx', '.tsx', '.css'],
+    extensions: [".js", ".ts", ".jsx", ".tsx", ".css"],
   },
 };

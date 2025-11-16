@@ -1,12 +1,29 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Sparkles, FileText, Brain, BookOpen, Lightbulb, Calendar, PenTool, Trash2 } from 'lucide-react';
-import { ContentContainer } from '../components/layout';
-import { Button, TextArea, QuickActionCard, MessageBubble, LoadingSpinner, Badge } from '../components/ui';
+import React, { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Send,
+  Sparkles,
+  FileText,
+  Brain,
+  BookOpen,
+  Lightbulb,
+  Calendar,
+  PenTool,
+  Trash2,
+} from "lucide-react";
+import { ContentContainer } from "../components/layout";
+import {
+  Button,
+  TextArea,
+  QuickActionCard,
+  MessageBubble,
+  LoadingSpinner,
+  Badge,
+} from "../components/ui";
 
 interface Message {
   id: string;
-  role: 'user' | 'assistant' | 'system';
+  role: "user" | "assistant" | "system";
   content: string;
   timestamp: Date;
   toolCalls?: ToolCall[];
@@ -27,29 +44,73 @@ interface Tool {
 }
 
 const quickActions = [
-  { id: 'summarize', Icon: FileText, title: 'Summarize', description: 'Create a summary of your document', prompt: 'I need help summarizing a document. What should I do?', gradient: 'from-blue-500 to-cyan-500' },
-  { id: 'flashcards', Icon: Brain, title: 'Flashcards', description: 'Generate study flashcards', prompt: 'Can you help me create flashcards for studying?', gradient: 'from-purple-500 to-pink-500' },
-  { id: 'quiz', Icon: BookOpen, title: 'Create Quiz', description: 'Generate a quiz to test knowledge', prompt: 'I want to create a quiz to test my knowledge.', gradient: 'from-green-500 to-emerald-500' },
-  { id: 'explain', Icon: Lightbulb, title: 'Explain', description: 'Get explanations for complex topics', prompt: 'Can you explain a concept to me in simple terms?', gradient: 'from-yellow-500 to-orange-500' },
-  { id: 'schedule', Icon: Calendar, title: 'Study Plan', description: 'Create a study schedule', prompt: 'Help me create an effective study schedule.', gradient: 'from-red-500 to-pink-500' },
-  { id: 'practice', Icon: PenTool, title: 'Practice', description: 'Practice with exercises', prompt: 'I want to practice with some exercises.', gradient: 'from-indigo-500 to-purple-500' },
+  {
+    id: "summarize",
+    Icon: FileText,
+    title: "Summarize",
+    description: "Create a summary of your document",
+    prompt: "I need help summarizing a document. What should I do?",
+    gradient: "from-blue-500 to-cyan-500",
+  },
+  {
+    id: "flashcards",
+    Icon: Brain,
+    title: "Flashcards",
+    description: "Generate study flashcards",
+    prompt: "Can you help me create flashcards for studying?",
+    gradient: "from-purple-500 to-pink-500",
+  },
+  {
+    id: "quiz",
+    Icon: BookOpen,
+    title: "Create Quiz",
+    description: "Generate a quiz to test knowledge",
+    prompt: "I want to create a quiz to test my knowledge.",
+    gradient: "from-green-500 to-emerald-500",
+  },
+  {
+    id: "explain",
+    Icon: Lightbulb,
+    title: "Explain",
+    description: "Get explanations for complex topics",
+    prompt: "Can you explain a concept to me in simple terms?",
+    gradient: "from-yellow-500 to-orange-500",
+  },
+  {
+    id: "schedule",
+    Icon: Calendar,
+    title: "Study Plan",
+    description: "Create a study schedule",
+    prompt: "Help me create an effective study schedule.",
+    gradient: "from-red-500 to-pink-500",
+  },
+  {
+    id: "practice",
+    Icon: PenTool,
+    title: "Practice",
+    description: "Practice with exercises",
+    prompt: "I want to practice with some exercises.",
+    gradient: "from-indigo-500 to-purple-500",
+  },
 ];
 
 export const Chat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [tools, setTools] = useState<Tool[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const threadIdRef = useRef<string>(`thread-${Date.now()}`);
 
   useEffect(() => {
     loadTools();
     setMessages([
       {
-        id: 'welcome',
-        role: 'system',
-        content: '👋 Welcome to Study Agent! I can help you with:\n\n📚 Study Mode: Summarize documents, create flashcards, generate quizzes\n💬 Chat Mode: General conversation and assistance\n\nWhat would you like to work on today?',
+        id: "welcome",
+        role: "system",
+        content:
+          "👋 Welcome to Study Agent! I can help you with:\n\n📚 Study Mode: Summarize documents, create flashcards, generate quizzes\n💬 Chat Mode: General conversation and assistance\n\nWhat would you like to work on today?",
         timestamp: new Date(),
       },
     ]);
@@ -60,7 +121,7 @@ export const Chat: React.FC = () => {
   }, [messages]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   const loadTools = async () => {
@@ -68,7 +129,7 @@ export const Chat: React.FC = () => {
       const allTools = await window.mcpClient.getAllTools();
       setTools(allTools);
     } catch (err) {
-      console.error('Failed to load tools:', err);
+      console.error("Failed to load tools:", err);
     }
   };
 
@@ -77,35 +138,68 @@ export const Chat: React.FC = () => {
 
     const userMessage: Message = {
       id: `msg-${Date.now()}`,
-      role: 'user',
+      role: "user",
       content: input.trim(),
       timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    setInput('');
+    setInput("");
     setLoading(true);
 
     try {
-      // Simple echo response for now
-      setTimeout(() => {
-        const assistantMessage: Message = {
+      if (!window.studyAgent) {
+        throw new Error("Study agent runtime is unavailable.");
+      }
+
+      const result = await window.studyAgent.sendMessage({
+        threadId: threadIdRef.current,
+        message: userMessage.content,
+      });
+
+      if (!result.success) {
+        const errorMessage: Message = {
           id: `msg-${Date.now()}`,
-          role: 'assistant',
-          content: `I received your message: "${userMessage.content}". The AI processing system is being set up!`,
+          role: "system",
+          content: `❌ Agent error: ${result.error ?? "Unknown issue"}`,
           timestamp: new Date(),
         };
-        setMessages((prev) => [...prev, assistantMessage]);
-        setLoading(false);
-      }, 1000);
+        setMessages((prev) => [...prev, errorMessage]);
+        return;
+      }
+
+      if (result.messages) {
+        const toolMessages = result.messages
+          .filter((msg) => msg.role === "tool")
+          .map((msg, idx) => ({
+            id: `tool-${Date.now()}-${idx}`,
+            role: "system" as const,
+            content: `🔧 ${msg.name ?? "Tool"}: ${msg.content}`,
+            timestamp: new Date(),
+          }));
+        if (toolMessages.length) {
+          setMessages((prev) => [...prev, ...toolMessages]);
+        }
+      }
+
+      const assistantMessage: Message = {
+        id: `msg-${Date.now()}`,
+        role: "assistant",
+        content:
+          result.finalMessage ??
+          "I could not formulate a response. Please provide more context.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
     } catch (err) {
       const errorMessage: Message = {
         id: `msg-${Date.now()}`,
-        role: 'system',
-        content: `❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        role: "system",
+        content: `❌ Error: ${err instanceof Error ? err.message : "Unknown error"}`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setLoading(false);
     }
   };
@@ -116,18 +210,20 @@ export const Chat: React.FC = () => {
   };
 
   const handleClearChat = () => {
-    if (confirm('Are you sure you want to clear the chat?')) {
-      setMessages([{
-        id: 'welcome',
-        role: 'system',
-        content: '👋 Chat cleared! How can I help you today?',
-        timestamp: new Date(),
-      }]);
+    if (confirm("Are you sure you want to clear the chat?")) {
+      setMessages([
+        {
+          id: "welcome",
+          role: "system",
+          content: "👋 Chat cleared! How can I help you today?",
+          timestamp: new Date(),
+        },
+      ]);
     }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
@@ -148,7 +244,9 @@ export const Chat: React.FC = () => {
                 <Sparkles className="w-6 h-6 text-purple-500" />
                 Quick Actions
               </h2>
-              <p className="text-gray-600">Choose an action to get started with AI-powered learning</p>
+              <p className="text-gray-600">
+                Choose an action to get started with AI-powered learning
+              </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {quickActions.map((action, index) => (
