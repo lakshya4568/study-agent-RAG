@@ -66,13 +66,16 @@ app.on("ready", async () => {
   // Initialize file logging now that app is ready
   await initializeFileLogging();
 
-  // Initialize database
+  // Initialize database BEFORE registering IPC handlers
   try {
     dbManager.initialize();
     logger.info("Database initialized", dbManager.getStats());
   } catch (error) {
     logger.error("Failed to initialize database", error);
   }
+
+  // Register database IPC handlers AFTER database is initialized
+  registerDatabaseHandlers();
 
   createWindow();
 
@@ -364,93 +367,104 @@ ipcMain.handle(
 // Database IPC Handlers
 // ========================================
 
-ipcMain.handle("db:saveMessage", (_event, message: ChatMessage) => {
-  try {
-    dbManager.saveMessage(message);
-    return { success: true };
-  } catch (error) {
-    logger.error("Failed to save message", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
-});
+/**
+ * Register database IPC handlers after database is initialized
+ * This ensures the database is ready before any IPC calls are made
+ */
+function registerDatabaseHandlers() {
+  ipcMain.handle("db:saveMessage", (_event, message: ChatMessage) => {
+    try {
+      dbManager.saveMessage(message);
+      return { success: true };
+    } catch (error) {
+      logger.error("Failed to save message", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  });
 
-ipcMain.handle("db:getMessages", (_event, threadId: string, limit?: number) => {
-  try {
-    return dbManager.getMessages(threadId, limit);
-  } catch (error) {
-    logger.error("Failed to get messages", error);
-    return [];
-  }
-});
+  ipcMain.handle(
+    "db:getMessages",
+    (_event, threadId: string, limit?: number) => {
+      try {
+        return dbManager.getMessages(threadId, limit);
+      } catch (error) {
+        logger.error("Failed to get messages", error);
+        return [];
+      }
+    }
+  );
 
-ipcMain.handle("db:clearMessages", (_event, threadId: string) => {
-  try {
-    dbManager.clearMessages(threadId);
-    return { success: true };
-  } catch (error) {
-    logger.error("Failed to clear messages", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
-});
+  ipcMain.handle("db:clearMessages", (_event, threadId: string) => {
+    try {
+      dbManager.clearMessages(threadId);
+      return { success: true };
+    } catch (error) {
+      logger.error("Failed to clear messages", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  });
 
-ipcMain.handle("db:createThread", (_event, id: string, title: string) => {
-  try {
-    dbManager.createThread(id, title);
-    return { success: true };
-  } catch (error) {
-    logger.error("Failed to create thread", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
-});
+  ipcMain.handle("db:createThread", (_event, id: string, title: string) => {
+    try {
+      dbManager.createThread(id, title);
+      return { success: true };
+    } catch (error) {
+      logger.error("Failed to create thread", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  });
 
-ipcMain.handle("db:getAllThreads", () => {
-  try {
-    return dbManager.getAllThreads();
-  } catch (error) {
-    logger.error("Failed to get threads", error);
-    return [];
-  }
-});
+  ipcMain.handle("db:getAllThreads", () => {
+    try {
+      return dbManager.getAllThreads();
+    } catch (error) {
+      logger.error("Failed to get threads", error);
+      return [];
+    }
+  });
 
-ipcMain.handle("db:getAllDocuments", () => {
-  try {
-    return dbManager.getAllDocuments();
-  } catch (error) {
-    logger.error("Failed to get documents", error);
-    return [];
-  }
-});
+  ipcMain.handle("db:getAllDocuments", () => {
+    try {
+      return dbManager.getAllDocuments();
+    } catch (error) {
+      logger.error("Failed to get documents", error);
+      return [];
+    }
+  });
 
-ipcMain.handle("db:deleteDocument", (_event, id: string) => {
-  try {
-    dbManager.deleteDocument(id);
-    return { success: true };
-  } catch (error) {
-    logger.error("Failed to delete document", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
-});
+  ipcMain.handle("db:deleteDocument", (_event, id: string) => {
+    try {
+      dbManager.deleteDocument(id);
+      return { success: true };
+    } catch (error) {
+      logger.error("Failed to delete document", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  });
 
-ipcMain.handle("db:getStats", () => {
-  try {
-    return dbManager.getStats();
-  } catch (error) {
-    logger.error("Failed to get database stats", error);
-    return { threads: 0, messages: 0, documents: 0, dbSizeMB: 0 };
-  }
-});
+  ipcMain.handle("db:getStats", () => {
+    try {
+      return dbManager.getStats();
+    } catch (error) {
+      logger.error("Failed to get database stats", error);
+      return { threads: 0, messages: 0, documents: 0, dbSizeMB: 0 };
+    }
+  });
+
+  logger.info("Database IPC handlers registered");
+}
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.

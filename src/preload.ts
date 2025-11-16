@@ -7,6 +7,7 @@ import type {
   ServerInfo,
   ToolExecutionResult,
 } from "./client/types";
+import type { ChatMessage } from "./client/DatabaseManager";
 
 // Expose MCP Client APIs to the renderer process
 contextBridge.exposeInMainWorld("mcpClient", {
