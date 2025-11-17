@@ -8,11 +8,12 @@ This service runs as a standalone process and communicates with Node.js via JSON
 import sys
 import json
 import os
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Iterable
 from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings
 
 # Initialize NVIDIA Embeddings with the latest model
 MODEL_NAME = "nvidia/llama-3.2-nemoretriever-300m-embed-v2"
+DEFAULT_BATCH_SIZE = int(os.getenv("NVIDIA_EMBED_BATCH_SIZE", "16"))
 
 
 def get_api_key() -> str:
@@ -62,6 +63,14 @@ def sanitize_text(text: str) -> str:
         return re.sub(r"[^\x00-\x7F]+", " ", text)
 
 
+def chunk_list(items: List[str], size: int) -> Iterable[List[str]]:
+    """Yield successive chunks from a list"""
+    if size <= 0:
+        size = 1
+    for i in range(0, len(items), size):
+        yield items[i : i + size]
+
+
 def handle_request(client: NVIDIAEmbeddings, request: Dict[str, Any]) -> Dict[str, Any]:
     """Handle JSON-RPC request"""
     method = request.get("method")
@@ -95,43 +104,43 @@ def handle_request(client: NVIDIAEmbeddings, request: Dict[str, Any]) -> Dict[st
             if not documents or not isinstance(documents, list):
                 raise ValueError("Documents parameter must be a non-empty list")
 
-            # Debug: log what we're receiving
-            print(
-                f"DEBUG: Received {len(documents)} documents",
-                file=sys.stderr,
-                flush=True,
-            )
-            print(
-                f"DEBUG: First document type: {type(documents[0])}",
-                file=sys.stderr,
-                flush=True,
-            )
-            if isinstance(documents[0], list):
-                print(
-                    f"DEBUG: First document is a list of {len(documents[0])} items",
-                    file=sys.stderr,
-                    flush=True,
-                )
+            batch_size = params.get("batchSize") or DEFAULT_BATCH_SIZE
 
-            # NVIDIA API requires embedding one document at a time
-            # We'll embed each document individually using embed_query
-            embeddings = []
-            for i, doc in enumerate(documents):
-                print(
-                    f"DEBUG: Embedding document {i+1}/{len(documents)}, type: {type(doc)}",
-                    file=sys.stderr,
-                    flush=True,
-                )
-                # Ensure doc is a string
+            print(
+                f"DEBUG: Embedding {len(documents)} documents in batches of {batch_size}",
+                file=sys.stderr,
+                flush=True,
+            )
+
+            sanitized_docs: List[str] = []
+            for doc in documents:
                 if isinstance(doc, list):
-                    # If it's a list, flatten it to a single string
                     doc = " ".join(str(x) for x in doc)
+                sanitized_docs.append(sanitize_text(str(doc)))
 
-                # Sanitize to remove emojis and problematic characters
-                doc = sanitize_text(str(doc))
+            embeddings: List[List[float]] = []
+            fallback_mode = False
+            batches = list(chunk_list(sanitized_docs, batch_size))
 
-                embedding = client.embed_query(doc)
-                embeddings.append(embedding)
+            for index, batch in enumerate(batches, start=1):
+                try:
+                    batch_embeddings = client.embed_documents(batch)
+                except Exception as batch_error:
+                    if not fallback_mode:
+                        print(
+                            f"WARN: Batch embed failed ({batch_error}), falling back to single query embeddings",
+                            file=sys.stderr,
+                            flush=True,
+                        )
+                        fallback_mode = True
+                    batch_embeddings = [client.embed_query(doc) for doc in batch]
+
+                embeddings.extend(batch_embeddings)
+                print(
+                    f"DEBUG: Embedded batch {index}/{len(batches)}",
+                    file=sys.stderr,
+                    flush=True,
+                )
 
             return {
                 "jsonrpc": "2.0",

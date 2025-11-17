@@ -331,6 +331,23 @@ export const Chat: React.FC = () => {
           content: successMsg.content,
           timestamp: successMsg.timestamp.getTime(),
         });
+
+        if (result.errors.length) {
+          const warningMsg: Message = {
+            id: `msg-${Date.now()}-warn`,
+            role: "system",
+            content: `⚠️ Some files could not be indexed: ${result.errors.join(" ")}`,
+            timestamp: new Date(),
+          };
+          setMessages((prev) => [...prev, warningMsg]);
+          await window.database.saveMessage({
+            id: warningMsg.id,
+            threadId: threadIdRef.current,
+            role: warningMsg.role,
+            content: warningMsg.content,
+            timestamp: warningMsg.timestamp.getTime(),
+          });
+        }
       } else {
         throw new Error(result.errors.join(", ") || "Upload failed");
       }

@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { TextLoader } from "langchain/document_loaders/fs/text";
 import type { Document } from "@langchain/core/documents";
@@ -32,10 +33,26 @@ function filterExistingPaths(filePaths: string[]): string[] {
 /**
  * Enriches document metadata with source information and timestamps
  */
+const REPO_ROOT = path.resolve(process.cwd()).toLowerCase();
+
+function getDocumentFingerprint(absolutePath: string, stats: fs.Stats): string {
+  const hash = createHash("sha1");
+  hash.update(absolutePath.toLowerCase());
+  hash.update(String(stats.size));
+  hash.update(String(stats.mtimeMs));
+  return hash.digest("hex");
+}
+
 function enrichMetadata(doc: Document, filePath: string): Document {
+  const absolutePath = path.resolve(filePath);
   const fileName = path.basename(filePath);
   const extension = path.extname(filePath);
   const relativePath = path.relative(process.cwd(), filePath);
+  const stats = fs.statSync(absolutePath);
+  const absoluteLower = absolutePath.toLowerCase();
+  const isRepoDocument = absoluteLower.startsWith(REPO_ROOT);
+  const documentId = getDocumentFingerprint(absolutePath, stats);
+  const timestamp = new Date().toISOString();
 
   return {
     ...doc,
@@ -44,7 +61,13 @@ function enrichMetadata(doc: Document, filePath: string): Document {
       source: relativePath,
       fileName,
       fileType: extension,
-      loadedAt: new Date().toISOString(),
+      loadedAt: timestamp,
+      absolutePath,
+      origin: isRepoDocument ? "repository" : "user-uploaded",
+      documentId,
+      sizeBytes: stats.size,
+      modifiedAt: stats.mtime.toISOString(),
+      ingestedAt: timestamp,
     },
   };
 }

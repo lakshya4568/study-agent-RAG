@@ -41,3 +41,19 @@ export interface AgentStatus {
   };
   timestamp: number;
 }
+
+export interface DocumentIngestionStats {
+  absolutePath: string;
+  documentId: string;
+  origin: string;
+  chunkCount: number;
+  droppedChunks: number;
+  duplicateChunks: number;
+}
+
+export interface AgentDocumentAddResult {
+  success: boolean;
+  addedCount: number;
+  errors: string[];
+  documentStats: Record<string, DocumentIngestionStats>;
+}

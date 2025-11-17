@@ -5,13 +5,17 @@ import { HumanMessage } from "@langchain/core/messages";
 import { Chroma } from "@langchain/community/vectorstores/chroma";
 import { createStudyMentorGraph } from "./graph";
 import { loadStudyDocuments } from "../rag/document-loader";
-import { createStudyMaterialVectorStore } from "../rag/vector-store";
+import {
+  createStudyMaterialVectorStore,
+  chunkDocumentsForVectorStore,
+} from "../rag/vector-store";
 import { loadStudyMCPTools, type LoadedStudyTools } from "../tools/mcp-loader";
 import { logger } from "../client/logger";
 import type { BaseMessage } from "@langchain/core/messages";
 import { Document } from "@langchain/core/documents";
 import type { StudyAgentStateType } from "./state";
 import type {
+  AgentDocumentAddResult,
   AgentMessageDTO,
   AgentInvocationResult,
   AgentStatus,
@@ -182,9 +186,7 @@ export class StudyAgentService {
   /**
    * Add new documents to the vector store without full reinitialization
    */
-  async addDocuments(
-    documentPaths: string[]
-  ): Promise<{ success: boolean; addedCount: number; errors: string[] }> {
+  async addDocuments(documentPaths: string[]): Promise<AgentDocumentAddResult> {
     try {
       await this.initialize();
 
@@ -208,43 +210,83 @@ export class StudyAgentService {
           success: false,
           addedCount: 0,
           errors: ["No valid documents could be loaded"],
+          documentStats: {},
         };
       }
 
-      // Important: Split documents into chunks before adding to vector store
-      // NVIDIA embedding model has a 512 token limit
-      const { RecursiveCharacterTextSplitter } = await import(
-        "@langchain/textsplitters"
-      );
-      const splitter = new RecursiveCharacterTextSplitter({
-        chunkSize: 400,
-        chunkOverlap: 50,
-        separators: ["\n\n", "\n", ". ", " ", ""],
+      const { chunks, summary } = await chunkDocumentsForVectorStore(newDocs);
+
+      const documentStats: AgentDocumentAddResult["documentStats"] = {};
+      const skippedDocuments: string[] = [];
+
+      Object.values(summary.perDocument).forEach((stats) => {
+        const normalizedPath = path.resolve(stats.absolutePath);
+        if (stats.keptChunks === 0) {
+          skippedDocuments.push(normalizedPath);
+          return;
+        }
+        documentStats[normalizedPath] = {
+          absolutePath: stats.absolutePath,
+          documentId: stats.documentId,
+          origin: stats.origin,
+          chunkCount: stats.keptChunks,
+          droppedChunks: stats.droppedShort,
+          duplicateChunks: stats.droppedDuplicates,
+        };
       });
-      const chunks = await splitter.splitDocuments(newDocs);
+
+      if (Object.keys(documentStats).length === 0) {
+        const errorMessage =
+          "Uploaded documents did not contain extractable text. Try uploading searchable PDFs or plain text files.";
+        logger.warn(
+          `Skipping ingestion. Reason: ${errorMessage}. Files without chunks: ${skippedDocuments.join(", ")}`
+        );
+        return {
+          success: false,
+          addedCount: 0,
+          errors: [errorMessage],
+          documentStats: {},
+        };
+      }
 
       logger.info(
-        `Split ${newDocs.length} documents into ${chunks.length} chunks`
+        `Split ${newDocs.length} documents into ${chunks.length} chunks (raw: ${summary.totalRawChunks}, shortFiltered: ${summary.droppedShort}, duplicates: ${summary.droppedDuplicates})`
       );
 
-      // Add chunked documents to existing vector store
+      if (skippedDocuments.length) {
+        logger.warn(
+          `Skipped ${skippedDocuments.length} document(s) with no extractable text`,
+          { skippedDocuments }
+        );
+      }
+
       await this.vectorStore.addDocuments(chunks);
 
       // Update tracking
+      const ingestedPaths = Object.keys(documentStats);
+      const ingestedSet = new Set(ingestedPaths.map((p) => path.resolve(p)));
       this.currentDocumentPaths = [
         ...this.currentDocumentPaths,
-        ...resolvedPaths,
+        ...resolvedPaths.filter((resolved) =>
+          ingestedSet.has(path.resolve(resolved))
+        ),
       ];
-      this.loadedDocumentCount += newDocs.length;
+      this.loadedDocumentCount += ingestedPaths.length;
 
       logger.info(
-        `Successfully added ${newDocs.length} documents (${chunks.length} chunks) to vector store`
+        `Successfully added ${ingestedPaths.length} documents (${chunks.length} chunks) to vector store`
       );
 
       return {
         success: true,
-        addedCount: newDocs.length,
-        errors: [],
+        addedCount: ingestedPaths.length,
+        errors: skippedDocuments.length
+          ? skippedDocuments.map(
+              (filePath) =>
+                `No text extracted from ${path.basename(filePath)}. Upload a text-based version if possible.`
+            )
+          : [],
+        documentStats,
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -253,6 +295,7 @@ export class StudyAgentService {
         success: false,
         addedCount: 0,
         errors: [errorMsg],
+        documentStats: {},
       };
     }
   }

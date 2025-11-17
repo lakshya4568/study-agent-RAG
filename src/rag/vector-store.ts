@@ -1,4 +1,5 @@
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { Chroma } from "@langchain/community/vectorstores/chroma";
 import type { ChromaClient } from "chromadb";
@@ -23,6 +24,171 @@ const RAG_CONFIG = {
   minChunkSize: 100,
   maxChunks: 5000,
 } as const;
+
+export interface DocumentChunkStats {
+  absolutePath: string;
+  documentId: string;
+  origin: string;
+  rawChunks: number;
+  keptChunks: number;
+  droppedShort: number;
+  droppedDuplicates: number;
+}
+
+export interface ChunkingSummary {
+  totalRawChunks: number;
+  totalKeptChunks: number;
+  droppedShort: number;
+  droppedDuplicates: number;
+  truncatedChunks: number;
+  perDocument: Record<string, DocumentChunkStats>;
+}
+
+interface ChunkingOptions {
+  chunkSize?: number;
+  chunkOverlap?: number;
+  minChunkSize?: number;
+  maxChunks?: number;
+}
+
+function normalizeDocumentId(metadata?: Record<string, unknown>): string {
+  const documentId = metadata?.documentId;
+  if (typeof documentId === "string" && documentId.length) {
+    return documentId;
+  }
+  const fallbackSource =
+    typeof metadata?.source === "string" && metadata.source.length
+      ? metadata.source
+      : "unknown";
+  return createHash("sha1").update(fallbackSource).digest("hex");
+}
+
+function normalizeAbsolutePath(metadata?: Record<string, unknown>): string {
+  const absolutePath = metadata?.absolutePath;
+  if (typeof absolutePath === "string" && absolutePath.length) {
+    return path.resolve(absolutePath);
+  }
+  const relativeSource =
+    typeof metadata?.source === "string" && metadata.source.length
+      ? metadata.source
+      : "unknown";
+  return path.resolve(process.cwd(), relativeSource);
+}
+
+function normalizeOrigin(metadata?: Record<string, unknown>): string {
+  const origin = metadata?.origin;
+  if (typeof origin === "string" && origin.length) {
+    return origin;
+  }
+  return "unknown";
+}
+
+export async function chunkDocumentsForVectorStore(
+  documents: Document[],
+  options: ChunkingOptions = {}
+): Promise<{ chunks: Document[]; summary: ChunkingSummary }> {
+  const config = {
+    ...RAG_CONFIG,
+    ...options,
+  } as const;
+
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize: config.chunkSize,
+    chunkOverlap: config.chunkOverlap,
+    separators: [...config.separators],
+    lengthFunction: (text: string) => text.length,
+  });
+
+  const rawChunks = await splitter.splitDocuments(documents);
+  const dedupedChunks: Document[] = [];
+  const seenChunkHashes = new Set<string>();
+  const perDocument = new Map<string, DocumentChunkStats>();
+  let droppedShort = 0;
+  let droppedDuplicates = 0;
+
+  const ensureDocStats = (
+    absolutePath: string,
+    metadata: DocumentChunkStats
+  ) => {
+    let stats = perDocument.get(absolutePath);
+    if (!stats) {
+      stats = metadata;
+      perDocument.set(absolutePath, stats);
+    }
+    return stats;
+  };
+
+  for (const chunk of rawChunks) {
+    const docMetadata = chunk.metadata ?? {};
+    const absolutePath = normalizeAbsolutePath(docMetadata);
+    const documentId = normalizeDocumentId(docMetadata);
+    const origin = normalizeOrigin(docMetadata);
+    const stats = ensureDocStats(absolutePath, {
+      absolutePath,
+      documentId,
+      origin,
+      rawChunks: 0,
+      keptChunks: 0,
+      droppedShort: 0,
+      droppedDuplicates: 0,
+    });
+
+    stats.rawChunks += 1;
+    const content = chunk.pageContent.trim();
+    if (content.length < config.minChunkSize) {
+      stats.droppedShort += 1;
+      droppedShort += 1;
+      continue;
+    }
+
+    const chunkHash = createHash("sha1").update(content).digest("hex");
+    const dedupKey = `${documentId}:${chunkHash}`;
+    if (seenChunkHashes.has(dedupKey)) {
+      stats.droppedDuplicates += 1;
+      droppedDuplicates += 1;
+      continue;
+    }
+
+    seenChunkHashes.add(dedupKey);
+    const chunkIndex = stats.keptChunks;
+    stats.keptChunks += 1;
+
+    dedupedChunks.push({
+      ...chunk,
+      metadata: {
+        ...chunk.metadata,
+        documentId,
+        absolutePath,
+        origin,
+        chunkHash,
+        chunkIndex,
+      },
+    });
+  }
+
+  let truncatedChunks = 0;
+  if (dedupedChunks.length > config.maxChunks) {
+    truncatedChunks = dedupedChunks.length - config.maxChunks;
+    dedupedChunks.splice(config.maxChunks);
+  }
+
+  return {
+    chunks: dedupedChunks,
+    summary: {
+      totalRawChunks: rawChunks.length,
+      totalKeptChunks: dedupedChunks.length,
+      droppedShort,
+      droppedDuplicates,
+      truncatedChunks,
+      perDocument: Object.fromEntries(
+        [...perDocument.entries()].map(([absolutePath, stats]) => [
+          absolutePath,
+          stats,
+        ])
+      ),
+    },
+  };
+}
 
 /**
  * Creates an in-memory ChromaDB vector store for study materials
@@ -50,38 +216,31 @@ export async function createStudyMaterialVectorStore(
     throw new Error("Cannot create vector store with zero documents");
   }
 
-  // Configure text splitter for optimal NVIDIA embedding performance
-  const splitter = new RecursiveCharacterTextSplitter({
-    chunkSize: RAG_CONFIG.chunkSize,
-    chunkOverlap: RAG_CONFIG.chunkOverlap,
-    separators: RAG_CONFIG.separators,
-    lengthFunction: (text: string) => text.length,
-  });
-
   logger.info("Splitting documents into semantic chunks...");
-  const chunks = await splitter.splitDocuments(documents);
+  const { chunks: validChunks, summary } =
+    await chunkDocumentsForVectorStore(documents);
 
-  // Validate chunks
-  const validChunks = chunks.filter((chunk) => {
-    const content = chunk.pageContent.trim();
-    return content.length >= RAG_CONFIG.minChunkSize;
-  });
-
-  if (validChunks.length !== chunks.length) {
-    logger.warn(
-      `Filtered out ${chunks.length - validChunks.length} chunks below minimum size (${RAG_CONFIG.minChunkSize} chars)`
+  if (validChunks.length === 0) {
+    throw new Error(
+      "No usable content found in provided documents. Check that PDFs contain selectable text."
     );
   }
 
-  if (validChunks.length > RAG_CONFIG.maxChunks) {
+  if (summary.truncatedChunks > 0) {
     logger.warn(
-      `Document set produced ${validChunks.length} chunks, truncating to ${RAG_CONFIG.maxChunks} for performance`
+      `Document set produced ${summary.totalKeptChunks + summary.truncatedChunks} chunks, truncated ${summary.truncatedChunks} to stay under limit ${RAG_CONFIG.maxChunks}`
     );
-    validChunks.splice(RAG_CONFIG.maxChunks);
   }
 
+  const avgChunkSize = Math.round(
+    validChunks.reduce((sum, chunk) => sum + chunk.pageContent.length, 0) /
+      validChunks.length
+  );
   logger.info(
-    `Created ${validChunks.length} semantic chunks (avg: ${Math.round(validChunks.reduce((sum, c) => sum + c.pageContent.length, 0) / validChunks.length)} chars/chunk)`
+    `Created ${validChunks.length} semantic chunks (avg: ${avgChunkSize} chars/chunk)`
+  );
+  logger.debug(
+    `Chunking diagnostics | totalRaw=${summary.totalRawChunks} filteredShort=${summary.droppedShort} duplicates=${summary.droppedDuplicates}`
   );
 
   try {
@@ -135,7 +294,7 @@ export async function createStudyMaterialVectorStore(
  * @param k - Number of documents to retrieve (default: 5)
  * @returns LangChain-compatible tool for agent
  */
-export function createRetrieverTool(vectorStore: Chroma, k: number = 5) {
+export function createRetrieverTool(vectorStore: Chroma, k = 5) {
   return {
     name: "retrieve_study_material",
     description:
@@ -161,7 +320,7 @@ export function createRetrieverTool(vectorStore: Chroma, k: number = 5) {
         }
 
         logger.info(
-          `   Found ${results.length} relevant chunks (${duration}ms) | Avg similarity: ${(results.reduce((sum, [_, score]) => sum + score, 0) / results.length).toFixed(3)}`
+          `   Found ${results.length} relevant chunks (${duration}ms) | Avg similarity: ${(results.reduce((sum, [, score]) => sum + score, 0) / results.length).toFixed(3)}`
         );
 
         // Format results with source citations and relevance scores
@@ -199,13 +358,13 @@ export function createRetrieverTool(vectorStore: Chroma, k: number = 5) {
 export async function retrieveWithScoreFilter(
   vectorStore: Chroma,
   query: string,
-  k: number = 5,
-  minSimilarity: number = 0.7
+  k = 5,
+  minSimilarity = 0.7
 ): Promise<Array<[Document, number]>> {
   const results = await vectorStore.similaritySearchWithScore(query, k);
 
   // Filter by minimum similarity (convert distance to similarity: 1 - distance)
-  const filtered = results.filter(([_, score]) => 1 - score >= minSimilarity);
+  const filtered = results.filter(([, score]) => 1 - score >= minSimilarity);
 
   logger.debug(
     `Filtered ${results.length} results to ${filtered.length} above ${minSimilarity} similarity`

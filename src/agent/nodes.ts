@@ -3,6 +3,7 @@ import {
   SystemMessage,
   AIMessage,
 } from "@langchain/core/messages";
+import type { Document } from "@langchain/core/documents";
 import { Chroma } from "@langchain/community/vectorstores/chroma";
 import { createNVIDIAChat } from "../models/nvidia-chat";
 import type { StudyAgentStateType } from "./state";
@@ -47,6 +48,88 @@ Your Communication Style:
 - End with engagement: "Does that make sense?" "Want to try an example?" "What part should we explore next?"
 
 Remember: You're not a calculator or answer key - you're a mentor helping students become independent learners! 🚀`;
+
+const BASE_RETRIEVAL_RESULTS = 8;
+const USER_UPLOAD_RETRIEVAL_RESULTS = 4;
+const MIN_SIMILARITY_THRESHOLD = 0.45;
+
+type ScoredDocument = [Document, number];
+
+function documentIdentifier(doc: Document): string {
+  const metadataId = doc.metadata?.documentId;
+  if (typeof metadataId === "string" && metadataId.length) {
+    return metadataId;
+  }
+  if (typeof doc.id === "string" && doc.id.length) {
+    return doc.id;
+  }
+  return doc.metadata?.source ?? `doc-${Math.random().toString(36).slice(2)}`;
+}
+
+function dedupeByDocument(
+  results: ScoredDocument[],
+  preferUserDocuments = false
+): ScoredDocument[] {
+  const bestByDoc = new Map<string, ScoredDocument>();
+
+  for (const [doc, score] of results) {
+    const key = documentIdentifier(doc);
+    const existing = bestByDoc.get(key);
+    if (!existing) {
+      bestByDoc.set(key, [doc, score]);
+      continue;
+    }
+
+    const existingIsUser = existing[0].metadata?.origin === "user-uploaded";
+    const currentIsUser = doc.metadata?.origin === "user-uploaded";
+
+    if (preferUserDocuments && currentIsUser && !existingIsUser) {
+      bestByDoc.set(key, [doc, score]);
+      continue;
+    }
+
+    if (score < existing[1]) {
+      bestByDoc.set(key, [doc, score]);
+    }
+  }
+
+  return Array.from(bestByDoc.values()).sort((a, b) => a[1] - b[1]);
+}
+
+async function enhancedSimilaritySearch(
+  vectorStore: Chroma,
+  query: string
+): Promise<ScoredDocument[]> {
+  const baseResults = await vectorStore.similaritySearchWithScore(
+    query,
+    BASE_RETRIEVAL_RESULTS
+  );
+  let combined = dedupeByDocument(baseResults);
+
+  const hasUserContext = combined.some(
+    ([doc]) => doc.metadata?.origin === "user-uploaded"
+  );
+
+  if (!hasUserContext) {
+    const userResults = await vectorStore.similaritySearchWithScore(
+      query,
+      USER_UPLOAD_RETRIEVAL_RESULTS,
+      { origin: "user-uploaded" }
+    );
+    combined = dedupeByDocument([...combined, ...userResults], true);
+  }
+
+  return combined.filter(
+    ([, distance]) => 1 - distance >= MIN_SIMILARITY_THRESHOLD
+  );
+}
+
+function formatSourceLabel(doc: Document): string {
+  const baseName = doc.metadata?.fileName || doc.metadata?.source || "unknown";
+  const originLabel =
+    doc.metadata?.origin === "user-uploaded" ? "User Upload" : "Built-in";
+  return `${baseName} · ${originLabel}`;
+}
 
 export async function queryNode(
   state: StudyAgentStateType
@@ -94,8 +177,8 @@ export async function retrieveNode(
       `Retrieving documents for query: ${query.substring(0, 100)}...`
     );
 
-    // Perform similarity search with metadata
-    const docs = await vectorStore.similaritySearch(query, 5);
+    const scoredResults = await enhancedSimilaritySearch(vectorStore, query);
+    const docs = scoredResults.slice(0, 5).map(([doc]) => doc);
 
     if (docs.length === 0) {
       logger.warn("No documents retrieved from vector store");
@@ -110,12 +193,19 @@ export async function retrieveNode(
       };
     }
 
-    logger.info(`Retrieved ${docs.length} relevant documents`);
+    logger.info(
+      `Retrieved ${docs.length} relevant documents`,
+      scoredResults.slice(0, docs.length).map(([doc, distance]) => ({
+        source: doc.metadata?.fileName || doc.metadata?.source || "unknown",
+        origin: doc.metadata?.origin || "unknown",
+        similarity: Number((1 - distance).toFixed(3)),
+      }))
+    );
 
     // Format context with source citations
     const contextWithSources = docs
       .map((doc, idx) => {
-        const source = doc.metadata?.source || "unknown";
+        const source = formatSourceLabel(doc);
         const content = doc.pageContent.trim();
         return `[Source ${idx + 1}: ${source}]\n${content}`;
       })
@@ -155,7 +245,7 @@ export async function generateNode(
     // Extract context from retrieved documents
     const context = (state.documents ?? [])
       .map((doc, idx) => {
-        const source = doc.metadata?.source || "unknown";
+        const source = formatSourceLabel(doc);
         return `[Source ${idx + 1}: ${source}]\n${doc.pageContent}`;
       })
       .join("\n\n---\n\n");

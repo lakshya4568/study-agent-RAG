@@ -367,6 +367,17 @@ class DatabaseManager {
       .run(status, errorMessage || null, id);
   }
 
+  updateDocumentChunkCount(id: string, chunkCount: number): void {
+    if (!this.db) throw new Error("Database not initialized");
+
+    this.db
+      .prepare(
+        `UPDATE uploaded_documents 
+         SET chunk_count = ? WHERE id = ?`
+      )
+      .run(chunkCount, id);
+  }
+
   deleteDocument(id: string): void {
     if (!this.db) throw new Error("Database not initialized");
 

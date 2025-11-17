@@ -9,6 +9,7 @@ import { logger } from "../client/logger";
  * Model: nvidia/llama-3.2-nemoretriever-300m-embed-v2
  */
 const NVIDIA_EMBED_MODEL = "nvidia/llama-3.2-nemoretriever-300m-embed-v2";
+const MAX_EMBED_BATCH = 16;
 
 interface JsonRpcRequest {
   jsonrpc: string;
@@ -220,15 +221,37 @@ export class NvidiaEmbeddings extends Embeddings {
 
     logger.debug(`Embedding ${texts.length} documents as passages`);
 
+    const embeddings: number[][] = [];
+    const total = texts.length;
+
     try {
-      const result = await this.sendRequest("embed_documents", {
-        documents: texts,
-      });
+      for (let start = 0; start < total; start += MAX_EMBED_BATCH) {
+        const batch = texts.slice(start, start + MAX_EMBED_BATCH);
+        const batchResult = await this.sendRequest("embed_documents", {
+          documents: batch,
+          batchSize: batch.length,
+        });
+
+        if (
+          !batchResult?.embeddings ||
+          batchResult.embeddings.length !== batch.length
+        ) {
+          throw new Error(
+            `Embedding batch size mismatch. Expected ${batch.length}, received ${batchResult?.embeddings?.length ?? 0}`
+          );
+        }
+
+        embeddings.push(...batchResult.embeddings);
+
+        logger.debug(
+          `Embedded ${Math.min(start + batch.length, total)}/${total} chunks`
+        );
+      }
 
       logger.info(
-        `Successfully embedded ${result.count} documents (${result.dimensions}D)`
+        `Successfully embedded ${embeddings.length} documents (${embeddings[0]?.length ?? 0}D)`
       );
-      return result.embeddings;
+      return embeddings;
     } catch (error) {
       logger.error("Failed to embed documents:", error);
       throw error;

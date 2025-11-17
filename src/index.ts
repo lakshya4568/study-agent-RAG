@@ -281,25 +281,31 @@ ipcMain.handle(
 
     try {
       // Mark documents as processing in database
-      const docIds: string[] = [];
+      const trackedDocs: Array<{ docId: string; filePath: string }> = [];
+      const ingestPaths: string[] = [];
+      const skippedExisting: string[] = [];
       for (const filePath of documentPaths) {
+        const absolutePath = path.isAbsolute(filePath)
+          ? path.resolve(filePath)
+          : path.resolve(process.cwd(), filePath);
         // Check if already uploaded
-        const existing = dbManager.getDocumentByPath(filePath);
+        const existing = dbManager.getDocumentByPath(absolutePath);
         if (existing) {
-          logger.info(`Document already uploaded: ${filePath}`);
+          logger.info(`Document already uploaded: ${absolutePath}`);
+          skippedExisting.push(absolutePath);
           continue;
         }
 
         const docId = `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const fileName = path.basename(filePath);
-        const fileType = path.extname(filePath);
-        const fileSize = fs.existsSync(filePath)
-          ? fs.statSync(filePath).size
+        const fileName = path.basename(absolutePath);
+        const fileType = path.extname(absolutePath);
+        const fileSize = fs.existsSync(absolutePath)
+          ? fs.statSync(absolutePath).size
           : 0;
 
         const doc: UploadedDocument = {
           id: docId,
-          filePath,
+          filePath: absolutePath,
           fileName,
           fileType,
           fileSize,
@@ -309,43 +315,97 @@ ipcMain.handle(
         };
 
         dbManager.saveDocument(doc);
-        docIds.push(docId);
+        trackedDocs.push({ docId, filePath: absolutePath });
+        ingestPaths.push(absolutePath);
+      }
+
+      if (ingestPaths.length === 0) {
+        logger.info(
+          "Skipping ingestion request because all documents already exist or were invalid"
+        );
+        return {
+          success: false,
+          addedCount: 0,
+          errors:
+            skippedExisting.length > 0
+              ? [
+                  "All selected documents were already uploaded. Remove duplicates or provide new files.",
+                ]
+              : ["No documents provided for ingestion."],
+          documentStats: {},
+        };
       }
 
       // Process documents through agent
-      const result = await studyAgentService.addDocuments(documentPaths);
+      const result = await studyAgentService.addDocuments(ingestPaths);
+      const duplicateWarnings = skippedExisting.map(
+        (filePath) =>
+          `Skipped ${path.basename(filePath)} because it was already uploaded. Delete it first or upload a revised version.`
+      );
 
       // Update document status in database
       if (result.success) {
-        for (const docId of docIds) {
-          dbManager.updateDocumentStatus(docId, "ready");
+        for (const doc of trackedDocs) {
+          const stats =
+            result.documentStats[path.resolve(doc.filePath)] ?? null;
+          if (stats) {
+            dbManager.updateDocumentStatus(doc.docId, "ready");
+            dbManager.updateDocumentChunkCount(doc.docId, stats.chunkCount);
+          } else {
+            dbManager.updateDocumentStatus(
+              doc.docId,
+              "error",
+              "File did not yield usable text."
+            );
+          }
         }
 
         // Update vector store state
         const currentState = dbManager.getVectorStoreState();
-        if (currentState) {
-          dbManager.updateVectorStoreState(
-            currentState.totalDocuments + result.addedCount,
-            currentState.totalChunks + result.addedCount * 10 // Estimate
-          );
-        }
+        const previousDocuments = currentState?.totalDocuments ?? 0;
+        const previousChunks = currentState?.totalChunks ?? 0;
+        const addedChunks = Object.values(result.documentStats).reduce(
+          (sum, stats) => sum + stats.chunkCount,
+          0
+        );
+
+        dbManager.updateVectorStoreState(
+          previousDocuments + result.addedCount,
+          previousChunks + addedChunks,
+          {
+            lastIngestedAt: Date.now(),
+            lastDocuments: Object.values(result.documentStats).map((stats) => ({
+              absolutePath: stats.absolutePath,
+              chunkCount: stats.chunkCount,
+              origin: stats.origin,
+            })),
+          }
+        );
       } else {
-        for (const docId of docIds) {
+        for (const doc of trackedDocs) {
           dbManager.updateDocumentStatus(
-            docId,
+            doc.docId,
             "error",
             result.errors.join(", ")
           );
         }
       }
 
-      return result;
+      if (duplicateWarnings.length === 0) {
+        return result;
+      }
+
+      return {
+        ...result,
+        errors: [...result.errors, ...duplicateWarnings],
+      };
     } catch (error) {
       logger.error("Failed to add documents", error);
       return {
         success: false,
         addedCount: 0,
         errors: [error instanceof Error ? error.message : String(error)],
+        documentStats: {},
       };
     }
   }

@@ -12,6 +12,7 @@ import type {
   AgentInvocationResult,
   AgentStatus,
 } from "./agent/StudyAgentService";
+import type { AgentDocumentAddResult } from "./agent/types";
 import type {
   ChatMessage,
   UploadedDocument,
@@ -47,11 +48,9 @@ declare global {
       }) => Promise<AgentInvocationResult>;
       getStatus: () => Promise<AgentStatus>;
       reloadDocuments: (documentPaths: string[]) => Promise<AgentStatus>;
-      addDocuments: (documentPaths: string[]) => Promise<{
-        success: boolean;
-        addedCount: number;
-        errors: string[];
-      }>;
+      addDocuments: (
+        documentPaths: string[]
+      ) => Promise<AgentDocumentAddResult>;
       openFileDialog: () => Promise<{
         success: boolean;
         filePaths: string[];
