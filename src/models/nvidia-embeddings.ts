@@ -1,4 +1,4 @@
-import { spawn, ChildProcess } from "child_process";
+import { spawn, ChildProcess, execSync } from "child_process";
 import path from "path";
 import { Embeddings } from "@langchain/core/embeddings";
 import { logger } from "../client/logger";
@@ -10,6 +10,25 @@ import { logger } from "../client/logger";
  */
 const NVIDIA_EMBED_MODEL = "nvidia/llama-3.2-nemoretriever-300m-embed-v2";
 const MAX_EMBED_BATCH = 16;
+
+/**
+ * Get the correct Python command for the current platform
+ * On Windows: python
+ * On macOS/Linux: python3 (fallback to python)
+ */
+function getPythonCommand(): string {
+  if (process.platform === "win32") {
+    return "python";
+  }
+
+  // Check if python3 exists
+  try {
+    execSync("which python3", { stdio: "pipe" });
+    return "python3";
+  } catch {
+    return "python";
+  }
+}
 
 interface JsonRpcRequest {
   jsonrpc: string;
@@ -43,7 +62,11 @@ export class NvidiaEmbeddings extends Embeddings {
   private requestId = 0;
   private pendingRequests: Map<
     number,
-    { resolve: (value: any) => void; reject: (error: Error) => void }
+    {
+      resolve: (value: any) => void;
+      reject: (error: Error) => void;
+      timeoutId?: NodeJS.Timeout;
+    }
   > = new Map();
   private initPromise: Promise<void> | null = null;
   private isReady = false;
@@ -83,8 +106,10 @@ export class NvidiaEmbeddings extends Embeddings {
         return;
       }
 
-      // Spawn Python process
-      this.pythonProcess = spawn("python", [pythonScript], {
+      // Spawn Python process with platform-specific command
+      const pythonCmd = getPythonCommand();
+      logger.info(`Using Python command: ${pythonCmd}`);
+      this.pythonProcess = spawn(pythonCmd, [pythonScript], {
         env: {
           ...process.env,
           PYTHONUNBUFFERED: "1",
@@ -116,6 +141,10 @@ export class NvidiaEmbeddings extends Embeddings {
             if ("id" in message && message.id !== null) {
               const pending = this.pendingRequests.get(message.id);
               if (pending) {
+                // Clear the timeout
+                if (pending.timeoutId) {
+                  clearTimeout(pending.timeoutId);
+                }
                 this.pendingRequests.delete(message.id);
                 if (message.error) {
                   pending.reject(new Error(message.error.message));
@@ -132,7 +161,29 @@ export class NvidiaEmbeddings extends Embeddings {
 
       // Handle stderr (logs and errors)
       this.pythonProcess.stderr?.on("data", (data: Buffer) => {
-        logger.error("Python service error:", data.toString());
+        const message = data.toString();
+
+        // Filter out harmless warnings and debug messages
+        if (
+          message.includes("UserWarning: Core Pydantic V1") ||
+          message.includes("from pydantic.v1.fields import") ||
+          message.includes("UserWarning: Found nvidia/llama") ||
+          message.includes("but type is unknown") ||
+          message.includes("warnings.warn") ||
+          message.startsWith("DEBUG:")
+        ) {
+          // Suppress these common warnings - they don't affect functionality
+          return;
+        }
+
+        // Only log actual errors
+        if (
+          message.includes("Error") ||
+          message.includes("Exception") ||
+          message.includes("Traceback")
+        ) {
+          logger.error("Python service error:", message);
+        }
       });
 
       // Handle process exit
@@ -155,12 +206,20 @@ export class NvidiaEmbeddings extends Embeddings {
       });
 
       // Timeout if service doesn't start
-      setTimeout(() => {
+      const initTimeout = setTimeout(() => {
         if (!this.isReady) {
+          logger.error("Python service initialization timeout after 30s");
           this.cleanup();
           reject(new Error("Python service initialization timeout"));
         }
       }, 30000); // 30 second timeout
+
+      // Clear timeout on successful initialization
+      this.pythonProcess.stdout?.once("data", () => {
+        if (this.isReady) {
+          clearTimeout(initTimeout);
+        }
+      });
     });
 
     return this.initPromise;
@@ -177,6 +236,11 @@ export class NvidiaEmbeddings extends Embeddings {
       await this.initialize();
     }
 
+    // If still not ready after initialization, throw error
+    if (!this.isReady || !this.pythonProcess) {
+      throw new Error("Python service not available");
+    }
+
     if (!this.pythonProcess || !this.pythonProcess.stdin) {
       throw new Error("Python service is not available");
     }
@@ -190,23 +254,26 @@ export class NvidiaEmbeddings extends Embeddings {
         id,
       };
 
-      this.pendingRequests.set(id, { resolve, reject });
+      // Request timeout
+      const timeoutId = setTimeout(() => {
+        if (this.pendingRequests.has(id)) {
+          this.pendingRequests.delete(id);
+          logger.error(`Request timeout for ${method} after 90s`);
+          // Don't cleanup the whole service for a single timeout
+          reject(new Error(`Request timeout: ${method}`));
+        }
+      }, 90000); // 90 second timeout for large batches
+
+      this.pendingRequests.set(id, { resolve, reject, timeoutId });
 
       const requestStr = JSON.stringify(request) + "\n";
       this.pythonProcess!.stdin!.write(requestStr, (error) => {
         if (error) {
+          clearTimeout(timeoutId);
           this.pendingRequests.delete(id);
           reject(error);
         }
       });
-
-      // Request timeout
-      setTimeout(() => {
-        if (this.pendingRequests.has(id)) {
-          this.pendingRequests.delete(id);
-          reject(new Error(`Request timeout: ${method}`));
-        }
-      }, 60000); // 60 second timeout
     });
   }
 
@@ -305,10 +372,30 @@ export class NvidiaEmbeddings extends Embeddings {
   cleanup(): void {
     if (this.pythonProcess) {
       logger.info("Shutting down Python embeddings service");
-      this.pythonProcess.kill();
-      this.pythonProcess = null;
-      this.isReady = false;
-      this.pendingRequests.clear();
+      try {
+        // Send shutdown command if possible
+        if (this.pythonProcess.stdin && !this.pythonProcess.stdin.destroyed) {
+          this.pythonProcess.stdin.end();
+        }
+
+        // Kill the process
+        this.pythonProcess.kill("SIGTERM");
+
+        // Force kill after 2 seconds if still running
+        setTimeout(() => {
+          if (this.pythonProcess && !this.pythonProcess.killed) {
+            logger.warn("Force killing Python service");
+            this.pythonProcess.kill("SIGKILL");
+          }
+        }, 2000);
+      } catch (error) {
+        logger.error("Error during Python service cleanup:", error);
+      } finally {
+        this.pythonProcess = null;
+        this.isReady = false;
+        this.initPromise = null;
+        this.pendingRequests.clear();
+      }
     }
   }
 }

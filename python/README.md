@@ -1,27 +1,62 @@
 # Setup Instructions for NVIDIA Embeddings Python Service
 
+## Prerequisites
+
+**Python 3.8+** is required. Install it:
+
+- **macOS**: `brew install python3` or download from [python.org](https://www.python.org/downloads/)
+- **Windows**: Download from [python.org](https://www.python.org/downloads/)
+- **Linux**: `sudo apt install python3 python3-pip`
+
 ## Installation
 
-1. **Install Python Dependencies:**
+### Automatic Setup (Recommended)
+
+The setup runs automatically when you start the app:
+
+```bash
+npm start
+```
+
+Or run manually:
+
+```bash
+npm run setup:python
+```
+
+### Manual Setup
+
+**macOS/Linux:**
+
+```bash
+cd python
+python3 -m pip install -r requirements.txt
+```
+
+**Windows:**
 
 ```powershell
 cd python
 python -m pip install -r requirements.txt
 ```
 
-Or use the setup script:
+## Configuration
 
-```powershell
-python python/setup.py
+**Set NVIDIA API Key:**
+
+**macOS/Linux:**
+
+```bash
+export NVIDIA_API_KEY="your-api-key-here"
 ```
 
-2. **Set NVIDIA API Key:**
+**Windows:**
 
 ```powershell
 $env:NVIDIA_API_KEY = "your-api-key-here"
 ```
 
-Or add to `.env` file:
+Or add to `.env` file in project root:
 
 ```
 NVIDIA_API_KEY=your-api-key-here
@@ -30,6 +65,14 @@ NVIDIA_API_KEY=your-api-key-here
 ## Verification
 
 Test the Python service directly:
+
+**macOS/Linux:**
+
+```bash
+python3 python/nvidia_embeddings_service.py
+```
+
+**Windows:**
 
 ```powershell
 python python/nvidia_embeddings_service.py
@@ -68,7 +111,7 @@ You should see a response with embeddings.
 **API Key errors:**
 
 - Verify NVIDIA_API_KEY is set in environment
-- Get API key from: https://build.nvidia.com/
+- Get API key from: <https://build.nvidia.com/>
 
 **Service timeout:**
 

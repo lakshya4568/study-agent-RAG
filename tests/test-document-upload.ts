@@ -10,6 +10,7 @@
 
 import path from "node:path";
 import fs from "node:fs";
+import os from "node:os";
 import dotenv from "dotenv";
 import { loadStudyDocuments } from "../src/rag/document-loader";
 import { createStudyMaterialVectorStore } from "../src/rag/vector-store";
@@ -17,9 +18,12 @@ import { logger } from "../src/client/logger";
 
 dotenv.config();
 
-// Test file path - update this to your actual file location
+// Test file path - cross-platform approach
+// Update this to your actual file location
 const TEST_PDF_PATH =
-  "C:\\Users\\Lakshya Sharma\\Desktop\\SHARDA STUDY TRACKER FINAL.pdf";
+  process.platform === "win32"
+    ? "C:\\Users\\Lakshya Sharma\\Desktop\\SHARDA STUDY TRACKER FINAL.pdf"
+    : path.join(os.homedir(), "Desktop", "SHARDA STUDY TRACKER FINAL.pdf");
 
 async function testDocumentUpload() {
   console.log("\n========================================");
