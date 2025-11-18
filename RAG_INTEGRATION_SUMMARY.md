@@ -24,20 +24,27 @@ Create `.env` file in project root:
 NVIDIA_API_KEY=nvapi-xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-Get your free API key at: https://build.nvidia.com
+Get your free API key at: [build.nvidia.com](https://build.nvidia.com)
 
 ### 3. Run Tests
 
-**Quick Bridge Test** (5 seconds):
+#### Quick Bridge Test (5 seconds)
 
 ```powershell
 npm run test:python-bridge
 ```
 
-**Full RAG Test** (30 seconds):
+#### TypeScript RAG Regression (auto-starts Chroma, falls back in-memory)
+
+```bash
+npm run test:rag
+npm run test:integration
+```
+
+#### Full RAG Test (PowerShell helper)
 
 ```powershell
-.\run-integration-test.ps1
+./run-integration-test.ps1
 ```
 
 ### 4. Run Application
@@ -71,8 +78,8 @@ Then upload a document through the UI and ask questions!
 
 - File: `src/rag/vector-store.ts`
 - **Already integrated** - uses `createNVIDIAEmbeddings()` on line 92
-- Optimized chunking: 1400 chars, 200 overlap
-- In-memory ChromaDB with cosine similarity
+- Optimized chunking: ~24k chars (≈6,000 tokens) with ~1.5k-char overlap
+- Prefers the Chroma HTTP server (configurable via `CHROMA_HOST`/`CHROMA_PORT`) and automatically falls back to the TypeScript in-memory client when the server is unavailable
 
 ### ✅ Agent Service
 
@@ -87,18 +94,17 @@ Then upload a document through the UI and ask questions!
 - Supports PDF, Markdown, Text, Code files
 - Enriches metadata (source, timestamp, file type)
 
-### ✅ In-Memory ChromaDB
+### ✅ ChromaDB storage modes
 
-- File: `src/rag/in-memory-chroma-client.ts`
-- Pure TypeScript implementation
-- No external database server required
-- Cosine similarity semantic search
+- **HTTP server (preferred):** Persistent storage served via the Electron-managed Chroma process or any external instance. Configure the target with `CHROMA_HOST` and `CHROMA_PORT`.
+- **In-memory fallback:** File `src/rag/in-memory-chroma-client.ts` keeps tests passing on machines without Docker. Enabled by default; set `CHROMA_ALLOW_IN_MEMORY_FALLBACK=false` to require the server.
+- Both modes expose cosine-similarity search, so retrieval accuracy remains consistent between CI and local development.
 
 ---
 
 ## Architecture Flow
 
-```
+```text
 User Upload → Document Loader → Agent Service → Vector Store
     ↓              ↓                  ↓              ↓
   PDF/MD     Read & Enrich      Setup Store   Chunk Documents
@@ -143,7 +149,7 @@ User Upload → Document Loader → Agent Service → Vector Store
 
 ### 🔧 Optimized Chunking
 
-- Chunk size: 1400 characters
+- Chunk size: ~24,000 characters (≈6,000 tokens) aligned with the 8,192-token context window
 - Overlap: 200 characters
 - Respects semantic boundaries (paragraphs)
 - Filters chunks < 100 chars
@@ -247,7 +253,7 @@ python --version  # Should be 3.8+
 
 - Check `.env` file exists
 - Verify key format: `nvapi-xxxxx`
-- Get key at: https://build.nvidia.com
+- Get key at: [build.nvidia.com](https://build.nvidia.com)
 
 **Embeddings slow?**
 
@@ -267,6 +273,6 @@ Just add your NVIDIA API key and run `npm start` to use the complete RAG-powered
 
 **NVIDIA Model**: nvidia/llama-3.2-nemoretriever-300m-embed-v2  
 **Vector Dimensions**: 2048  
-**Storage**: In-memory ChromaDB  
+**Storage**: Chroma HTTP server (with automatic in-memory fallback)  
 **Status**: ✅ Ready for Production  
 **Breaking Changes**: None

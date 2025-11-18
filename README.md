@@ -37,20 +37,27 @@ An intelligent desktop study assistant powered by **NVIDIA NIM models**, **LangC
    npm install
    ```
 
-2. **Setup environment**
+1. **Setup environment**
 
    ```bash
    cp .env.example .env
    # Edit .env and add your NVIDIA_API_KEY
    ```
 
-3. **Start ChromaDB**
+1. **ChromaDB options**
 
-   ```bash
-   docker run -p 8000:8000 chromadb/chroma
-   ```
+  ```bash
+  # Default: start a local HTTP server on port 8000
+  docker run -p 8000:8000 chromadb/chroma
 
-4. **Build and run**
+  # Need a different host/port? Override and restart the app/tests
+  export CHROMA_HOST=127.0.0.1
+  export CHROMA_PORT=8010
+  ```
+
+  > Skip this step if you just need a quick smoke test—our test suite and vector-store layer now fall back to an in-memory Chroma implementation when an HTTP server isn't reachable. Set `CHROMA_ALLOW_IN_MEMORY_FALLBACK=false` to require a persistent server.
+
+1. **Build and run**
 
    ```bash
    npm run build:mcp
@@ -74,12 +81,23 @@ npm run test:nvidia
 # Test ChromaDB and RAG pipeline
 npm run test:chromadb
 
+# RAG regression suites (auto-start Chroma or fall back in-memory)
+npm run test:rag
+npm run test:integration
+
 # Test full agent end-to-end
 npm run test:agent
 
 # Run all tests
 npm run test:all
 ```
+
+## 🧱 ChromaDB configuration & fallbacks
+
+- **Auto-start & reuse:** The Electron main process attempts to start the bundled Chroma HTTP server on launch. You can point to an existing instance by setting `CHROMA_HOST` and `CHROMA_PORT` before running the app or tests.
+- **Graceful fallback:** When no HTTP endpoint is reachable, the RAG helpers transparently switch to the TypeScript in-memory Chroma client and log a warning. This keeps `npm run test:rag` and `npm run test:integration` green even on CI boxes without Docker.
+- **Strict mode:** Set `CHROMA_ALLOW_IN_MEMORY_FALLBACK=false` to force tests and the app to fail fast unless an HTTP server responds.
+- **Persistence location:** When using the HTTP server, embeddings are written under `.chromadb/chroma_storage/` inside the project root so reruns reuse previous indexes.
 
 ## 🎯 Technology Stack
 

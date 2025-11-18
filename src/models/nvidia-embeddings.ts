@@ -71,6 +71,7 @@ export class NvidiaEmbeddings extends Embeddings {
   private initPromise: Promise<void> | null = null;
   private isReady = false;
   private buffer = "";
+  private static readonly MAX_RETRIES = 1;
 
   constructor() {
     super({});
@@ -277,6 +278,34 @@ export class NvidiaEmbeddings extends Embeddings {
     });
   }
 
+  private async executeWithRetry<T>(
+    method: string,
+    params: Record<string, any> | undefined,
+    retries = NvidiaEmbeddings.MAX_RETRIES
+  ): Promise<T> {
+    let attempt = 0;
+
+    while (true) {
+      try {
+        return await this.sendRequest(method, params);
+      } catch (error) {
+        attempt += 1;
+        const isTimeout =
+          error instanceof Error && /timeout/i.test(error.message);
+
+        if (!isTimeout || attempt > retries) {
+          throw error;
+        }
+
+        logger.warn(
+          `Request ${method} timed out. Restarting Python service (attempt ${attempt}/${retries + 1}).`
+        );
+        this.cleanup();
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+  }
+
   /**
    * Embed documents (passages) for storage in vector database
    */
@@ -294,7 +323,9 @@ export class NvidiaEmbeddings extends Embeddings {
     try {
       for (let start = 0; start < total; start += MAX_EMBED_BATCH) {
         const batch = texts.slice(start, start + MAX_EMBED_BATCH);
-        const batchResult = await this.sendRequest("embed_documents", {
+        const batchResult = await this.executeWithRetry<{
+          embeddings: number[][];
+        }>("embed_documents", {
           documents: batch,
           batchSize: batch.length,
         });
@@ -336,7 +367,10 @@ export class NvidiaEmbeddings extends Embeddings {
     logger.debug(`Embedding query: ${text.substring(0, 50)}...`);
 
     try {
-      const result = await this.sendRequest("embed_query", {
+      const result = await this.executeWithRetry<{
+        embedding: number[];
+        dimensions: number;
+      }>("embed_query", {
         query: text,
       });
 
@@ -359,7 +393,7 @@ export class NvidiaEmbeddings extends Embeddings {
     type: string;
   }> {
     try {
-      return await this.sendRequest("get_model_info");
+      return await this.executeWithRetry("get_model_info", undefined, 0);
     } catch (error) {
       logger.error("Failed to get model info:", error);
       throw error;
@@ -373,19 +407,21 @@ export class NvidiaEmbeddings extends Embeddings {
     if (this.pythonProcess) {
       logger.info("Shutting down Python embeddings service");
       try {
+        const processToKill = this.pythonProcess;
+
         // Send shutdown command if possible
-        if (this.pythonProcess.stdin && !this.pythonProcess.stdin.destroyed) {
-          this.pythonProcess.stdin.end();
+        if (processToKill.stdin && !processToKill.stdin.destroyed) {
+          processToKill.stdin.end();
         }
 
         // Kill the process
-        this.pythonProcess.kill("SIGTERM");
+        processToKill.kill("SIGTERM");
 
         // Force kill after 2 seconds if still running
         setTimeout(() => {
-          if (this.pythonProcess && !this.pythonProcess.killed) {
+          if (processToKill && !processToKill.killed) {
             logger.warn("Force killing Python service");
-            this.pythonProcess.kill("SIGKILL");
+            processToKill.kill("SIGKILL");
           }
         }, 2000);
       } catch (error) {

@@ -36,14 +36,14 @@ npm run test:upload
 
 ### Token limit error
 
-→ Already fixed! Chunks are now 400 chars (was 1000)
+→ Already fixed! Chunks now target ~6,000 tokens (≈24k chars) to leverage the 8,192-token window.
 
 ## 🎯 What Was Fixed
 
 | Issue      | Before        | After                            |
 | ---------- | ------------- | -------------------------------- |
 | File path  | Only filename | Full absolute path               |
-| Chunk size | 1000 chars    | 400 chars (fits 512 token limit) |
+| Chunk size | 1000 chars    | ~24,000 chars (fits 8,192-token limit) |
 | Add docs   | No chunking   | Automatic chunking               |
 
 ## 📦 Files Changed
@@ -59,7 +59,7 @@ npm run test:upload
 1. User clicks "Upload Docs" in UI
 2. Electron file picker provides **absolute path**
 3. System loads file from **actual location**
-4. Splits into **400-char chunks** (≈100 tokens)
+4. Splits into **~24k-char chunks** (≈6,000 tokens)
 5. Creates embeddings via **NVIDIA API**
 6. Stores in **ChromaDB** (in-memory)
 7. Ready for **similarity search** ✨

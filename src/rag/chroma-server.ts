@@ -16,8 +16,24 @@ import fs from "node:fs";
 import { logger } from "../client/logger";
 
 let chromaServerProcess: ChildProcess | null = null;
-const CHROMA_PORT = 8000;
-const CHROMA_HOST = "localhost";
+const DEFAULT_CHROMA_HOST = "localhost";
+const DEFAULT_CHROMA_PORT = 8000;
+
+function getChromaHost(): string {
+  return process.env.CHROMA_HOST?.trim() || DEFAULT_CHROMA_HOST;
+}
+
+function getChromaPort(): number {
+  const raw = process.env.CHROMA_PORT?.trim();
+  if (!raw) {
+    return DEFAULT_CHROMA_PORT;
+  }
+  const parsed = Number(raw);
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return parsed;
+  }
+  return DEFAULT_CHROMA_PORT;
+}
 
 // Lazy-initialized storage path for ChromaDB
 // This is computed on first access to avoid issues in test environments
@@ -57,7 +73,7 @@ export const CHROMA_PERSIST_DIR = getChromaPersistDir();
 export async function isChromaServerRunning(): Promise<boolean> {
   try {
     const response = await fetch(
-      `http://${CHROMA_HOST}:${CHROMA_PORT}/api/v1/heartbeat`
+      `http://${getChromaHost()}:${getChromaPort()}/api/v1/heartbeat`
     );
     return response.ok;
   } catch {
@@ -71,7 +87,9 @@ export async function isChromaServerRunning(): Promise<boolean> {
  *
  * @returns Promise that resolves when server is ready
  */
-export async function startChromaServer(): Promise<void> {
+export async function startChromaServer(
+  startupTimeoutMs = 10000
+): Promise<void> {
   // Check if already running
   const isRunning = await isChromaServerRunning();
   if (isRunning) {
@@ -89,8 +107,10 @@ export async function startChromaServer(): Promise<void> {
 
   return new Promise((resolve, reject) => {
     const persistDir = getChromaPersistDir();
+    const host = getChromaHost();
+    const port = getChromaPort();
     logger.info("🚀 Starting ChromaDB server...");
-    logger.info(`   Port: ${CHROMA_PORT}`);
+    logger.info(`   Port: ${port}`);
     logger.info(`   Storage: ${persistDir}`);
 
     // Determine chroma CLI path - prefer venv, fallback to system
@@ -102,15 +122,7 @@ export async function startChromaServer(): Promise<void> {
     // Start ChromaDB server
     chromaServerProcess = spawn(
       chromaCmd,
-      [
-        "run",
-        "--path",
-        persistDir,
-        "--port",
-        CHROMA_PORT.toString(),
-        "--host",
-        CHROMA_HOST,
-      ],
+      ["run", "--path", persistDir, "--port", port.toString(), "--host", host],
       {
         stdio: ["ignore", "pipe", "pipe"],
         detached: false,
@@ -131,9 +143,7 @@ export async function startChromaServer(): Promise<void> {
       ) {
         if (!serverStarted) {
           serverStarted = true;
-          logger.info(
-            `✅ ChromaDB server ready at http://${CHROMA_HOST}:${CHROMA_PORT}`
-          );
+          logger.info(`✅ ChromaDB server ready at http://${host}:${port}`);
           resolve();
         }
       }
@@ -193,7 +203,7 @@ export async function startChromaServer(): Promise<void> {
       }
     );
 
-    // Timeout if server doesn't start within 10 seconds
+    // Timeout if server doesn't start within provided window
     setTimeout(() => {
       if (!serverStarted) {
         logger.error("ChromaDB server startup timeout");
@@ -208,7 +218,7 @@ export async function startChromaServer(): Promise<void> {
           )
         );
       }
-    }, 10000);
+    }, startupTimeoutMs);
   });
 }
 
@@ -227,7 +237,7 @@ export function stopChromaServer(): void {
  * Get the ChromaDB server URL
  */
 export function getChromaServerUrl(): string {
-  return `http://${CHROMA_HOST}:${CHROMA_PORT}`;
+  return `http://${getChromaHost()}:${getChromaPort()}`;
 }
 
 /**

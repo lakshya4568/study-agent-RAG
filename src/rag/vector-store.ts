@@ -7,22 +7,29 @@ import type { Document } from "@langchain/core/documents";
 import { createNVIDIAEmbeddings } from "../models/nvidia-embeddings";
 import { logger } from "../client/logger";
 import { getChromaServerUrl, getChromaPersistDir } from "./chroma-server";
+import { InMemoryChromaClient } from "./in-memory-chroma-client";
 
 const CHROMA_COLLECTION_NAME = "study_materials";
 
+const MODEL_CONTEXT_TOKENS = 8192;
+const AVG_CHARS_PER_TOKEN = 4;
+const TARGET_CHUNK_TOKENS = 6000; // leave ~25% of window for questions/system prompts
+const TARGET_CHUNK_OVERLAP_TOKENS = 384;
+
 /**
  * RAG Configuration optimized for NVIDIA embeddings
- * - Model context: 512 tokens (~2048 chars)
- * - Target chunk size: 350 tokens (~1400 chars) to stay well below limit
- * - Overlap: 50 tokens (~200 chars) for context continuity
+ * - Model context: 8192 tokens (~32k chars)
+ * - Target chunk size: 6000 tokens (~24k chars) to stay below limit
+ * - Overlap: 384 tokens (~1.5k chars) for context continuity
  * - Separators: Prioritize semantic boundaries
  */
 const RAG_CONFIG = {
-  chunkSize: 1400,
-  chunkOverlap: 200,
+  chunkSize: TARGET_CHUNK_TOKENS * AVG_CHARS_PER_TOKEN,
+  chunkOverlap: TARGET_CHUNK_OVERLAP_TOKENS * AVG_CHARS_PER_TOKEN,
   separators: ["\n\n", "\n", ". ", "! ", "? ", "; ", ": ", " ", ""],
   minChunkSize: 100,
   maxChunks: 5000,
+  contextTokens: MODEL_CONTEXT_TOKENS,
 } as const;
 
 export interface DocumentChunkStats {
@@ -198,7 +205,7 @@ export async function chunkDocumentsForVectorStore(
  *
  * Features:
  * - Persistent storage across application restarts
- * - Optimized chunking for NVIDIA's 512 token context window
+ * - Optimized chunking for NVIDIA's 8192 token context window
  * - Semantic boundary preservation
  * - Rich metadata for source tracking
  * - Cosine similarity for retrieval
@@ -245,18 +252,43 @@ export async function createStudyMaterialVectorStore(
     `Chunking diagnostics | totalRaw=${summary.totalRawChunks} filteredShort=${summary.droppedShort} duplicates=${summary.droppedDuplicates}`
   );
 
+  const embeddings = createNVIDIAEmbeddings();
+  const allowInMemoryFallback =
+    process.env.CHROMA_ALLOW_IN_MEMORY_FALLBACK !== "false";
+  let usingInMemoryIndex = false;
+  let indexClient: ChromaClient;
+  let persistDir = getChromaPersistDir();
+
   try {
     logger.info("📊 Initializing RAG pipeline with persistent storage...");
-    const persistDir = getChromaPersistDir();
     logger.info(`Using persistent storage at: ${persistDir}`);
 
-    const embeddings = createNVIDIAEmbeddings();
-
     // Create ChromaClient connected to HTTP server (server persists to disk)
-    const chromaClient = new ChromaClient({
+    indexClient = new ChromaClient({
       path: getChromaServerUrl(),
     });
 
+    // Verify the server is reachable before loading documents
+    await indexClient.listCollections();
+  } catch (error) {
+    if (!allowInMemoryFallback) {
+      const message =
+        error instanceof Error ? error.message : "Unknown ChromaDB error";
+      throw new Error(
+        `RAG initialization failed: ${message}. ` +
+          "Ensure the ChromaDB server is running or enable the in-memory fallback by omitting CHROMA_ALLOW_IN_MEMORY_FALLBACK=false."
+      );
+    }
+
+    usingInMemoryIndex = true;
+    persistDir = "in-memory";
+    logger.warn(
+      "ChromaDB server unavailable. Falling back to in-memory vector store (data will not persist between runs)."
+    );
+    indexClient = new InMemoryChromaClient() as unknown as ChromaClient;
+  }
+
+  try {
     const vectorStore = await Chroma.fromDocuments(validChunks, embeddings, {
       collectionName: CHROMA_COLLECTION_NAME,
       collectionMetadata: {
@@ -266,7 +298,7 @@ export async function createStudyMaterialVectorStore(
         created: new Date().toISOString(),
         persistPath: persistDir,
       },
-      index: chromaClient, // Use ChromaClient connected to HTTP server
+      index: indexClient,
     });
 
     const duration = Date.now() - startTime;
@@ -274,9 +306,15 @@ export async function createStudyMaterialVectorStore(
       `✅ RAG pipeline ready! Indexed ${validChunks.length} chunks in ${duration}ms`
     );
     logger.info(
-      `   Collection: ${CHROMA_COLLECTION_NAME} | Storage: Persistent (${persistDir})`
+      `   Collection: ${CHROMA_COLLECTION_NAME} | Storage: ${usingInMemoryIndex ? "In-memory (non-persistent)" : `Persistent (${persistDir})`}`
     );
     logger.info(`   Embeddings: NVIDIA nv-embedqa-e5-v5 | Dimensions: 1024`);
+
+    if (usingInMemoryIndex) {
+      logger.warn(
+        "In-memory mode is intended for tests only. Start the ChromaDB server for persistent storage."
+      );
+    }
 
     return vectorStore;
   } catch (error) {

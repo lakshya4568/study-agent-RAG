@@ -13,8 +13,8 @@ The document upload functionality has been **successfully fixed and tested**. Th
 
 ### 2. Token Limit Exceeded ✅
 
-**Problem:** NVIDIA embedding model has a 512 token limit, but chunks were too large (1000 chars)
-**Solution:** Reduced chunk size from 1000 → 400 characters with proper overlap
+**Problem:** The previous NVIDIA embedding tier only allowed a 512-token window, so 1,000-character chunks frequently overflowed
+**Solution:** Upgraded to the new 8,192-token model and now target ~6,000-token chunks (≈24k characters) with proportionally larger overlap
 
 ### 3. Adding Documents Without Chunking ✅
 
@@ -34,7 +34,7 @@ The document upload functionality has been **successfully fixed and tested**. Th
 ## Files Modified
 
 1. **src/views/Chat.tsx** - Fixed file path extraction from Electron file picker
-2. **src/rag/vector-store.ts** - Reduced chunk size to 400 chars (≈100 tokens)
+2. **src/rag/vector-store.ts** - Added adaptive chunk sizing for ~6,000-token (≈24k char) segments
 3. **src/agent/StudyAgentService.ts** - Added chunking before adding documents
 4. **tests/test-document-upload.ts** - Created comprehensive test script
 5. **package.json** - Added `test:upload` npm script
@@ -52,6 +52,7 @@ The document upload functionality has been **successfully fixed and tested**. Th
    ```
 
 2. **Run the test**:
+
    ```powershell
    npm run test:upload
    ```
@@ -63,7 +64,7 @@ The document upload functionality has been **successfully fixed and tested**. Th
 3. Select any PDF, text, or markdown file from anywhere on your computer
 4. The file will be:
    - Loaded from its actual location (not copied)
-   - Split into 400-character chunks
+   - Split into ~24k-character chunks (≈6,000 tokens)
    - Embedded using NVIDIA API
    - Stored in ChromaDB
    - Ready for similarity search
@@ -80,17 +81,17 @@ NVIDIA_API_KEY=your_key_here
 
 ### Chunk Size Calculation
 
-- NVIDIA model limit: **512 tokens**
+- NVIDIA model limit: **8,192 tokens**
 - Average: **1 token ≈ 4 characters**
-- Safe chunk size: **400 characters (≈100 tokens)**
-- Overlap: **50 characters** to maintain context
+- Target chunk size: **~6,000 tokens (~24,000 characters)** to reserve prompt space
+- Overlap: **~384 tokens (~1,500 characters)** to maintain context
 
 ### Document Processing Flow
 
 ```
 1. User selects file → Electron provides absolute path
 2. Document loaded → PDFLoader/TextLoader reads file
-3. Chunking → RecursiveCharacterTextSplitter (400 chars)
+3. Chunking → RecursiveCharacterTextSplitter (~24k chars)
 4. Embedding → NVIDIA API (nv-embedqa-e5-v5 model)
 5. Storage → In-memory ChromaDB vector store
 6. Ready → Available for similarity search

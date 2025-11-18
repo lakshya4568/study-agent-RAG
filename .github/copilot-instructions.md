@@ -1,24 +1,16 @@
 # AI Study Agent - Copilot Instructions# 🧠 Study Agent MCP Client
 
-
-
 ## Project State: Early-Stage Electron + TypeScript Scaffold## Project Overview
 
+NVIDIA API Rate Limit = 40 Requests per Minute (free tier)
 
+This is a **freshly initialized Electron application** (using Electron Forge + Webpack + TypeScript) with the **vision** of becoming a Model Context Protocol (MCP) client for AI-powered study tools. The MCP client implementation **does not exist yet**—the codebase is currently a vanilla Electron starter template.**Study Agent MCP Client** is a universal, agent-enabled desktop client (TypeScript + Electron) designed to interface with any _Model Context Protocol (MCP)_ server. It empowers the creation and delivery of intelligent, personalized study tools by leveraging dynamically discovered capabilities from MCP servers—including Google Forms. The goal is to allow AI-driven workflows (summarization, flashcards, quiz generation, study mentoring) by connecting to multiple backends through a standardized protocol.
 
-This is a **freshly initialized Electron application** (using Electron Forge + Webpack + TypeScript) with the **vision** of becoming a Model Context Protocol (MCP) client for AI-powered study tools. The MCP client implementation **does not exist yet**—the codebase is currently a vanilla Electron starter template.**Study Agent MCP Client** is a universal, agent-enabled desktop client (TypeScript + Electron) designed to interface with any *Model Context Protocol (MCP)* server. It empowers the creation and delivery of intelligent, personalized study tools by leveraging dynamically discovered capabilities from MCP servers—including Google Forms. The goal is to allow AI-driven workflows (summarization, flashcards, quiz generation, study mentoring) by connecting to multiple backends through a standardized protocol.
-
-
-
-------
-
-
+---
 
 ## Architecture: Standard Electron Process Model## 🌟 Key Features
 
-
-
-```- **Universal MCP Client**: Connects to any MCP-compliant server (local or remote), discovering available tools at runtime, and allowing seamless extension with zero code changes.
+````- **Universal MCP Client**: Connects to any MCP-compliant server (local or remote), discovering available tools at runtime, and allowing seamless extension with zero code changes.
 
 ┌─────────────────────────────────────────┐- **Multi-Server Support**: Manage and orchestrate parallel connections to multiple MCP servers. Aggregate all available tools, regardless of backend or server language.
 
@@ -130,7 +122,7 @@ npm run make           # Create distributable (DMG on macOS, etc.)- **UI**: Rend
 
 npm run lint           # Run ESLint on TypeScript files- **Agent**: LLM-driven logic for selecting and sequencing tools.
 
-```
+````
 
 ---
 
@@ -138,19 +130,16 @@ npm run lint           # Run ESLint on TypeScript files- **Agent**: LLM-driven l
 
 `src/index.ts` **always opens DevTools** in development (`mainWindow.webContents.openDevTools()`). Remove this line for production.## 🧩 Typical Workflow Example
 
-
-
 ### TypeScript Configuration1. **Start Client**: User launches Electron desktop app, adds available MCP servers (e.g., Google Forms server).
 
 - `tsconfig.json`: ES6 target, CommonJS modules, strict type checking enabled2. **Tool Discovery**: On connection, client fetches and displays all server tools with metadata.
 
 - Webpack uses `ts-loader` with `transpileOnly: true` for faster builds3. **User/Agent Action**:
 
-- Fork-ts-checker runs type checking in parallel   - User uploads a PDF.
+- Fork-ts-checker runs type checking in parallel - User uploads a PDF.
+  - Agent discovers `summarize_pdf`, `generate_flashcards`, and `create_form` as available tools.
 
-   - Agent discovers `summarize_pdf`, `generate_flashcards`, and `create_form` as available tools.
-
----   - Agent calls tools to generate study summaries, flashcards, and quizzes—using selected MCP servers.
+--- - Agent calls tools to generate study summaries, flashcards, and quizzes—using selected MCP servers.
 
 4. **Results Displayed**: Summaries, flashcards, and quiz links appear in the UI; user can interact and study.
 
@@ -184,8 +173,6 @@ if (require('electron-squirrel-startup')) {- **Node.js**: Runtime for backend lo
 
 This **must remain at the top** of the main process to avoid duplicate installs.## ✨ Why Use This Project?
 
-
-
 ### 3. Platform-Specific Behavior- **Develop once, connect to any (future) AI toolchain** using the MCP standard.
 
 macOS apps traditionally stay open when all windows close:- **Includes all agent patterns** for tomorrow’s LLM workflows—not limited to static prompts or plugins.
@@ -204,13 +191,13 @@ app.on('window-all-closed', () => {- **Perfect for power users, students, resear
 
 ```
 
-Activate event re-creates window on dock icon click (macOS pattern).- 🎯 *Phase 1*: Client project setup & tool registry bootstrapped.
+Activate event re-creates window on dock icon click (macOS pattern).- 🎯 _Phase 1_: Client project setup & tool registry bootstrapped.
 
-- 🛠️ *Phase 2*: Implement and test with your Google Forms server.
+- 🛠️ _Phase 2_: Implement and test with your Google Forms server.
 
----- 🧪 *Phase 3*: Add more MCP servers, LLM-powered agent workflows for all study modes.
+---- 🧪 _Phase 3_: Add more MCP servers, LLM-powered agent workflows for all study modes.
 
-- 🏁 *Phase 4*: Polish UI for handling rich study tasks, progress tracking, agent reasoning visualizations.
+- 🏁 _Phase 4_: Polish UI for handling rich study tasks, progress tracking, agent reasoning visualizations.
 
 ## Future Implementation: MCP Client (Not Yet Built)
 
@@ -232,7 +219,7 @@ The project aims to build a **Universal MCP Client** for AI-powered study tools:
 
 ### Recommended Structure
 
-```---
+````---
 
 src/
 
@@ -260,22 +247,27 @@ src/
 
     ├── Chat.tsx              # Agent chat interface```
     └── ToolExplorer.tsx      # Tool list/execution UI
-```
+````
 
 ### Dependencies to Add
+
 - `@modelcontextprotocol/sdk` (official MCP TypeScript SDK)
 - `zod` (schema validation for tool inputs)
 - `winston` (structured logging)
 - React/Svelte/Vue (for UI, not yet chosen)
 
 ### IPC Architecture
+
 Main process will expose MCP APIs via `contextBridge`:
+
 ```typescript
 // preload.ts (future)
-contextBridge.exposeInMainWorld('mcp', {
-  connectServer: (serverConfig) => ipcRenderer.invoke('mcp:connect', serverConfig),
-  listTools: (serverId) => ipcRenderer.invoke('mcp:list-tools', serverId),
-  executeTool: (serverId, toolName, params) => ipcRenderer.invoke('mcp:execute', serverId, toolName, params),
+contextBridge.exposeInMainWorld("mcp", {
+  connectServer: (serverConfig) =>
+    ipcRenderer.invoke("mcp:connect", serverConfig),
+  listTools: (serverId) => ipcRenderer.invoke("mcp:list-tools", serverId),
+  executeTool: (serverId, toolName, params) =>
+    ipcRenderer.invoke("mcp:execute", serverId, toolName, params),
 });
 ```
 
@@ -329,9 +321,10 @@ When asked to implement features, prioritize this order:
 
 ## Project Vision
 
-Modern LLM use-cases go far beyond chat. *Model Context Protocol (MCP)* is becoming the bridge for tools and data, connecting LLM agents to heterogeneous toolchains and APIs. This client aims to make those new AI workflows accessible from the desktop for students, researchers, and tinkerers.
+Modern LLM use-cases go far beyond chat. _Model Context Protocol (MCP)_ is becoming the bridge for tools and data, connecting LLM agents to heterogeneous toolchains and APIs. This client aims to make those new AI workflows accessible from the desktop for students, researchers, and tinkerers.
 
 The agent system should:
+
 - Instantly discover capabilities (tools) from new servers
 - Act on raw documents (local, cloud), create quizzes or flashcards, and more
 - Orchestrate multi-agent learning where the AI helps you master a subject, not just answer questions
