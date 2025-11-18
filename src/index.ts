@@ -7,6 +7,7 @@ import {
   logger,
   initializeFileLogging,
   ConfigManager,
+  mcpToolService,
 } from "./client";
 import {
   HumanMessage,
@@ -274,6 +275,78 @@ ipcMain.handle(
  */
 ipcMain.handle("mcp:getConnectedCount", (): number => {
   return mcpManager.getConnectedCount();
+});
+
+/**
+ * Request tool execution with approval flow
+ */
+ipcMain.handle(
+  "mcp:requestToolExecution",
+  async (
+    _,
+    payload: {
+      toolName: string;
+      serverId: string;
+      serverName: string;
+      args?: Record<string, unknown>;
+      description?: string;
+    }
+  ): Promise<{ requestId: string }> => {
+    try {
+      logger.info("Tool execution requested", payload);
+      const request = await mcpToolService.requestToolExecution(
+        payload.toolName,
+        payload.serverId,
+        payload.serverName,
+        payload.args,
+        payload.description
+      );
+      return { requestId: request.id };
+    } catch (error) {
+      logger.error("Failed to create tool execution request:", error);
+      throw error;
+    }
+  }
+);
+
+/**
+ * Approve a tool execution request
+ */
+ipcMain.handle(
+  "mcp:approveToolExecution",
+  async (_, requestId: string): Promise<void> => {
+    try {
+      logger.info("Tool execution approved", { requestId });
+      await mcpToolService.approveExecution(requestId);
+    } catch (error) {
+      logger.error("Failed to approve tool execution:", error);
+      throw error;
+    }
+  }
+);
+
+/**
+ * Deny a tool execution request
+ */
+ipcMain.handle(
+  "mcp:denyToolExecution",
+  async (_, requestId: string): Promise<void> => {
+    try {
+      logger.info("Tool execution denied", { requestId });
+      mcpToolService.denyExecution(requestId);
+    } catch (error) {
+      logger.error("Failed to deny tool execution:", error);
+      throw error;
+    }
+  }
+);
+
+/**
+ * Get pending tool execution requests
+ */
+ipcMain.handle("mcp:getPendingToolRequests", () => {
+  const pending = mcpToolService.getPendingRequests();
+  return pending.map((req) => mcpToolService.toPendingToolCall(req));
 });
 
 ipcMain.handle(

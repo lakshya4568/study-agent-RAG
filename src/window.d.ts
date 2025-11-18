@@ -40,6 +40,16 @@ declare global {
       ) => Promise<ToolExecutionResult>;
       findToolServer: (toolName: string) => Promise<string | undefined>;
       getConnectedCount: () => Promise<number>;
+      requestToolExecution: (
+        toolName: string,
+        serverId: string,
+        serverName: string,
+        args?: Record<string, unknown>,
+        description?: string
+      ) => Promise<{ requestId: string }>;
+      approveToolExecution: (requestId: string) => Promise<void>;
+      denyToolExecution: (requestId: string) => Promise<void>;
+      getPendingToolRequests: () => Promise<any[]>;
     };
     studyAgent: {
       sendMessage: (payload: {

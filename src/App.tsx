@@ -13,7 +13,7 @@ export const App: React.FC = () => {
 
   const sidebarHeader = (
     <div className="flex items-center gap-3">
-      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center text-2xl shadow-lg shadow-emerald-500/30">
+      <div className="w-12 h-12 rounded-2xl bg-linear-to-br from-emerald-500 to-green-600 flex items-center justify-center text-2xl shadow-lg shadow-emerald-500/30">
         🎓
       </div>
       <div>
@@ -26,7 +26,7 @@ export const App: React.FC = () => {
   );
 
   const sidebarFooter = (
-    <div className="px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200">
+    <div className="px-4 py-3 rounded-xl bg-linear-to-r from-emerald-50 to-green-50 border border-emerald-200">
       <div className="flex items-center gap-2 text-sm">
         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-lg shadow-emerald-500/50" />
         <span className="text-emerald-700 font-medium">System Online</span>

@@ -137,7 +137,7 @@ npm start
 
 The Python RAG service will:
 
-- Start on localhost:9000
+- Start on the configured RAG port (default 8000, automatically finding another if busy)
 - Initialize ChromaDB with persistent storage
 - Wait for health check before continuing
 - Log all activity to console
@@ -175,13 +175,15 @@ Via the Electron UI:
 ### Health Check
 
 ```bash
-curl http://localhost:9000/health
+PORT=${RAG_PORT:-8000}
+curl "http://localhost:${PORT}/health"
 ```
 
 ### Load Document
 
 ```bash
-curl -X POST http://localhost:9000/load-document \
+PORT=${RAG_PORT:-8000}
+curl -X POST "http://localhost:${PORT}/load-document" \
   -H "Content-Type: application/json" \
   -d '{"pdf_path": "/path/to/doc.pdf"}'
 ```
@@ -189,7 +191,8 @@ curl -X POST http://localhost:9000/load-document \
 ### Query
 
 ```bash
-curl -X POST http://localhost:9000/query \
+PORT=${RAG_PORT:-8000}
+curl -X POST "http://localhost:${PORT}/query" \
   -H "Content-Type: application/json" \
   -d '{"question": "What is X?", "top_k": 4}'
 ```
@@ -201,7 +204,7 @@ curl -X POST http://localhost:9000/query \
 ```bash
 NVIDIA_API_KEY="nvapi-xxx"           # Required
 CHROMA_PERSIST_DIR="./chroma_db"     # Optional
-RAG_PORT=9000                         # Optional
+RAG_PORT=8000                         # Optional preferred port (leave unset to auto-select)
 ```
 
 ### Chunking Configuration
@@ -219,7 +222,7 @@ TOP_K_RETRIEVAL = 4      # Chunks to retrieve
 
 ## Project Structure
 
-```
+```text
 AI STUDY AGENT/
 ├── python/
 │   ├── nvidia_rag_service.py        # ✨ New FastAPI service
@@ -294,7 +297,7 @@ rm python/*.old
 
 - NVIDIA_API_KEY is set in `.env`
 - Python venv exists: `ls python/.venv`
-- Port 9000 is available: `lsof -i :9000`
+- Preferred RAG port is available: ``PORT=${RAG_PORT:-8000} && lsof -i :${PORT}``
 - Python dependencies installed: `pip list | grep fastapi`
 
 **Fix**:
@@ -328,7 +331,7 @@ python nvidia_rag_service.py
 - At least one document is loaded
 - NVIDIA API key is valid
 - Internet connection available
-- Service is healthy: `curl http://localhost:9000/health`
+- Service is healthy: ``PORT=${RAG_PORT:-8000} && curl "http://localhost:${PORT}/health"``
 
 ## Success Criteria
 

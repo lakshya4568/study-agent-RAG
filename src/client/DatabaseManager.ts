@@ -50,7 +50,7 @@ export interface ConversationThread {
   messageCount: number;
 }
 
-class DatabaseManager {
+export class DatabaseManager {
   private db: Database.Database | null = null;
   private dbPath: string;
 

@@ -12,6 +12,9 @@ export const StudyAgentState = Annotation.Root({
   currentTopic: Annotation<string>({
     reducer: (_state, update) => update ?? "",
   }),
+  route: Annotation<string>({
+    reducer: (_state, update) => update ?? "general",
+  }),
 });
 
 export type StudyAgentStateType = typeof StudyAgentState.State;

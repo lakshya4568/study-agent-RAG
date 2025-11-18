@@ -47,6 +47,32 @@ export interface QueryResponse {
   chunks_retrieved: number;
 }
 
+export interface AgentQueryRequest {
+  question: string;
+  use_rag?: boolean;
+  auto_route?: boolean;
+  top_k?: number;
+  max_iterations?: number;
+  tools?: Array<{
+    name: string;
+    description: string;
+    inputSchema?: Record<string, unknown>;
+    serverId: string;
+    serverName: string;
+  }>;
+}
+
+export interface AgentQueryResponse {
+  success: boolean;
+  answer: string;
+  sources?: string[];
+  tool_calls?: Array<{
+    name: string;
+    arguments?: Record<string, unknown>;
+  }>;
+  error?: string;
+}
+
 export interface HealthResponse {
   status: string;
   nvidia_key_set: boolean;
@@ -301,6 +327,68 @@ export class RAGClient {
       return true;
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * Query the agent endpoint with tool support
+   */
+  async queryAgent(
+    question: string,
+    tools?: Array<{
+      name: string;
+      description: string;
+      inputSchema?: Record<string, unknown>;
+      serverId: string;
+      serverName: string;
+    }>,
+    options: {
+      use_rag?: boolean;
+      auto_route?: boolean;
+      top_k?: number;
+      max_iterations?: number;
+    } = {}
+  ): Promise<AgentQueryResponse> {
+    try {
+      const payload: AgentQueryRequest = {
+        question,
+        tools,
+        ...options,
+      };
+
+      const response = await fetch(`${this.baseURL}/query-agent`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return {
+          success: false,
+          answer: "Failed to process agent query",
+          error: errorData.detail || `HTTP ${response.status}`,
+        };
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        answer: result.answer,
+        sources: result.sources,
+        tool_calls: result.tool_calls,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Agent query failed: ${message}`);
+      return {
+        success: false,
+        answer: "An error occurred while processing your request",
+        error: message,
+      };
     }
   }
 }

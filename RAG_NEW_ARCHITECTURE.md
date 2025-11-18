@@ -22,7 +22,7 @@ The RAG (Retrieval-Augmented Generation) pipeline has been refactored to use a *
 │  │  - getCollectionStats()                │ │
 │  └────────────────────────────────────────┘ │
 └──────────────────┬──────────────────────────┘
-                   │ HTTP (localhost:9000)
+                   │ HTTP (localhost:<RAG_PORT>)
 ┌──────────────────▼──────────────────────────┐
 │   Python FastAPI Service                    │
 │   (nvidia_rag_service.py)                   │
@@ -66,7 +66,7 @@ The RAG (Retrieval-Augmented Generation) pipeline has been refactored to use a *
 
 - `NVIDIA_API_KEY`: Required for embeddings and LLM
 - `CHROMA_PERSIST_DIR`: Directory for vector DB (default: `./chroma_db`)
-- `RAG_PORT`: Service port (default: `9000`)
+- `RAG_PORT`: Service port (default: `8000`, auto-adjusts if busy)
 
 **Models**:
 
@@ -200,7 +200,7 @@ const status = studyAgentService.getStatus();
 # .env file
 NVIDIA_API_KEY=nvapi-xxx  # Required
 CHROMA_PERSIST_DIR=/path/to/chroma_db  # Optional
-RAG_PORT=9000  # Optional
+RAG_PORT=8000  # Optional preferred port (leave unset to auto-select)
 ```
 
 ### Python Dependencies
@@ -422,7 +422,7 @@ The following files are no longer used and can be removed:
 
 1. NVIDIA_API_KEY is set
 2. Python venv exists and has dependencies
-3. Port 9000 is not in use
+3. Your preferred RAG port (default 8000) is not already in use (Webpack dev server uses 9000)
 4. Check logs in Electron DevTools
 
 ### Documents not loading
@@ -461,15 +461,16 @@ cd python
 python nvidia_rag_service.py
 
 # Test with curl
-curl http://localhost:9000/health
+PORT=${RAG_PORT:-8000}
+curl "http://localhost:${PORT}/health"
 
 # Load document
-curl -X POST http://localhost:9000/load-document \
+curl -X POST "http://localhost:${PORT}/load-document" \
   -H "Content-Type: application/json" \
   -d '{"pdf_path": "/path/to/doc.pdf"}'
 
 # Query
-curl -X POST http://localhost:9000/query \
+curl -X POST "http://localhost:${PORT}/query" \
   -H "Content-Type: application/json" \
   -d '{"question": "What is X?", "chat_history": [], "top_k": 4}'
 ```

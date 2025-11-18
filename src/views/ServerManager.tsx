@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Server as ServerIcon, Trash2, AlertCircle } from 'lucide-react';
-import { ContentContainer } from '../components/layout';
-import { Button, Card, Input, Badge } from '../components/ui';
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Plus, Server as ServerIcon, Trash2, AlertCircle } from "lucide-react";
+import { ContentContainer } from "../components/layout";
+import { Button, Card, Input, Badge } from "../components/ui";
 
 interface ServerConfig {
   id: string;
@@ -15,7 +15,7 @@ interface ServerConfig {
 
 interface ServerInfo {
   config: ServerConfig;
-  status: 'disconnected' | 'connecting' | 'connected' | 'error';
+  status: "disconnected" | "connecting" | "connected" | "error";
   tools: any[];
   error?: string;
 }
@@ -24,15 +24,15 @@ export const ServerManager: React.FC = () => {
   const [servers, setServers] = useState<ServerInfo[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [formData, setFormData] = useState({
-    id: '',
-    name: '',
-    command: 'node',
-    serverPath: '',
-    npxPackage: '',
-    additionalArgs: '',
+    id: "",
+    name: "",
+    command: "node",
+    serverPath: "",
+    npxPackage: "",
+    additionalArgs: "",
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   useEffect(() => {
     loadServers();
@@ -43,19 +43,19 @@ export const ServerManager: React.FC = () => {
       const allServers = await window.mcpClient.getAllServers();
       setServers(allServers);
     } catch (err) {
-      console.error('Failed to load servers:', err);
+      console.error("Failed to load servers:", err);
     }
   };
 
   const handleAddServer = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     try {
       let args: string[];
-      
-      if (formData.command === 'npx') {
+
+      if (formData.command === "npx") {
         args = [];
         if (formData.additionalArgs.trim()) {
           args.push(...formData.additionalArgs.trim().split(/\s+/));
@@ -75,36 +75,49 @@ export const ServerManager: React.FC = () => {
       const result = await window.mcpClient.addServer(config);
 
       if (result.success) {
-        setFormData({ id: '', name: '', command: 'node', serverPath: '', npxPackage: '', additionalArgs: '' });
+        setFormData({
+          id: "",
+          name: "",
+          command: "node",
+          serverPath: "",
+          npxPackage: "",
+          additionalArgs: "",
+        });
         setShowAddForm(false);
         await loadServers();
       } else {
-        setError(result.error || 'Failed to add server');
+        setError(result.error || "Failed to add server");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setLoading(false);
     }
   };
 
   const handleRemoveServer = async (serverId: string) => {
-    if (!confirm('Are you sure you want to remove this server?')) return;
+    if (!confirm("Are you sure you want to remove this server?")) return;
 
     try {
       await window.mcpClient.removeServer(serverId);
       await loadServers();
     } catch (err) {
-      console.error('Failed to remove server:', err);
+      console.error("Failed to remove server:", err);
     }
   };
 
-  const getStatusVariant = (status: string): 'success' | 'warning' | 'error' | 'default' => {
+  const getStatusVariant = (
+    status: string
+  ): "success" | "warning" | "error" | "default" => {
     switch (status) {
-      case 'connected': return 'success';
-      case 'connecting': return 'warning';
-      case 'error': return 'error';
-      default: return 'default';
+      case "connected":
+        return "success";
+      case "connecting":
+        return "warning";
+      case "error":
+        return "error";
+      default:
+        return "default";
     }
   };
 
@@ -117,13 +130,15 @@ export const ServerManager: React.FC = () => {
             <ServerIcon className="w-8 h-8 text-purple-500" />
             MCP Servers
           </h2>
-          <p className="text-gray-600 mt-1">{servers.length} servers connected</p>
+          <p className="text-gray-600 mt-1">
+            {servers.length} servers connected
+          </p>
         </div>
         <Button
           icon={showAddForm ? undefined : <Plus className="w-5 h-5" />}
           onClick={() => setShowAddForm(!showAddForm)}
         >
-          {showAddForm ? 'Cancel' : 'Add Server'}
+          {showAddForm ? "Cancel" : "Add Server"}
         </Button>
       </div>
 
@@ -132,17 +147,21 @@ export const ServerManager: React.FC = () => {
         {showAddForm && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
+            animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             className="mb-8"
           >
             <Card>
-              <h3 className="text-xl font-bold text-gray-900 mb-6">Add New Server</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-6">
+                Add New Server
+              </h3>
               <form onSubmit={handleAddServer} className="space-y-4">
                 <Input
                   label="Server Name"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   placeholder="My MCP Server"
                   required
                 />
@@ -150,7 +169,9 @@ export const ServerManager: React.FC = () => {
                 <Input
                   label="Server ID (optional)"
                   value={formData.id}
-                  onChange={(e) => setFormData({ ...formData, id: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, id: e.target.value })
+                  }
                   placeholder="Auto-generated if empty"
                 />
 
@@ -160,7 +181,9 @@ export const ServerManager: React.FC = () => {
                   </label>
                   <select
                     value={formData.command}
-                    onChange={(e) => setFormData({ ...formData, command: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, command: e.target.value })
+                    }
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                     required
                   >
@@ -171,19 +194,26 @@ export const ServerManager: React.FC = () => {
                   </select>
                 </div>
 
-                {formData.command === 'npx' ? (
+                {formData.command === "npx" ? (
                   <>
                     <Input
                       label="NPX Package Name"
                       value={formData.npxPackage}
-                      onChange={(e) => setFormData({ ...formData, npxPackage: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, npxPackage: e.target.value })
+                      }
                       placeholder="@upstash/context7-mcp"
                       required
                     />
                     <Input
                       label="Additional Arguments (optional)"
                       value={formData.additionalArgs}
-                      onChange={(e) => setFormData({ ...formData, additionalArgs: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          additionalArgs: e.target.value,
+                        })
+                      }
                       placeholder="-y"
                     />
                   </>
@@ -191,7 +221,9 @@ export const ServerManager: React.FC = () => {
                   <Input
                     label="Server Script Path"
                     value={formData.serverPath}
-                    onChange={(e) => setFormData({ ...formData, serverPath: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, serverPath: e.target.value })
+                    }
                     placeholder="/absolute/path/to/server.js"
                     required
                   />
@@ -199,16 +231,25 @@ export const ServerManager: React.FC = () => {
 
                 {error && (
                   <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-2">
-                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                    <AlertCircle className="w-5 h-5 shrink-0" />
                     {error}
                   </div>
                 )}
 
                 <div className="flex gap-3">
-                  <Button type="submit" disabled={loading} loading={loading} className="flex-1">
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    loading={loading}
+                    className="flex-1"
+                  >
                     Add Server
                   </Button>
-                  <Button type="button" variant="ghost" onClick={() => setShowAddForm(false)}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setShowAddForm(false)}
+                  >
                     Cancel
                   </Button>
                 </div>
@@ -222,9 +263,16 @@ export const ServerManager: React.FC = () => {
       {servers.length === 0 ? (
         <Card className="text-center py-16">
           <div className="text-6xl mb-4">🔌</div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">No servers connected</h3>
-          <p className="text-gray-600 mb-6">Add your first MCP server to get started</p>
-          <Button onClick={() => setShowAddForm(true)} icon={<Plus className="w-5 h-5" />}>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">
+            No servers connected
+          </h3>
+          <p className="text-gray-600 mb-6">
+            Add your first MCP server to get started
+          </p>
+          <Button
+            onClick={() => setShowAddForm(true)}
+            icon={<Plus className="w-5 h-5" />}
+          >
             Add Server
           </Button>
         </Card>
@@ -245,7 +293,10 @@ export const ServerManager: React.FC = () => {
                       <h3 className="text-lg font-bold text-gray-900 mb-2">
                         {server.config.name}
                       </h3>
-                      <Badge variant={getStatusVariant(server.status)} size="sm">
+                      <Badge
+                        variant={getStatusVariant(server.status)}
+                        size="sm"
+                      >
                         {server.status}
                       </Badge>
                     </div>
@@ -257,15 +308,21 @@ export const ServerManager: React.FC = () => {
                   <div className="space-y-2 text-sm text-gray-600 mb-4">
                     <div className="flex justify-between">
                       <span>ID:</span>
-                      <span className="font-mono text-xs truncate max-w-[60%]">{server.config.id}</span>
+                      <span className="font-mono text-xs truncate max-w-[60%]">
+                        {server.config.id}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Command:</span>
-                      <span className="font-mono text-xs">{server.config.command}</span>
+                      <span className="font-mono text-xs">
+                        {server.config.command}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Tools:</span>
-                      <Badge variant="info" size="sm">{server.tools.length}</Badge>
+                      <Badge variant="info" size="sm">
+                        {server.tools.length}
+                      </Badge>
                     </div>
                   </div>
 

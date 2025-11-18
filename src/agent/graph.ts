@@ -3,7 +3,7 @@ import type { CompiledStateGraph } from "@langchain/langgraph";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 import type { StudyAgentStateType } from "./state";
 import { StudyAgentState } from "./state";
-import { queryNode, retrieveNode, generateNode } from "./nodes";
+import { createQueryNode, retrieveNode, routeNode } from "./nodes";
 
 export async function createStudyMentorGraph(
   tools: ConstructorParameters<typeof ToolNode>[0]
@@ -11,14 +11,24 @@ export async function createStudyMentorGraph(
   CompiledStateGraph<StudyAgentStateType, Partial<StudyAgentStateType>>
 > {
   const toolNode = new ToolNode(tools);
+  const queryNode = createQueryNode(tools as any[]);
 
   const workflow = new StateGraph(StudyAgentState)
+    .addNode("router", routeNode)
     .addNode("query", queryNode)
     .addNode("retrieve", retrieveNode)
-    .addNode("tools", toolNode)
-    .addNode("generate", generateNode);
+    .addNode("tools", toolNode);
 
-  workflow.addEdge(START, "query");
+  workflow.addEdge(START, "router");
+
+  workflow.addConditionalEdges("router", (state) => state.route, {
+    rag: "retrieve",
+    tool: "query",
+    general: "query",
+  });
+
+  workflow.addEdge("retrieve", "query");
+
   workflow.addConditionalEdges(
     "query",
     (state) => {
@@ -29,16 +39,15 @@ export async function createStudyMentorGraph(
         "tool_calls" in lastMsg &&
         Array.isArray((lastMsg as { tool_calls?: unknown }).tool_calls) &&
         ((lastMsg as { tool_calls?: unknown[] }).tool_calls?.length ?? 0) > 0;
-      return hasToolCalls ? "tools" : "retrieve";
+      return hasToolCalls ? "tools" : END;
     },
     {
       tools: "tools",
-      retrieve: "retrieve",
+      [END]: END,
     }
   );
-  workflow.addEdge("tools", "generate");
-  workflow.addEdge("retrieve", "generate");
-  workflow.addEdge("generate", END);
+
+  workflow.addEdge("tools", "query");
 
   const checkpointer = new MemorySaver();
   return workflow.compile({ checkpointer }) as CompiledStateGraph<

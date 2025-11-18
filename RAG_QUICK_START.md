@@ -22,7 +22,7 @@ Make sure `.env` has your NVIDIA API key:
 ```bash
 NVIDIA_API_KEY="nvapi-xxx"
 CHROMA_PERSIST_DIR="./chroma_db"  # Optional
-RAG_PORT=9000  # Optional
+RAG_PORT=8000  # Optional - preferred FastAPI port (auto-falls back if busy)
 ```
 
 ### 3. Install Node Dependencies (if not already done)
@@ -42,9 +42,15 @@ npm start
 This will:
 
 1. Start the Electron app
-2. Auto-start the Python RAG service
+2. Auto-start the Python RAG service on the preferred port (or the next available one)
 3. Initialize ChromaDB with persistent storage
 4. Open the app window
+
+> 💡 **Multiple instances:** Each Electron instance now negotiates its own RAG port.
+>
+> - If `RAG_PORT` is free, that port is used.
+> - If it's already taken (for example, a second app window), we automatically bind to the next available port and log the new value.
+> - You can always override the preference per instance (`RAG_PORT=9100 npm start`).
 
 ### Option 2: Manual RAG Service (for testing)
 
@@ -85,7 +91,8 @@ npm start
 ### Health Check
 
 ```bash
-curl http://localhost:9000/health
+PORT=${RAG_PORT:-8000}
+curl "http://localhost:${PORT}/health"
 ```
 
 Expected response:
@@ -104,7 +111,8 @@ Expected response:
 ### Load a Document
 
 ```bash
-curl -X POST http://localhost:9000/load-document \
+PORT=${RAG_PORT:-8000}
+curl -X POST "http://localhost:${PORT}/load-document" \
   -H "Content-Type: application/json" \
   -d '{"pdf_path": "/absolute/path/to/document.pdf"}'
 ```
@@ -122,7 +130,8 @@ Expected response:
 ### Query
 
 ```bash
-curl -X POST http://localhost:9000/query \
+PORT=${RAG_PORT:-8000}
+curl -X POST "http://localhost:${PORT}/query" \
   -H "Content-Type: application/json" \
   -d '{
     "question": "What is the main topic?",
@@ -144,7 +153,8 @@ Expected response:
 ### Get Collection Stats
 
 ```bash
-curl http://localhost:9000/collection/stats
+PORT=${RAG_PORT:-8000}
+curl "http://localhost:${PORT}/collection/stats"
 ```
 
 Expected response:
@@ -178,7 +188,8 @@ echo $NVIDIA_API_KEY
 **Check port availability:**
 
 ```bash
-lsof -i :9000
+PORT=${RAG_PORT:-8000}
+lsof -i :${PORT}
 ```
 
 ### Documents won't load
@@ -204,7 +215,8 @@ lsof -i :9000
 **Check document count:**
 
 ```bash
-curl http://localhost:9000/collection/stats
+PORT=${RAG_PORT:-8000}
+curl "http://localhost:${PORT}/collection/stats"
 ```
 
 **Verify embeddings:**
@@ -255,7 +267,7 @@ cd python && source .venv/bin/activate && python nvidia_rag_service.py
 
 ## Architecture Overview
 
-```
+```text
 Electron App (TypeScript)
     ↓ REST API
 Python RAG Service (FastAPI)

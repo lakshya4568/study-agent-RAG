@@ -286,6 +286,9 @@ class AgentQueryRequest(BaseModel):
 
     question: str = Field(..., description="User's question to answer")
     use_rag: bool = Field(default=True, description="Whether to use RAG for context")
+    auto_route: bool = Field(
+        default=True, description="Whether to automatically route the request"
+    )
     top_k: int = Field(
         default=TOP_K_RETRIEVAL, description="Number of chunks to retrieve for RAG"
     )
@@ -308,6 +311,74 @@ class AgentQueryResponse(BaseModel):
     sources: List[Source]
     chunks_retrieved: int
     iterations: int
+
+
+class RouteResponse(BaseModel):
+    """Response from the router deciding the execution strategy"""
+
+    strategy: str = Field(
+        description="The selected strategy: RAG, TOOL, HYBRID, or GENERAL"
+    )
+    reasoning: str = Field(description="Brief reason for the choice")
+
+
+async def route_request(question: str, llm_client: ChatNVIDIA) -> RouteResponse:
+    """
+    Route the user query to the appropriate strategy
+    """
+    try:
+        parser = PydanticOutputParser(pydantic_object=RouteResponse)
+
+        prompt = f"""You are an expert router for a study assistant. Your task is to decide the best strategy to answer a user's question.
+
+Available strategies:
+1. "RAG": Use this when the user asks about specific documents, study materials, or information that would be found in the knowledge base.
+2. "TOOL": Use this when the user asks to perform a specific action (e.g., read a file, list directory, search github, calculate something) that requires using external tools.
+3. "HYBRID": Use this when the user asks a complex question that requires both retrieving information from documents AND performing an action or using a tool.
+4. "GENERAL": Use this for general conversation, greetings, or questions that don't need external tools or specific document context.
+
+User Question: {question}
+
+Instructions:
+- Analyze the user's intent carefully.
+- If the user asks to "list files", "read file", "search code", etc., prioritize "TOOL".
+- If the user asks "what does this document say", prioritize "RAG".
+- If the user asks "summarize the file I just uploaded", prioritize "RAG" (or "HYBRID" if file reading is needed).
+- Return the strategy and a brief reasoning.
+
+{parser.get_format_instructions()}"""
+
+        response = await llm_client.ainvoke(prompt)
+
+        # Parse the output
+        try:
+            content_str = str(response.content) if response.content else ""
+            # Clean up potential markdown code blocks if the model adds them
+            if "```json" in content_str:
+                content_str = content_str.split("```json")[1].split("```")[0].strip()
+            elif "```" in content_str:
+                content_str = content_str.split("```")[1].split("```")[0].strip()
+
+            return parser.parse(content_str)
+        except Exception:
+            # Fallback to simple keyword matching if parsing fails
+            lower_q = question.lower()
+            if (
+                "read" in lower_q
+                or "list" in lower_q
+                or "search" in lower_q
+                or "tool" in lower_q
+            ):
+                return RouteResponse(
+                    strategy="TOOL", reasoning="Fallback: Keywords detected"
+                )
+            return RouteResponse(
+                strategy="GENERAL", reasoning="Fallback: Parsing failed"
+            )
+
+    except Exception as e:
+        print(f"⚠️ Routing failed: {e}", file=sys.stderr)
+        return RouteResponse(strategy="GENERAL", reasoning=f"Error: {str(e)}")
 
 
 class HealthResponse(BaseModel):
@@ -649,10 +720,27 @@ async def query_agent(request: AgentQueryRequest):
                 "iterations": 0,
             }
 
-        # Retrieve RAG context if requested
+        # Determine strategy via routing
+        strategy = "GENERAL"
+        if request.auto_route:
+            route_result = await route_request(question, llm)  # type: ignore
+            strategy = route_result.strategy
+            print(
+                f"🧭 Routing decision: {strategy} ({route_result.reasoning})",
+                file=sys.stderr,
+            )
+        else:
+            # Manual override or default behavior
+            strategy = "HYBRID" if request.use_rag else "TOOL"
+
+        # Configure execution based on strategy
+        should_use_rag = request.use_rag and (strategy in ["RAG", "HYBRID"])
+        should_use_tools = strategy in ["TOOL", "HYBRID"]
+
+        # Retrieve RAG context if requested and routed
         relevant_docs = []
         rag_context = ""
-        if request.use_rag:
+        if should_use_rag:
             store = get_vector_store()
             retriever = store.as_retriever(
                 search_type="similarity", search_kwargs={"k": request.top_k}
@@ -666,9 +754,21 @@ async def query_agent(request: AgentQueryRequest):
                         for i, doc in enumerate(relevant_docs[:3])
                     ]
                 )
+                print(
+                    f"📚 Retrieved {len(relevant_docs)} docs for RAG context",
+                    file=sys.stderr,
+                )
 
         # Prepare messages with RAG context
         user_message = question + rag_context
+
+        # Select LLM client (with or without tools)
+        # If strategy is RAG or GENERAL, we might not strictly need tools,
+        # but keeping them bound allows for "surprise" tool usage if the model really wants to.
+        # However, to strictly enforce "RAG ONLY", we could use plain `llm`.
+        # For now, we'll use `llm_with_tools` if tools are enabled in strategy,
+        # otherwise plain `llm` to prevent accidental tool calls.
+        active_llm = llm_with_tools if should_use_tools else llm
 
         # Agent loop with tool calling
         messages = [{"role": "user", "content": user_message}]
@@ -678,8 +778,8 @@ async def query_agent(request: AgentQueryRequest):
         for i in range(request.max_iterations):
             iterations += 1
 
-            # Invoke LLM with tools
-            response = llm_with_tools.invoke(messages)  # type: ignore
+            # Invoke LLM
+            response = active_llm.invoke(messages)  # type: ignore
 
             # Check if tool calls were made
             if hasattr(response, "tool_calls") and response.tool_calls:

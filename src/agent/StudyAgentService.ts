@@ -317,6 +317,7 @@ export class StudyAgentService {
         messages: [...conversationHistory, new HumanMessage(userMessage)],
         documents: [],
         currentTopic: "",
+        route: "general",
       };
 
       const invokeConfig: RunnableConfig | undefined = options?.threadId

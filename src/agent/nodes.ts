@@ -56,35 +56,76 @@ function formatSourceLabel(doc: Document): string {
   return `${baseName} · ${originLabel}`;
 }
 
-export async function queryNode(
+export async function routeNode(
   state: StudyAgentStateType
 ): Promise<Partial<StudyAgentStateType>> {
   try {
-    const model = createNVIDIAChat({
-      temperature: 0.3,
-      maxTokens: 2000,
-    });
+    const model = createNVIDIAChat({ temperature: 0 });
+    const lastMessage = state.messages[state.messages.length - 1];
+    const query =
+      typeof lastMessage.content === "string"
+        ? lastMessage.content
+        : JSON.stringify(lastMessage.content);
 
-    const messages = [
-      new SystemMessage(STUDY_MENTOR_SYSTEM_PROMPT),
-      ...state.messages,
-    ];
+    const prompt = `You are a router for a study assistant. Decide the best strategy for the user query.
+    
+    Options:
+    - "rag": Use this when the user asks about specific documents, study materials, or information that would be found in the knowledge base.
+    - "tool": Use this when the user asks to perform a specific action (e.g., read a file, list directory, search github, calculate something) that requires using external tools.
+    - "general": Use this for general conversation, greetings, or questions that don't need external tools or specific document context.
+    
+    Query: ${query}
+    
+    Return ONLY the option name (rag, tool, or general).`;
 
-    const response = await model.invoke(messages);
-    logger.info("Query node: Generated initial response");
+    const response = await model.invoke([new HumanMessage(prompt)]);
+    const route = response.content.toString().toLowerCase().trim();
 
-    return { messages: [response] };
+    logger.info(`Router decision: ${route}`);
+
+    if (route.includes("rag")) return { route: "rag" };
+    if (route.includes("tool")) return { route: "tool" };
+    return { route: "general" };
   } catch (error) {
-    logger.error("Query node failed", error);
-    return {
-      messages: [
-        new AIMessage({
-          content:
-            "I apologize, but I encountered an error processing your query. Please try again.",
-        }),
-      ],
-    };
+    logger.error("Router failed", error);
+    return { route: "general" };
   }
+}
+
+export function createQueryNode(tools: any[]) {
+  return async function queryNode(
+    state: StudyAgentStateType
+  ): Promise<Partial<StudyAgentStateType>> {
+    try {
+      const model = createNVIDIAChat({
+        temperature: 0.3,
+        maxTokens: 2000,
+      });
+
+      // Bind tools if available
+      const modelWithTools = tools.length > 0 ? model.bindTools(tools) : model;
+
+      const messages = [
+        new SystemMessage(STUDY_MENTOR_SYSTEM_PROMPT),
+        ...state.messages,
+      ];
+
+      const response = await modelWithTools.invoke(messages);
+      logger.info("Query node: Generated response");
+
+      return { messages: [response] };
+    } catch (error) {
+      logger.error("Query node failed", error);
+      return {
+        messages: [
+          new AIMessage({
+            content:
+              "I apologize, but I encountered an error processing your query. Please try again.",
+          }),
+        ],
+      };
+    }
+  };
 }
 
 export async function retrieveNode(

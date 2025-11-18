@@ -22,6 +22,8 @@ import {
   MessageBubble,
   LoadingSpinner,
   Badge,
+  ToolCallApproval,
+  PendingToolCall,
 } from "../components/ui";
 
 interface Message {
@@ -102,6 +104,9 @@ export const Chat: React.FC = () => {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [tools, setTools] = useState<Tool[]>([]);
+  const [pendingToolCalls, setPendingToolCalls] = useState<PendingToolCall[]>(
+    []
+  );
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{
     stage:
@@ -125,7 +130,83 @@ export const Chat: React.FC = () => {
   useEffect(() => {
     loadTools();
     loadMessagesFromDb();
+
+    // Poll for pending tool calls every 2 seconds
+    const pollInterval = setInterval(loadPendingToolCalls, 2000);
+    return () => clearInterval(pollInterval);
   }, []);
+
+  const loadPendingToolCalls = async () => {
+    try {
+      const pending = await window.mcpClient.getPendingToolRequests();
+      setPendingToolCalls(pending);
+    } catch (err) {
+      console.error("Failed to load pending tool calls:", err);
+    }
+  };
+
+  const handleToolApprove = async (toolCallId: string) => {
+    try {
+      await window.mcpClient.approveToolExecution(toolCallId);
+
+      // Remove from pending list
+      setPendingToolCalls((prev) => prev.filter((t) => t.id !== toolCallId));
+
+      // Add system message
+      const systemMsg: Message = {
+        id: `msg-${Date.now()}`,
+        role: "system",
+        content: `✅ Tool execution approved and completed`,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, systemMsg]);
+
+      await window.database.saveMessage({
+        id: systemMsg.id,
+        threadId: threadIdRef.current,
+        role: systemMsg.role,
+        content: systemMsg.content,
+        timestamp: systemMsg.timestamp.getTime(),
+      });
+    } catch (err) {
+      console.error("Failed to approve tool:", err);
+      const errorMsg: Message = {
+        id: `msg-${Date.now()}`,
+        role: "system",
+        content: `❌ Tool execution failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+    }
+  };
+
+  const handleToolDeny = async (toolCallId: string) => {
+    try {
+      await window.mcpClient.denyToolExecution(toolCallId);
+
+      // Remove from pending list
+      setPendingToolCalls((prev) => prev.filter((t) => t.id !== toolCallId));
+
+      // Add system message
+      const systemMsg: Message = {
+        id: `msg-${Date.now()}`,
+        role: "system",
+        content: `🚫 Tool execution denied by user`,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, systemMsg]);
+
+      await window.database.saveMessage({
+        id: systemMsg.id,
+        threadId: threadIdRef.current,
+        role: systemMsg.role,
+        content: systemMsg.content,
+        timestamp: systemMsg.timestamp.getTime(),
+      });
+    } catch (err) {
+      console.error("Failed to deny tool:", err);
+    }
+  };
 
   const loadMessagesFromDb = async () => {
     try {
@@ -491,6 +572,18 @@ export const Chat: React.FC = () => {
               content={message.content}
               timestamp={message.timestamp}
               delay={index * 0.02}
+            />
+          ))}
+        </AnimatePresence>
+
+        {/* Pending Tool Call Approvals */}
+        <AnimatePresence>
+          {pendingToolCalls.map((toolCall) => (
+            <ToolCallApproval
+              key={toolCall.id}
+              toolCall={toolCall}
+              onApprove={handleToolApprove}
+              onDeny={handleToolDeny}
             />
           ))}
         </AnimatePresence>

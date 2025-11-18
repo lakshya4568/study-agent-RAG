@@ -74,6 +74,46 @@ contextBridge.exposeInMainWorld("mcpClient", {
   getConnectedCount: (): Promise<number> => {
     return ipcRenderer.invoke("mcp:getConnectedCount");
   },
+
+  /**
+   * Request tool execution with approval flow
+   */
+  requestToolExecution: (
+    toolName: string,
+    serverId: string,
+    serverName: string,
+    args?: Record<string, unknown>,
+    description?: string
+  ): Promise<{ requestId: string }> => {
+    return ipcRenderer.invoke("mcp:requestToolExecution", {
+      toolName,
+      serverId,
+      serverName,
+      args,
+      description,
+    });
+  },
+
+  /**
+   * Approve a tool execution request
+   */
+  approveToolExecution: (requestId: string): Promise<void> => {
+    return ipcRenderer.invoke("mcp:approveToolExecution", requestId);
+  },
+
+  /**
+   * Deny a tool execution request
+   */
+  denyToolExecution: (requestId: string): Promise<void> => {
+    return ipcRenderer.invoke("mcp:denyToolExecution", requestId);
+  },
+
+  /**
+   * Get pending tool execution requests
+   */
+  getPendingToolRequests: (): Promise<unknown[]> => {
+    return ipcRenderer.invoke("mcp:getPendingToolRequests");
+  },
 });
 
 contextBridge.exposeInMainWorld("studyAgent", {
