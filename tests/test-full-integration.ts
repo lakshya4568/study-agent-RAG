@@ -1,8 +1,64 @@
 #!/usr/bin/env tsx
 /**
- * Full Integration Test for RAG Pipeline
- * Tests: Document Loading → Chunking → Embedding → Vector Store → Query
+ * Full RAG Pipeline Integration Test
+ *
+ * End-to-end test of the complete RAG system:
+ * - Document loading from project files
+ * - NVIDIA embedding generation (2048D vectors)
+ * - ChromaDB persistent HTTP server vector storage
+ * - Semantic similarity search
+ * - Score-based result quality
+ *
+ * Requirements:
+ * - ChromaDB server running at http://localhost:8000
+ * - NVIDIA_API_KEY set in environment
+ *
+ * Run with: npm run test:integration
  */
+
+import { createStudyMaterialVectorStore } from "../src/rag/vector-store";
+import { loadStudyDocuments } from "../src/rag/document-loader";
+import {
+  isChromaServerRunning,
+  getChromaServerUrl,
+  getChromaPersistDir,
+} from "../src/rag/chroma-server";
+import path from "path";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+function logSection(title: string) {
+  console.log("\n" + "=".repeat(60));
+  console.log(title);
+  console.log("=".repeat(60));
+}
+
+async function testFullIntegration() {
+  console.log("\n🧪 FULL RAG PIPELINE INTEGRATION TEST");
+  console.log("=".repeat(60));
+  console.log("Testing complete system from documents to semantic search\n");
+
+  try {
+    // Step 0: Verify ChromaDB server is running
+    logSection("Step 0: Verifying ChromaDB Server");
+
+    const serverUrl = getChromaServerUrl();
+    const persistDir = getChromaPersistDir();
+    const isRunning = await isChromaServerRunning();
+
+    if (!isRunning) {
+      console.error(`\n❌ ChromaDB server is not running at ${serverUrl}`);
+      console.error("\n💡 Please start the ChromaDB server first:");
+      console.error("   - Server should be started by Electron app");
+      console.error(
+        "   - Or manually: chroma run --path .chromadb/chroma_storage --port 8000\n"
+      );
+      return false;
+    }
+
+    console.log(`✅ ChromaDB server is running at ${serverUrl}`);
+    console.log(`📁 Storage directory: ${persistDir}\n`);
 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -125,7 +181,7 @@ async function testFullIntegration() {
     console.log("  ✅ Chunking (optimized for NVIDIA context)");
     console.log("  ✅ Python bridge (JSON-RPC communication)");
     console.log("  ✅ NVIDIA embeddings (2048D vectors)");
-    console.log("  ✅ ChromaDB storage (in-memory)");
+    console.log("  ✅ ChromaDB storage (persistent HTTP server)");
     console.log("  ✅ Semantic search (cosine similarity)");
     console.log("  ✅ Metadata enrichment");
     console.log("\n🎉 RAG pipeline is production ready!");

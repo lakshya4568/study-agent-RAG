@@ -106,6 +106,9 @@ dev-debug.log
 .github
 .taskmaster
 
+.chromadb
+
+.chromadb/*
 
 .env.example
 
