@@ -21,6 +21,36 @@ import type {
   AgentStatus,
 } from "./types";
 
+/**
+ * Sanitizes metadata to only include primitive types (string, number, boolean, null)
+ * ChromaDB does not support nested objects or arrays in metadata
+ */
+function sanitizeMetadata(
+  metadata: Record<string, any>
+): Record<string, string | number | boolean | null> {
+  const sanitized: Record<string, string | number | boolean | null> = {};
+
+  for (const [key, value] of Object.entries(metadata)) {
+    if (value === null || value === undefined) {
+      sanitized[key] = null;
+    } else if (
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean"
+    ) {
+      sanitized[key] = value;
+    } else if (typeof value === "object") {
+      // Convert objects/arrays to JSON strings
+      sanitized[key] = JSON.stringify(value);
+    } else {
+      // Convert any other type to string
+      sanitized[key] = String(value);
+    }
+  }
+
+  return sanitized;
+}
+
 // Re-export types for convenience
 export type { AgentMessageDTO, AgentInvocationResult, AgentStatus };
 
@@ -30,12 +60,8 @@ interface StudyAgentOptions {
   documentPaths?: string[];
 }
 
-const DEFAULT_DOCS = [
-  "README.md",
-  "COMPONENT_USAGE_GUIDE.md",
-  "LAYOUT_FIX_SUMMARY.md",
-  "UI_REORGANIZATION_SUMMARY.md",
-];
+// No default documents - agent starts with empty knowledge base
+// Documents should be uploaded via UI or addDocuments() method
 
 type StudyAgentGraph = Awaited<ReturnType<typeof createStudyMentorGraph>>;
 
@@ -48,6 +74,7 @@ export class StudyAgentService {
   private currentDocumentPaths: string[] = [];
   private loadedDocumentCount = 0;
   private fallbackContextUsed = false;
+  private forcedPlaceholderRemoved = false;
   private lastInvocationLatencyMs?: number;
   private lastInitDurationMs?: number;
   private lastInitError?: string;
@@ -92,6 +119,7 @@ export class StudyAgentService {
 
       this.loadedDocumentCount = docs.length;
       this.fallbackContextUsed = fallbackInjected;
+      this.forcedPlaceholderRemoved = false;
 
       logger.info("StudyAgentService setup: creating vector store");
       this.vectorStore = await createStudyMaterialVectorStore(docs);
@@ -160,7 +188,8 @@ export class StudyAgentService {
           : path.resolve(process.cwd(), docPath)
       );
     }
-    return DEFAULT_DOCS.map((doc) => path.resolve(process.cwd(), doc));
+    // Return empty array - agent starts with no documents
+    return [];
   }
 
   async reloadDocuments(documentPaths: string[]): Promise<void> {
@@ -186,6 +215,64 @@ export class StudyAgentService {
   /**
    * Add new documents to the vector store without full reinitialization
    */
+  /**
+   * Check if the vector store has any documents
+   */
+  async hasDocuments(): Promise<boolean> {
+    await this.initialize().catch((error) => {
+      logger.warn("Could not confirm document state", error);
+    });
+    return !this.fallbackContextUsed && this.loadedDocumentCount > 0;
+  }
+
+  async removeDocumentsByPaths(documentPaths: string[]): Promise<void> {
+    if (!documentPaths.length) {
+      return;
+    }
+
+    await this.initialize().catch((error) => {
+      logger.warn("Failed to initialize before removing documents", error);
+    });
+
+    if (!this.vectorStore) {
+      return;
+    }
+
+    const normalizedPaths = documentPaths.map((docPath) =>
+      path.isAbsolute(docPath)
+        ? path.resolve(docPath)
+        : path.resolve(process.cwd(), docPath)
+    );
+
+    const uniquePaths = Array.from(new Set(normalizedPaths));
+
+    await Promise.all(
+      uniquePaths.map(async (docPath) => {
+        try {
+          await this.vectorStore?.delete({
+            filter: { absolutePath: docPath },
+          });
+          logger.info(`Removed existing embeddings for ${docPath}`);
+        } catch (error) {
+          logger.warn(
+            `Failed to remove embeddings for ${docPath}: ${String(error)}`
+          );
+        }
+      })
+    );
+
+    const removalSet = new Set(uniquePaths);
+    this.currentDocumentPaths = this.currentDocumentPaths.filter(
+      (docPath) => !removalSet.has(path.resolve(docPath))
+    );
+    if (!this.fallbackContextUsed) {
+      this.loadedDocumentCount = Math.max(
+        0,
+        this.loadedDocumentCount - removalSet.size
+      );
+    }
+  }
+
   async addDocuments(documentPaths: string[]): Promise<AgentDocumentAddResult> {
     try {
       await this.initialize();
@@ -260,7 +347,29 @@ export class StudyAgentService {
         );
       }
 
-      await this.vectorStore.addDocuments(chunks);
+      if (this.fallbackContextUsed && !this.forcedPlaceholderRemoved) {
+        try {
+          await this.vectorStore.delete({ filter: { origin: "system" } });
+          logger.info("Removed placeholder context after first upload");
+        } catch (error) {
+          logger.warn("Failed to remove placeholder context", error);
+        }
+        this.fallbackContextUsed = false;
+        this.forcedPlaceholderRemoved = true;
+        this.loadedDocumentCount = 0;
+      }
+
+      // Sanitize metadata before adding to vector store
+      const sanitizedChunks = chunks.map((chunk) => ({
+        ...chunk,
+        metadata: sanitizeMetadata(chunk.metadata || {}),
+      }));
+
+      logger.info(
+        `📤 Adding ${sanitizedChunks.length} sanitized chunks to vector store...`
+      );
+      await this.vectorStore.addDocuments(sanitizedChunks);
+      logger.info(`✅ Successfully added chunks to vector store`);
 
       // Update tracking
       const ingestedPaths = Object.keys(documentStats);

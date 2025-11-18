@@ -3,32 +3,74 @@ import { createHash } from "node:crypto";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { Chroma } from "@langchain/community/vectorstores/chroma";
 import { ChromaClient } from "chromadb";
-import type { Document } from "@langchain/core/documents";
+import { Document } from "@langchain/core/documents";
 import { createNVIDIAEmbeddings } from "../models/nvidia-embeddings";
 import { logger } from "../client/logger";
 import { getChromaServerUrl, getChromaPersistDir } from "./chroma-server";
 import { InMemoryChromaClient } from "./in-memory-chroma-client";
 
+/**
+ * Sanitizes metadata to only include primitive types (string, number, boolean, null)
+ * ChromaDB does not support nested objects or arrays in metadata
+ */
+function sanitizeMetadata(
+  metadata: Record<string, any>
+): Record<string, string | number | boolean | null> {
+  const sanitized: Record<string, string | number | boolean | null> = {};
+
+  for (const [key, value] of Object.entries(metadata)) {
+    if (value === null || value === undefined) {
+      sanitized[key] = null;
+    } else if (
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean"
+    ) {
+      sanitized[key] = value;
+    } else if (typeof value === "object") {
+      // Convert objects/arrays to JSON strings
+      sanitized[key] = JSON.stringify(value);
+    } else {
+      // Convert any other type to string
+      sanitized[key] = String(value);
+    }
+  }
+
+  return sanitized;
+}
+
 const CHROMA_COLLECTION_NAME = "study_materials";
 
 const MODEL_CONTEXT_TOKENS = 8192;
 const AVG_CHARS_PER_TOKEN = 4;
-const TARGET_CHUNK_TOKENS = 6000; // leave ~25% of window for questions/system prompts
-const TARGET_CHUNK_OVERLAP_TOKENS = 384;
+const TARGET_CHUNK_TOKENS = 512; // Smaller chunks for better retrieval granularity
+const TARGET_CHUNK_OVERLAP_TOKENS = 50; // ~10% overlap
 
 /**
  * RAG Configuration optimized for NVIDIA embeddings
- * - Model context: 8192 tokens (~32k chars)
- * - Target chunk size: 6000 tokens (~24k chars) to stay below limit
- * - Overlap: 384 tokens (~1.5k chars) for context continuity
- * - Separators: Prioritize semantic boundaries
+ * - Model context: 8192 tokens (~32k chars) but we use smaller chunks for better retrieval
+ * - Target chunk size: 512 tokens (~2k chars) for semantic granularity
+ * - Overlap: 50 tokens (~200 chars) for context continuity
+ * - Separators: Prioritize semantic boundaries (paragraphs, sentences)
  */
 const RAG_CONFIG = {
-  chunkSize: TARGET_CHUNK_TOKENS * AVG_CHARS_PER_TOKEN,
-  chunkOverlap: TARGET_CHUNK_OVERLAP_TOKENS * AVG_CHARS_PER_TOKEN,
-  separators: ["\n\n", "\n", ". ", "! ", "? ", "; ", ": ", " ", ""],
-  minChunkSize: 100,
-  maxChunks: 5000,
+  chunkSize: TARGET_CHUNK_TOKENS * AVG_CHARS_PER_TOKEN, // ~2048 chars
+  chunkOverlap: TARGET_CHUNK_OVERLAP_TOKENS * AVG_CHARS_PER_TOKEN, // ~200 chars
+  separators: [
+    "\n\n\n", // Multiple blank lines (section breaks)
+    "\n\n", // Paragraph breaks
+    "\n", // Line breaks
+    ". ", // Sentence endings
+    "! ",
+    "? ",
+    "; ",
+    ": ",
+    ", ", // Clause breaks
+    " ", // Word breaks
+    "", // Character level (last resort)
+  ],
+  minChunkSize: 50, // Minimum meaningful content size
+  maxChunks: 10000, // Increased limit for larger documents
   contextTokens: MODEL_CONTEXT_TOKENS,
 } as const;
 
@@ -160,16 +202,19 @@ export async function chunkDocumentsForVectorStore(
     const chunkIndex = stats.keptChunks;
     stats.keptChunks += 1;
 
+    // Sanitize metadata to ensure only primitive types
+    const rawMetadata = {
+      ...chunk.metadata,
+      documentId,
+      absolutePath,
+      origin,
+      chunkHash,
+      chunkIndex,
+    };
+
     dedupedChunks.push({
       ...chunk,
-      metadata: {
-        ...chunk.metadata,
-        documentId,
-        absolutePath,
-        origin,
-        chunkHash,
-        chunkIndex,
-      },
+      metadata: sanitizeMetadata(rawMetadata),
     });
   }
 
@@ -218,20 +263,36 @@ export async function createStudyMaterialVectorStore(
 ): Promise<Chroma> {
   const startTime = Date.now();
   logger.info(
-    `Initializing RAG pipeline with ${documents.length} source documents`
+    `🚀 Initializing RAG pipeline with ${documents.length} source documents`
   );
 
   if (documents.length === 0) {
-    throw new Error("Cannot create vector store with zero documents");
+    logger.warn("⚠️ Creating vector store with zero documents - fallback mode");
+    // Create an empty vector store with a placeholder document
+    // This allows the system to initialize properly and accept uploads later
+    documents = [
+      new Document({
+        pageContent:
+          "This is a placeholder document. The knowledge base is empty. Please upload study materials to begin.",
+        metadata: {
+          source: "system",
+          origin: "system",
+          documentId: "placeholder",
+          fileName: "placeholder.txt",
+        },
+      }),
+    ];
   }
 
-  logger.info("Splitting documents into semantic chunks...");
+  logger.info("📄 Splitting documents into semantic chunks...");
   const { chunks: validChunks, summary } =
     await chunkDocumentsForVectorStore(documents);
 
   if (validChunks.length === 0) {
     throw new Error(
-      "No usable content found in provided documents. Check that PDFs contain selectable text."
+      "❌ No usable content found in provided documents. " +
+        "PDFs must contain selectable/searchable text (not just images). " +
+        "If your PDF is image-based, use OCR software to convert it first."
     );
   }
 
@@ -264,8 +325,10 @@ export async function createStudyMaterialVectorStore(
     logger.info(`Using persistent storage at: ${persistDir}`);
 
     // Create ChromaClient connected to HTTP server (server persists to disk)
+    const serverUrl = new URL(getChromaServerUrl());
     indexClient = new ChromaClient({
-      path: getChromaServerUrl(),
+      host: serverUrl.hostname,
+      port: parseInt(serverUrl.port || "8000"),
     });
 
     // Verify the server is reachable before loading documents
@@ -289,17 +352,32 @@ export async function createStudyMaterialVectorStore(
   }
 
   try {
-    const vectorStore = await Chroma.fromDocuments(validChunks, embeddings, {
-      collectionName: CHROMA_COLLECTION_NAME,
-      collectionMetadata: {
-        "hnsw:space": "cosine", // Cosine similarity for semantic search
-        description: "Study materials indexed with NVIDIA embeddings",
-        version: "1.0",
-        created: new Date().toISOString(),
-        persistPath: persistDir,
-      },
-      index: indexClient,
-    });
+    // Ensure all chunks have sanitized metadata
+    const sanitizedChunks = validChunks.map((chunk) => ({
+      ...chunk,
+      metadata: sanitizeMetadata(chunk.metadata || {}),
+    }));
+
+    logger.info(
+      `🔄 Embedding ${sanitizedChunks.length} chunks with NVIDIA embeddings...`
+    );
+    logger.debug(`Sample chunk metadata:`, sanitizedChunks[0]?.metadata);
+
+    const vectorStore = await Chroma.fromDocuments(
+      sanitizedChunks,
+      embeddings,
+      {
+        collectionName: CHROMA_COLLECTION_NAME,
+        collectionMetadata: {
+          "hnsw:space": "cosine", // Cosine similarity for semantic search
+          description: "Study materials indexed with NVIDIA embeddings",
+          version: "1.0",
+          created: new Date().toISOString(),
+          persistPath: persistDir,
+        },
+        index: indexClient,
+      }
+    );
 
     const duration = Date.now() - startTime;
     logger.info(
@@ -308,7 +386,9 @@ export async function createStudyMaterialVectorStore(
     logger.info(
       `   Collection: ${CHROMA_COLLECTION_NAME} | Storage: ${usingInMemoryIndex ? "In-memory (non-persistent)" : `Persistent (${persistDir})`}`
     );
-    logger.info(`   Embeddings: NVIDIA nv-embedqa-e5-v5 | Dimensions: 1024`);
+    logger.info(
+      `   Embeddings: NVIDIA NeMo Retriever | Dimensions: 2048 | Distance: cosine`
+    );
 
     if (usingInMemoryIndex) {
       logger.warn(
@@ -339,8 +419,10 @@ export async function createStudyMaterialVectorStore(
  */
 export async function initializePersistentChromaClient(): Promise<ChromaClient> {
   try {
+    const serverUrl = new URL(getChromaServerUrl());
     const client = new ChromaClient({
-      path: getChromaServerUrl(),
+      host: serverUrl.hostname,
+      port: parseInt(serverUrl.port || "8000"),
     });
 
     // Test connection by listing collections

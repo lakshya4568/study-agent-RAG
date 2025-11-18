@@ -8,7 +8,7 @@ echo "🔍 Checking ChromaDB Server Status..."
 echo "====================================="
 
 # Check if server is running
-HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/v1/heartbeat 2>/dev/null)
+HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/v2/heartbeat 2>/dev/null)
 
 if [ "$HTTP_STATUS" = "200" ]; then
   echo "✅ ChromaDB server is running at http://localhost:8000"

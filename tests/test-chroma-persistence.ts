@@ -27,7 +27,8 @@ async function testPersistentStorage() {
 
     // Create ChromaDB client connected to HTTP server
     const chromaClient = new ChromaClient({
-      path: "http://localhost:8000",
+      host: "localhost",
+      port: 8000,
     });
 
     // Create test documents

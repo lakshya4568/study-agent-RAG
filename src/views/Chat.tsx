@@ -11,7 +11,6 @@ import {
   PenTool,
   Trash2,
   Upload,
-  File,
   CheckCircle,
   AlertCircle,
 } from "lucide-react";
@@ -104,6 +103,17 @@ export const Chat: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [tools, setTools] = useState<Tool[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{
+    stage:
+      | "selecting"
+      | "loading"
+      | "chunking"
+      | "embedding"
+      | "storing"
+      | "complete";
+    message: string;
+    fileName?: string;
+  } | null>(null);
   const [uploadStatus, setUploadStatus] = useState<{
     type: "success" | "error";
     message: string;
@@ -138,7 +148,7 @@ export const Chat: React.FC = () => {
           id: "welcome",
           role: "system",
           content:
-            "👋 Hey there! I'm Alex, your AI Study Mentor! 🎓\n\n✨ I'm here to help you:\n\n📚 **Study Smart** - Upload documents, create summaries, flashcards & quizzes\n💬 **Learn Better** - Ask questions, explore concepts, get explanations\n🎯 **Stay Organized** - Build study plans and track progress\n\n**Quick tip:** You can upload PDFs, text files, or markdown docs to add to my knowledge base!\n\nWhat would you like to learn today?",
+            "👋 Hey there! I'm Alex, your AI Study Mentor! 🎓\n\n✨ I'm here to help you:\n\n📚 **Study Smart** - Upload documents, create summaries, flashcards & quizzes\n💬 **Learn Better** - Ask questions, explore concepts, get explanations\n🎯 **Stay Organized** - Build study plans and track progress\n\n**📤 Getting Started:**\n1. Click the '**Upload Docs**' button below to add your study materials (PDFs, text files, markdown docs)\n2. Once uploaded, I can answer questions directly from your materials with citations!\n3. Without uploads, I'll provide general knowledge answers\n\n💡 **Tip:** I work best when I have your actual study materials to reference. Upload your lecture notes, textbooks, or study guides for the most accurate help!\n\nWhat would you like to learn today?",
           timestamp: new Date(),
         };
         setMessages([welcomeMsg]);
@@ -290,35 +300,88 @@ export const Chat: React.FC = () => {
   const handleFileUpload = async () => {
     setUploading(true);
     setUploadStatus(null);
+    setUploadProgress(null);
 
     try {
-      // Open native file dialog
+      // Stage 1: File Selection
+      setUploadProgress({
+        stage: "selecting",
+        message: "Opening file dialog...",
+      });
+
       const dialogResult = await window.studyAgent.openFileDialog();
 
       if (!dialogResult.success || dialogResult.filePaths.length === 0) {
         setUploading(false);
+        setUploadProgress(null);
         return;
       }
 
       const filePaths = dialogResult.filePaths;
+      const fileName = filePaths[0].split("/").pop() || "document";
 
       if (!window.studyAgent) {
         throw new Error("Study agent runtime is unavailable.");
       }
 
+      // Stage 2: Loading
+      setUploadProgress({
+        stage: "loading",
+        message: `Loading ${fileName}...`,
+        fileName,
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 300)); // Brief delay for UX
+
+      // Stage 3: Chunking
+      setUploadProgress({
+        stage: "chunking",
+        message: "Splitting document into chunks...",
+        fileName,
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      // Stage 4: Embedding
+      setUploadProgress({
+        stage: "embedding",
+        message: "Creating embeddings with NVIDIA API...",
+        fileName,
+      });
+
       const result = await window.studyAgent.addDocuments(filePaths);
 
+      // Stage 5: Storing
+      setUploadProgress({
+        stage: "storing",
+        message: "Storing in vector database...",
+        fileName,
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
       if (result.success) {
+        // Stage 6: Complete
+        setUploadProgress({
+          stage: "complete",
+          message: "✅ Document ready!",
+          fileName,
+        });
+
         setUploadStatus({
           type: "success",
           message: `✅ Successfully uploaded ${result.addedCount} document${result.addedCount > 1 ? "s" : ""}!`,
         });
 
         // Add success message to chat
+        const chunkInfo = result.documentStats
+          ? Object.values(result.documentStats)[0]?.chunkCount || 0
+          : 0;
+
         const successMsg: Message = {
           id: `msg-${Date.now()}`,
           role: "system",
-          content: `📄 Documents uploaded successfully! I've added ${result.addedCount} new document${result.addedCount > 1 ? "s" : ""} to my knowledge base. Feel free to ask me questions about the content!`,
+          content: `📄 Documents uploaded successfully! I've added ${result.addedCount} new document${result.addedCount > 1 ? "s" : ""} to my knowledge base (${chunkInfo} chunks indexed). Feel free to ask me questions about the content!`,
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, successMsg]);
@@ -376,6 +439,8 @@ export const Chat: React.FC = () => {
       });
     } finally {
       setUploading(false);
+      // Clear progress after brief delay
+      setTimeout(() => setUploadProgress(null), 2000);
       // Clear status after 5 seconds
       setTimeout(() => setUploadStatus(null), 5000);
     }
@@ -436,7 +501,7 @@ export const Chat: React.FC = () => {
             animate={{ opacity: 1 }}
             className="flex items-center gap-3"
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+            <div className="w-10 h-10 rounded-xl bg-linear-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <LoadingSpinner size="sm" />
@@ -448,10 +513,61 @@ export const Chat: React.FC = () => {
       </div>
 
       {/* Input Area */}
-      <div className="flex-shrink-0 p-6 bg-gradient-to-r from-emerald-50/50 to-green-50/50 backdrop-blur-xl border-t border-emerald-200">
+      <div className="shrink-0 p-6 bg-linear-to-r from-emerald-50/50 to-green-50/50 backdrop-blur-xl border-t border-emerald-200">
         <div className="max-w-4xl mx-auto">
+          {/* Upload Progress */}
+          {uploadProgress && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-3 px-4 py-3 rounded-lg bg-linear-to-r from-emerald-50 to-green-50 border border-emerald-300"
+            >
+              <div className="flex items-center gap-3">
+                <div className="shrink-0">
+                  {uploadProgress.stage === "complete" ? (
+                    <CheckCircle className="w-5 h-5 text-emerald-600" />
+                  ) : (
+                    <LoadingSpinner size="sm" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-emerald-900">
+                    {uploadProgress.message}
+                  </div>
+                  {uploadProgress.fileName && (
+                    <div className="text-xs text-emerald-600 mt-0.5">
+                      {uploadProgress.fileName}
+                    </div>
+                  )}
+                  {/* Progress bar */}
+                  <div className="mt-2 h-1.5 bg-emerald-200 rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ width: "0%" }}
+                      animate={{
+                        width:
+                          uploadProgress.stage === "selecting"
+                            ? "10%"
+                            : uploadProgress.stage === "loading"
+                              ? "25%"
+                              : uploadProgress.stage === "chunking"
+                                ? "45%"
+                                : uploadProgress.stage === "embedding"
+                                  ? "70%"
+                                  : uploadProgress.stage === "storing"
+                                    ? "90%"
+                                    : "100%",
+                      }}
+                      transition={{ duration: 0.5 }}
+                      className="h-full bg-linear-to-r from-emerald-500 to-green-600"
+                    />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {/* Upload Status */}
-          {uploadStatus && (
+          {uploadStatus && !uploadProgress && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -513,7 +629,7 @@ export const Chat: React.FC = () => {
               disabled={!input.trim() || loading}
               icon={<Send className="w-5 h-5" />}
               size="lg"
-              className="self-end bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 shadow-lg shadow-emerald-500/30"
+              className="self-end bg-linear-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 shadow-lg shadow-emerald-500/30"
             >
               Send
             </Button>

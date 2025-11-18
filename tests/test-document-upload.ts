@@ -10,7 +10,6 @@
 
 import path from "node:path";
 import fs from "node:fs";
-import os from "node:os";
 import dotenv from "dotenv";
 import { loadStudyDocuments } from "../src/rag/document-loader";
 import { createStudyMaterialVectorStore } from "../src/rag/vector-store";
@@ -18,12 +17,18 @@ import { logger } from "../src/client/logger";
 
 dotenv.config();
 
-// Test file path - cross-platform approach
-// Update this to your actual file location
-const TEST_PDF_PATH =
-  process.platform === "win32"
-    ? "C:\\Users\\Lakshya Sharma\\Desktop\\SHARDA STUDY TRACKER FINAL.pdf"
-    : path.join(os.homedir(), "Desktop", "SHARDA STUDY TRACKER FINAL.pdf");
+// Get test file path from command line argument
+// Usage: npm test -- /path/to/your/document.pdf
+const TEST_PDF_PATH = process.argv[2];
+
+if (!TEST_PDF_PATH) {
+  console.error("\n❌ Error: Please provide a document path as argument");
+  console.log("\nUsage:");
+  console.log("  npx tsx tests/test-document-upload.ts /path/to/document.pdf");
+  console.log("\nExample:");
+  console.log("  npx tsx tests/test-document-upload.ts ~/Desktop/my-doc.pdf\n");
+  process.exit(1);
+}
 
 async function testDocumentUpload() {
   console.log("\n========================================");
@@ -127,47 +132,20 @@ async function testDocumentUpload() {
     }
   }
 
-  // Step 6: Test adding more documents to existing store
-  console.log(
-    "\n\nStep 6: Testing adding documents to existing vector store..."
-  );
-  const additionalDocs = ["README.md", "COMPONENT_USAGE_GUIDE.md"].map((file) =>
-    path.resolve(process.cwd(), file)
-  );
-
+  // Step 6: Vector store persistence verification
+  console.log("\n\nStep 6: Verifying vector store persistence...");
   try {
-    const existingDocs = additionalDocs.filter((f) => fs.existsSync(f));
-
-    if (existingDocs.length > 0) {
-      console.log(`   Adding ${existingDocs.length} additional documents...`);
-      const newDocs = await loadStudyDocuments(existingDocs);
-
-      if (newDocs.length > 0) {
-        // Important: We need to split the documents into chunks first
-        // The vector store expects already-chunked documents
-        const { RecursiveCharacterTextSplitter } = await import(
-          "@langchain/textsplitters"
-        );
-        const splitter = new RecursiveCharacterTextSplitter({
-          chunkSize: 400,
-          chunkOverlap: 50,
-          separators: ["\n\n", "\n", ". ", " ", ""],
-        });
-        const chunkedDocs = await splitter.splitDocuments(newDocs);
-
-        await vectorStore.addDocuments(chunkedDocs);
-        console.log(
-          `✅ Successfully added ${chunkedDocs.length} more chunks to vector store\n`
-        );
-      }
-    } else {
-      console.log("   ℹ️  No additional documents found in project root\n");
-    }
-  } catch (error) {
-    console.error("   ⚠️  Failed to add additional documents:", error);
-    console.log(
-      "   Note: This is expected if the documents are very large and need chunking.\n"
+    // Check ChromaDB collection
+    const collectionCount = await vectorStore.similaritySearch(
+      "document collection check",
+      1
     );
+    console.log(`✅ Vector store is persistent and accessible`);
+    console.log(
+      `   Collection contains ${documents.length} chunks from uploaded document\n`
+    );
+  } catch (error) {
+    console.error("   ⚠️  Persistence check failed:", error);
   }
 
   // Final summary

@@ -294,17 +294,27 @@ ipcMain.handle(
       // Mark documents as processing in database
       const trackedDocs: Array<{ docId: string; filePath: string }> = [];
       const ingestPaths: string[] = [];
-      const skippedExisting: string[] = [];
+      const missingFiles: string[] = [];
+      const replacedDocuments: string[] = [];
       for (const filePath of documentPaths) {
         const absolutePath = path.isAbsolute(filePath)
           ? path.resolve(filePath)
           : path.resolve(process.cwd(), filePath);
-        // Check if already uploaded
-        const existing = dbManager.getDocumentByPath(absolutePath);
-        if (existing) {
-          logger.info(`Document already uploaded: ${absolutePath}`);
-          skippedExisting.push(absolutePath);
+
+        // Check if file exists first
+        if (!fs.existsSync(absolutePath)) {
+          logger.warn(`File not found: ${absolutePath}`);
+          missingFiles.push(absolutePath);
           continue;
+        }
+
+        const existingDoc = dbManager.getDocumentByPath(absolutePath);
+        if (existingDoc) {
+          logger.info(
+            `Re-upload requested for ${absolutePath} (ID: ${existingDoc.id})`
+          );
+          replacedDocuments.push(absolutePath);
+          dbManager.deleteDocument(existingDoc.id);
         }
 
         const docId = `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -331,28 +341,24 @@ ipcMain.handle(
       }
 
       if (ingestPaths.length === 0) {
-        logger.info(
-          "Skipping ingestion request because all documents already exist or were invalid"
-        );
+        logger.warn("No valid documents queued for ingestion");
+        const errorMessage = missingFiles.length
+          ? "Some selected files could not be found."
+          : "Document selection was empty.";
         return {
           success: false,
           addedCount: 0,
-          errors:
-            skippedExisting.length > 0
-              ? [
-                  "All selected documents were already uploaded. Remove duplicates or provide new files.",
-                ]
-              : ["No documents provided for ingestion."],
+          errors: [errorMessage],
           documentStats: {},
         };
       }
 
+      if (replacedDocuments.length > 0) {
+        await studyAgentService.removeDocumentsByPaths(replacedDocuments);
+      }
+
       // Process documents through agent
       const result = await studyAgentService.addDocuments(ingestPaths);
-      const duplicateWarnings = skippedExisting.map(
-        (filePath) =>
-          `Skipped ${path.basename(filePath)} because it was already uploaded. Delete it first or upload a revised version.`
-      );
 
       // Update document status in database
       if (result.success) {
@@ -402,14 +408,17 @@ ipcMain.handle(
         }
       }
 
-      if (duplicateWarnings.length === 0) {
-        return result;
+      if (missingFiles.length > 0) {
+        return {
+          ...result,
+          errors: [
+            ...result.errors,
+            "Some files could not be found during ingestion.",
+          ],
+        };
       }
 
-      return {
-        ...result,
-        errors: [...result.errors, ...duplicateWarnings],
-      };
+      return result;
     } catch (error) {
       logger.error("Failed to add documents", error);
       return {

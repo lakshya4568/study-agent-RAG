@@ -24,6 +24,8 @@
     "test:rag": "tsx tests/test-rag-pipeline.ts",
     "test:agent-rag": "tsx tests/test-agent-rag-e2e.ts",
     "test:integration": "tsx tests/test-full-integration.ts",
+    "test:single-doc-embed": "tsx tests/test-single-doc-embed.ts",
+    "test:rag-complete": "tsx test-rag-complete.ts",
     "test:all": "npm run test:nvidia && npm run test:rag && npm run test:agent-rag",
     "postinstall": "patch-package"
   },

@@ -73,7 +73,7 @@ export const CHROMA_PERSIST_DIR = getChromaPersistDir();
 export async function isChromaServerRunning(): Promise<boolean> {
   try {
     const response = await fetch(
-      `http://${getChromaHost()}:${getChromaPort()}/api/v1/heartbeat`
+      `http://${getChromaHost()}:${getChromaPort()}/api/v2/heartbeat`
     );
     return response.ok;
   } catch {
@@ -112,6 +112,9 @@ export async function startChromaServer(
     logger.info("🚀 Starting ChromaDB server...");
     logger.info(`   Port: ${port}`);
     logger.info(`   Storage: ${persistDir}`);
+    console.log(
+      `[ChromaDB] Starting local server at http://${host}:${port} (storage: ${persistDir})`
+    );
 
     // Determine chroma CLI path - prefer venv, fallback to system
     const venvChroma = path.join(process.cwd(), ".venv", "bin", "chroma");

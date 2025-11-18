@@ -71,7 +71,16 @@ run_test "Agent RAG E2E" "npm run test:agent-rag" 180
 echo "7. Testing Full Integration..."
 run_test "Full Integration" "npm run test:integration" 240
 
-echo "8. Testing Document Upload..."
+echo "8. Testing RAG Readme..."
+run_test "RAG Readme" "npm run test:rag-readme" 120
+
+echo "9. Testing Chroma Persistence..."
+run_test "Chroma Persistence" "npm run test:chroma-persist" 120
+
+echo "10. Testing Single Doc Embed..."
+run_test "Single Doc Embed" "npm run test:single-doc-embed" 120
+
+echo "11. Testing Document Upload..."
 echo -e "${YELLOW}Note: Requires PDF file at ~/Desktop/SHARDA STUDY TRACKER FINAL.pdf${NC}"
 if [ -f "$HOME/Desktop/SHARDA STUDY TRACKER FINAL.pdf" ]; then
     run_test "Document Upload" "npm run test:upload" 180

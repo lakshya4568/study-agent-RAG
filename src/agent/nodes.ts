@@ -181,13 +181,13 @@ export async function retrieveNode(
     const docs = scoredResults.slice(0, 5).map(([doc]) => doc);
 
     if (docs.length === 0) {
-      logger.warn("No documents retrieved from vector store");
+      logger.warn("No relevant documents found for query");
       return {
         documents: [],
         messages: [
           new SystemMessage({
             content:
-              "No relevant context found in the knowledge base. Provide a general answer.",
+              "I couldn't find any matching context in the uploaded documents yet. Upload files or try a different question, and give a general answer for now.",
           }),
         ],
       };
