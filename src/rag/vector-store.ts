@@ -2,11 +2,11 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { Chroma } from "@langchain/community/vectorstores/chroma";
-import type { ChromaClient } from "chromadb";
+import { ChromaClient } from "chromadb";
 import type { Document } from "@langchain/core/documents";
 import { createNVIDIAEmbeddings } from "../models/nvidia-embeddings";
 import { logger } from "../client/logger";
-import { InMemoryChromaClient } from "./in-memory-chroma-client";
+import { getChromaServerUrl, getChromaPersistDir } from "./chroma-server";
 
 const CHROMA_COLLECTION_NAME = "study_materials";
 
@@ -191,11 +191,13 @@ export async function chunkDocumentsForVectorStore(
 }
 
 /**
- * Creates an in-memory ChromaDB vector store for study materials
+ * Creates a persistent ChromaDB vector store for study materials
  * Uses NVIDIA embeddings for optimal semantic search performance
- * No external server required - runs embedded in Node.js process
+ * Data is persisted to local disk storage in userData directory
+ * Connects to a local ChromaDB HTTP server for data operations
  *
  * Features:
+ * - Persistent storage across application restarts
  * - Optimized chunking for NVIDIA's 512 token context window
  * - Semantic boundary preservation
  * - Rich metadata for source tracking
@@ -244,11 +246,16 @@ export async function createStudyMaterialVectorStore(
   );
 
   try {
-    logger.info("Creating NVIDIA embeddings and vector store...");
+    logger.info("📊 Initializing RAG pipeline with persistent storage...");
+    const persistDir = getChromaPersistDir();
+    logger.info(`Using persistent storage at: ${persistDir}`);
 
-    // Create in-memory ChromaDB vector store (no external HTTP server)
-    const inMemoryIndex = new InMemoryChromaClient() as unknown as ChromaClient;
     const embeddings = createNVIDIAEmbeddings();
+
+    // Create ChromaClient connected to HTTP server (server persists to disk)
+    const chromaClient = new ChromaClient({
+      path: getChromaServerUrl(),
+    });
 
     const vectorStore = await Chroma.fromDocuments(validChunks, embeddings, {
       collectionName: CHROMA_COLLECTION_NAME,
@@ -257,8 +264,9 @@ export async function createStudyMaterialVectorStore(
         description: "Study materials indexed with NVIDIA embeddings",
         version: "1.0",
         created: new Date().toISOString(),
+        persistPath: persistDir,
       },
-      index: inMemoryIndex,
+      index: chromaClient, // Use ChromaClient connected to HTTP server
     });
 
     const duration = Date.now() - startTime;
@@ -266,8 +274,9 @@ export async function createStudyMaterialVectorStore(
       `✅ RAG pipeline ready! Indexed ${validChunks.length} chunks in ${duration}ms`
     );
     logger.info(
-      `   Collection: ${CHROMA_COLLECTION_NAME} | Embeddings: NVIDIA nv-embedqa-e5-v5 | Dimensions: 1024`
+      `   Collection: ${CHROMA_COLLECTION_NAME} | Storage: Persistent (${persistDir})`
     );
+    logger.info(`   Embeddings: NVIDIA nv-embedqa-e5-v5 | Dimensions: 1024`);
 
     return vectorStore;
   } catch (error) {
@@ -283,6 +292,31 @@ export async function createStudyMaterialVectorStore(
     }
 
     throw new Error("RAG initialization failed with unknown error");
+  }
+}
+
+/**
+ * Initialize or connect to persistent ChromaDB client
+ * Ensures the ChromaDB server is running and accessible
+ */
+export async function initializePersistentChromaClient(): Promise<ChromaClient> {
+  try {
+    const client = new ChromaClient({
+      path: getChromaServerUrl(),
+    });
+
+    // Test connection by listing collections
+    await client.listCollections();
+    logger.info(`✅ Connected to ChromaDB server at ${getChromaServerUrl()}`);
+
+    return client;
+  } catch (error) {
+    logger.error("Failed to connect to ChromaDB server", error);
+    throw new Error(
+      "ChromaDB server connection failed. The server should have started automatically.\n" +
+        "If you see this error, try restarting the application.\n" +
+        "Manual start: chroma run --path ./chroma_storage --port 8000"
+    );
   }
 }
 

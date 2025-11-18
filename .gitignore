@@ -112,3 +112,12 @@ dev-debug.log
 # Task files
 tasks.json
 tasks/ 
+
+# Python virtual environment
+.venv/
+venv/
+ENV/
+env/
+__pycache__/
+*.py[cod]
+*$py.class 

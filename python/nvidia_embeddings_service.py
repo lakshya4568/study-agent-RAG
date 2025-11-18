@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# Run using project venv: .venv/bin/python nvidia_embeddings_service.py
 """
 NVIDIA Embeddings Service using official langchain-nvidia-ai-endpoints
 Uses the latest model: nvidia/llama-3.2-nemoretriever-300m-embed-v2

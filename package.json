@@ -17,6 +17,7 @@
     "test:rag-readme": "tsx tests/test-rag-readme.ts",
     "test:nvidia": "tsx tests/test-nvidia-api.ts",
     "test:chromadb": "tsx tests/test-chromadb-rag.ts",
+    "test:chroma-persist": "tsx tests/test-chroma-persistence.ts",
     "test:agent": "tsx tests/test-agent-e2e.ts",
     "test:ui": "tsx tests/test-frontend-agent-bridge.ts",
     "test:upload": "tsx tests/test-document-upload.ts",
