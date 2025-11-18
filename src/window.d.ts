@@ -45,6 +45,7 @@ declare global {
       sendMessage: (payload: {
         threadId: string;
         message: string;
+        messageId?: string;
       }) => Promise<AgentInvocationResult>;
       getStatus: () => Promise<AgentStatus>;
       reloadDocuments: (documentPaths: string[]) => Promise<AgentStatus>;

@@ -2,6 +2,7 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import dotenv from "dotenv";
 import { HumanMessage } from "@langchain/core/messages";
+import type { RunnableConfig } from "@langchain/core/runnables";
 import { createStudyMentorGraph } from "./graph";
 import { loadStudyMCPTools, type LoadedStudyTools } from "../tools/mcp-loader";
 import { logger } from "../client/logger";
@@ -294,7 +295,8 @@ export class StudyAgentService {
 
   async invoke(
     userMessage: string,
-    conversationHistory: BaseMessage[] = []
+    conversationHistory: BaseMessage[] = [],
+    options?: { threadId?: string }
   ): Promise<AgentInvocationResult> {
     const startTime = performance.now();
 
@@ -317,7 +319,11 @@ export class StudyAgentService {
         currentTopic: "",
       };
 
-      const result = await this.graph.invoke(input);
+      const invokeConfig: RunnableConfig | undefined = options?.threadId
+        ? { configurable: { thread_id: options.threadId } }
+        : undefined;
+
+      const result = await this.graph.invoke(input, invokeConfig);
 
       const messages = result.messages as BaseMessage[];
       const lastMessage = messages[messages.length - 1];

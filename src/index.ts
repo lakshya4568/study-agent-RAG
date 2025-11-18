@@ -8,6 +8,12 @@ import {
   initializeFileLogging,
   ConfigManager,
 } from "./client";
+import {
+  HumanMessage,
+  AIMessage,
+  SystemMessage,
+  type BaseMessage,
+} from "@langchain/core/messages";
 import type {
   MCPServerConfig,
   ServerInfo,
@@ -33,6 +39,24 @@ if (require("electron-squirrel-startup")) {
 const mcpManager = new MCPClientManager();
 const studyAgentService = new StudyAgentService();
 const configManager = new ConfigManager();
+
+function convertChatHistoryToMessages(
+  history: ChatMessage[],
+  excludeMessageId?: string
+): BaseMessage[] {
+  return history
+    .filter((msg) => (excludeMessageId ? msg.id !== excludeMessageId : true))
+    .map((msg) => {
+      switch (msg.role) {
+        case "assistant":
+          return new AIMessage(msg.content);
+        case "system":
+          return new SystemMessage(msg.content);
+        default:
+          return new HumanMessage(msg.content);
+      }
+    });
+}
 
 const createWindow = (): void => {
   // Get primary display work area size
@@ -67,14 +91,6 @@ app.on("ready", async () => {
   // Initialize file logging now that app is ready
   await initializeFileLogging();
 
-  // Start NVIDIA RAG service for persistent vector storage and LLM
-  try {
-    await startRAGService();
-    logger.info("NVIDIA RAG service started successfully");
-  } catch (error) {
-    logger.error("Failed to start NVIDIA RAG service", error);
-  }
-
   // Initialize database BEFORE registering IPC handlers
   try {
     dbManager.initialize();
@@ -85,6 +101,14 @@ app.on("ready", async () => {
 
   // Register database IPC handlers AFTER database is initialized
   registerDatabaseHandlers();
+
+  // Start NVIDIA RAG service after database is ready
+  try {
+    await startRAGService();
+    logger.info("NVIDIA RAG service started successfully");
+  } catch (error) {
+    logger.error("Failed to start NVIDIA RAG service", error);
+  }
 
   createWindow();
 
@@ -254,9 +278,31 @@ ipcMain.handle("mcp:getConnectedCount", (): number => {
 
 ipcMain.handle(
   "agent:sendMessage",
-  async (_, payload: { threadId: string; message: string }) => {
+  async (
+    _,
+    payload: { threadId: string; message: string; messageId?: string }
+  ) => {
     logger.info("Agent invocation requested", { threadId: payload.threadId });
-    const result = await studyAgentService.invoke(payload.message, []);
+
+    let conversationHistory: BaseMessage[] = [];
+    try {
+      const historyRecords = dbManager.getMessages(payload.threadId);
+      conversationHistory = convertChatHistoryToMessages(
+        historyRecords,
+        payload.messageId
+      );
+    } catch (error) {
+      logger.warn("Failed to load conversation history", {
+        threadId: payload.threadId,
+        error,
+      });
+    }
+
+    const result = await studyAgentService.invoke(
+      payload.message,
+      conversationHistory,
+      { threadId: payload.threadId }
+    );
     return result;
   }
 );

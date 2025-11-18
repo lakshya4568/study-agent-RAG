@@ -213,6 +213,7 @@ export const Chat: React.FC = () => {
       const result = await window.studyAgent.sendMessage({
         threadId: threadIdRef.current,
         message: userMessage.content,
+        messageId: userMessage.id,
       });
 
       if (!result.success) {

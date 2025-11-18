@@ -6,6 +6,8 @@
  */
 
 import { spawn, ChildProcess } from "node:child_process";
+import net from "node:net";
+import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { existsSync } from "node:fs";
 import { app } from "electron";
@@ -16,8 +18,9 @@ let ragServiceProcess: ChildProcess | null = null;
 const DEFAULT_RAG_PORT = 8000;
 const STARTUP_TIMEOUT_MS = 30000; // 30 seconds
 const HEALTH_CHECK_INTERVAL_MS = 2000; // 2 seconds
+let activeRAGPort: number | null = null;
 
-function getRAGPort(): number {
+function getPreferredRAGPort(): number {
   const raw = process.env.RAG_PORT?.trim();
   if (!raw) {
     return DEFAULT_RAG_PORT;
@@ -27,6 +30,67 @@ function getRAGPort(): number {
     return parsed;
   }
   return DEFAULT_RAG_PORT;
+}
+
+async function isPortAvailable(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = net.connect({ port, host: "127.0.0.1" });
+    const finish = (isFree: boolean) => {
+      socket.removeAllListeners();
+      socket.destroy();
+      resolve(isFree);
+    };
+
+    socket.once("connect", () => {
+      finish(false);
+    });
+
+    socket.once("error", (error: NodeJS.ErrnoException) => {
+      if (error.code === "ECONNREFUSED" || error.code === "EHOSTUNREACH") {
+        finish(true);
+        return;
+      }
+      finish(false);
+    });
+
+    socket.setTimeout(1000, () => finish(true));
+  });
+}
+
+async function findAvailablePort(preferred: number): Promise<number> {
+  if (await isPortAvailable(preferred)) {
+    return preferred;
+  }
+
+  logger.warn(
+    `Port ${preferred} is already in use. Searching for an available port for the RAG service.`
+  );
+
+  return new Promise<number>((resolve, reject) => {
+    const server = net.createServer();
+    server.unref();
+
+    server.once("error", (error) => {
+      server.close(() => reject(error));
+    });
+
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address() as AddressInfo | null;
+      if (!address) {
+        server.close(() =>
+          reject(new Error("Unable to determine dynamic RAG port"))
+        );
+        return;
+      }
+
+      const freePort = address.port;
+      server.close(() => resolve(freePort));
+    });
+  });
+}
+
+function getBaseUrlForPort(port: number): string {
+  return `http://localhost:${port}`;
 }
 
 function getPythonExecutable(): string {
@@ -110,8 +174,19 @@ export async function startRAGService(): Promise<void> {
   try {
     const pythonExec = getPythonExecutable();
     const servicePath = getRagServicePath();
-    const port = getRAGPort();
+    const preferredPort = getPreferredRAGPort();
+    const port = await findAvailablePort(preferredPort);
     const persistDir = getChromaPersistDir();
+
+    if (port !== preferredPort) {
+      logger.warn(
+        `Requested RAG port ${preferredPort} was busy. Using dynamically assigned port ${port} for this instance.`
+      );
+    }
+
+    activeRAGPort = port;
+    process.env.RAG_PORT = String(port);
+    ragClient.setBaseURL(getBaseUrlForPort(port));
 
     logger.info("=".repeat(60));
     logger.info("Starting NVIDIA RAG Service");
@@ -131,6 +206,7 @@ export async function startRAGService(): Promise<void> {
     const env = {
       ...process.env,
       NVIDIA_API_KEY: process.env.NVIDIA_API_KEY,
+      RAG_PORT: String(port),
       CHROMA_PERSIST_DIR: persistDir,
       PYTHONUNBUFFERED: "1", // Ensure immediate stdout/stderr output
     };
@@ -173,6 +249,7 @@ export async function startRAGService(): Promise<void> {
         logger.info(`RAG service killed by signal ${signal}`);
       }
       ragServiceProcess = null;
+      activeRAGPort = null;
     });
 
     // Handle process errors
@@ -206,6 +283,7 @@ export async function startRAGService(): Promise<void> {
       ragServiceProcess.kill();
       ragServiceProcess = null;
     }
+    activeRAGPort = null;
 
     throw error;
   }
@@ -239,6 +317,7 @@ export async function stopRAGService(): Promise<void> {
     ragServiceProcess.once("exit", () => {
       clearTimeout(killTimeout);
       ragServiceProcess = null;
+      activeRAGPort = null;
       logger.info("✓ RAG service stopped");
       resolve();
     });
@@ -253,6 +332,10 @@ export async function stopRAGService(): Promise<void> {
  */
 export function isRAGServiceRunning(): boolean {
   return ragServiceProcess !== null && !ragServiceProcess.killed;
+}
+
+export function getActiveRAGPort(): number | null {
+  return activeRAGPort;
 }
 
 /**

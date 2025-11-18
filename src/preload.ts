@@ -77,7 +77,11 @@ contextBridge.exposeInMainWorld("mcpClient", {
 });
 
 contextBridge.exposeInMainWorld("studyAgent", {
-  sendMessage: (payload: { threadId: string; message: string }) => {
+  sendMessage: (payload: {
+    threadId: string;
+    message: string;
+    messageId?: string;
+  }) => {
     return ipcRenderer.invoke("agent:sendMessage", payload);
   },
   getStatus: () => {
