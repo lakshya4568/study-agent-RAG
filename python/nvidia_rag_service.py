@@ -30,6 +30,22 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings, ChatNVIDIA
 from langchain_community.vectorstores import Chroma
 from langchain.schema import Document
+from langchain_core.output_parsers import PydanticOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.tools import tool
+import asyncio
+from typing import Callable
+
+# MCP imports for tool integration
+try:
+    from langchain_mcp_adapters.client import MultiServerMCPClient
+
+    MCP_AVAILABLE = True
+except ImportError:
+    MCP_AVAILABLE = False
+    print(
+        "⚠️ langchain-mcp-adapters not installed. MCP tools disabled.", file=sys.stderr
+    )
 
 # Load environment variables
 load_dotenv()
@@ -40,23 +56,86 @@ CHROMA_PERSIST_DIR = os.getenv("CHROMA_PERSIST_DIR", "./chroma_db")
 COLLECTION_NAME = "study_materials"
 
 # NVIDIA Model Configuration
-EMBEDDING_MODEL = "nvidia/nv-embedqa-e5-v5"
-LLM_MODEL = "meta/llama-3.1-70b-instruct"
+EMBEDDING_MODEL = "nvidia/llama-3.2-nemoretriever-300m-embed-v2"
+LLM_MODEL = "moonshotai/kimi-k2-instruct"
 
 # RAG Configuration
 CHUNK_SIZE = 2048  # ~512 tokens
 CHUNK_OVERLAP = 200  # ~50 tokens overlap
 TOP_K_RETRIEVAL = 4
 
+# MCP Server Configuration (can be customized via environment)
+MCP_SERVERS = {
+    # Example MCP server configs - customize based on your needs
+    # "github": {
+    #     "transport": "sse",
+    #     "url": os.getenv("MCP_GITHUB_URL", "http://localhost:8001/mcp"),
+    # },
+    # "filesystem": {
+    #     "transport": "stdio",
+    #     "command": "npx",
+    #     "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/allowed/dir"],
+    # },
+}
+
 # Global instances (defined before lifespan)
 embeddings: Optional[NVIDIAEmbeddings] = None
 llm: Optional[ChatNVIDIA] = None
+llm_with_tools: Optional[Any] = None  # LLM with function calling enabled
 vector_store: Optional[Chroma] = None
+mcp_client: Optional[Any] = None  # MCP client for tool discovery
+mcp_tools: List[Any] = []  # Loaded MCP tools
+tools_loaded: bool = False
+
+
+# Structured output schema for RAG responses
+class StructuredAnswer(BaseModel):
+    """Structured answer format with citations"""
+
+    answer: str = Field(description="The main answer to the question")
+    confidence: str = Field(description="Confidence level: high, medium, or low")
+    key_points: List[str] = Field(
+        description="Key points from the answer as bullet points"
+    )
+    citations: List[int] = Field(description="List of document indices used (1-based)")
+
+
+async def load_mcp_tools() -> List[Any]:
+    """Load tools from MCP servers asynchronously"""
+    global mcp_client, mcp_tools, tools_loaded
+
+    if not MCP_AVAILABLE:
+        print("⚠️ MCP not available, skipping tool loading", file=sys.stderr)
+        return []
+
+    if not MCP_SERVERS:
+        print("ℹ️ No MCP servers configured, skipping tool loading", file=sys.stderr)
+        return []
+
+    try:
+        print("🔧 Loading MCP tools from servers...", file=sys.stderr)
+        mcp_client = MultiServerMCPClient(MCP_SERVERS)  # type: ignore
+
+        # Get all tools from configured MCP servers
+        tools = await mcp_client.get_tools()
+        mcp_tools = tools
+        tools_loaded = True
+
+        print(
+            f"✓ Loaded {len(tools)} MCP tools: {[t.name for t in tools]}",
+            file=sys.stderr,
+        )
+        return tools
+    except Exception as e:
+        print(f"✗ Failed to load MCP tools: {e}", file=sys.stderr)
+        mcp_tools = []
+        tools_loaded = False
+        return []
 
 
 def initialize_nvidia_clients():
     """Initialize NVIDIA embeddings and LLM clients"""
-    global embeddings, llm
+    global embeddings, llm, llm_with_tools
 
     if not NVIDIA_API_KEY:
         raise ValueError("NVIDIA_API_KEY environment variable is not set")
@@ -69,9 +148,29 @@ def initialize_nvidia_clients():
         llm = ChatNVIDIA(
             model=LLM_MODEL,
             nvidia_api_key=NVIDIA_API_KEY,
-            temperature=0.1,
-            max_completion_tokens=2048,
+            temperature=0.6,
+            top_p=0.9,
+            max_tokens=4096,
         )
+
+        # Load MCP tools if available
+        loaded_tools = []
+        if MCP_AVAILABLE and MCP_SERVERS:
+            try:
+                # Run async tool loading in sync context
+                loaded_tools = asyncio.run(load_mcp_tools())
+            except Exception as e:
+                print(f"⚠️ MCP tool loading failed: {e}", file=sys.stderr)
+
+        # Enable function calling and structured output with MCP tools
+        if loaded_tools:
+            llm_with_tools = llm.bind_tools(loaded_tools, tool_choice="auto")
+            print(f"✓ LLM bound with {len(loaded_tools)} MCP tools", file=sys.stderr)
+        else:
+            llm_with_tools = llm.bind_tools(
+                [], tool_choice="auto"
+            )  # Ready for tool binding
+            print("ℹ️ LLM initialized without MCP tools", file=sys.stderr)
 
         print(
             f"✓ NVIDIA clients initialized (Embedding: {EMBEDDING_MODEL}, LLM: {LLM_MODEL})",
@@ -171,6 +270,46 @@ class QueryResponse(BaseModel):
     chunks_retrieved: int
 
 
+class StructuredQueryResponse(BaseModel):
+    """Enhanced response with structured output"""
+
+    answer: str
+    confidence: str
+    key_points: List[str]
+    citations: List[int]
+    sources: List[Source]
+    chunks_retrieved: int
+
+
+class AgentQueryRequest(BaseModel):
+    """Request for agent-based query with tool calling"""
+
+    question: str = Field(..., description="User's question to answer")
+    use_rag: bool = Field(default=True, description="Whether to use RAG for context")
+    top_k: int = Field(
+        default=TOP_K_RETRIEVAL, description="Number of chunks to retrieve for RAG"
+    )
+    max_iterations: int = Field(default=10, description="Maximum agent iterations")
+
+
+class ToolCall(BaseModel):
+    """Tool call information"""
+
+    name: str
+    arguments: Dict[str, Any]
+    result: Optional[str] = None
+
+
+class AgentQueryResponse(BaseModel):
+    """Response from agent with tool usage"""
+
+    answer: str
+    tool_calls: List[ToolCall]
+    sources: List[Source]
+    chunks_retrieved: int
+    iterations: int
+
+
 class HealthResponse(BaseModel):
     status: str
     nvidia_key_set: bool
@@ -178,11 +317,17 @@ class HealthResponse(BaseModel):
     collection_name: str
     embedding_model: str
     llm_model: str
+    function_calling_enabled: bool
+    structured_output_enabled: bool
+    mcp_available: bool
+    mcp_tools_loaded: int
+    mcp_tool_names: List[str]
 
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint"""
+    tool_names = [t.name for t in mcp_tools] if mcp_tools else []
     return {
         "status": "ok",
         "nvidia_key_set": bool(NVIDIA_API_KEY),
@@ -190,6 +335,11 @@ async def health_check():
         "collection_name": COLLECTION_NAME,
         "embedding_model": EMBEDDING_MODEL,
         "llm_model": LLM_MODEL,
+        "function_calling_enabled": True,
+        "structured_output_enabled": True,
+        "mcp_available": MCP_AVAILABLE,
+        "mcp_tools_loaded": len(mcp_tools),
+        "mcp_tool_names": tool_names,
     }
 
 
@@ -295,7 +445,7 @@ async def query_rag(request: QueryRequest):
             search_type="similarity", search_kwargs={"k": request.top_k}
         )
 
-        relevant_docs = retriever.get_relevant_documents(question)
+        relevant_docs = retriever.invoke(question)
 
         if not relevant_docs:
             return {
@@ -354,6 +504,308 @@ Answer:"""
     except Exception as e:
         print(f"✗ Error querying RAG: {e}", file=sys.stderr)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/query-structured", response_model=StructuredQueryResponse)
+async def query_rag_structured(request: QueryRequest):
+    """
+    Query the RAG pipeline with structured output
+
+    This endpoint provides enhanced responses with:
+    - Confidence scoring
+    - Key points extraction
+    - Document citations
+    - Structured JSON format
+    """
+    try:
+        question = request.question
+
+        if not question or not question.strip():
+            raise HTTPException(status_code=400, detail="Question cannot be empty")
+
+        # Retrieve relevant documents
+        store = get_vector_store()
+        retriever = store.as_retriever(
+            search_type="similarity", search_kwargs={"k": request.top_k}
+        )
+
+        relevant_docs = retriever.invoke(question)
+
+        if not relevant_docs:
+            return {
+                "answer": "I don't have enough information in my knowledge base to answer this question.",
+                "confidence": "low",
+                "key_points": ["No relevant documents found"],
+                "citations": [],
+                "sources": [],
+                "chunks_retrieved": 0,
+            }
+
+        # Build context with document numbers
+        context = "\n\n".join(
+            [
+                f"[Document {i+1}]\n{doc.page_content}"
+                for i, doc in enumerate(relevant_docs)
+            ]
+        )
+
+        # Create structured output parser
+        parser = PydanticOutputParser(pydantic_object=StructuredAnswer)
+
+        # Construct prompt with structured output instructions
+        prompt = f"""You are a helpful study assistant. Use the following context from study materials to answer the question.
+
+Context from documents:
+{context}
+
+Question: {question}
+
+Instructions:
+- Answer based ONLY on the provided context
+- Assess your confidence level (high/medium/low) based on context relevance
+- Extract 3-5 key points from your answer
+- Cite which documents you used (by number, e.g., [1, 2])
+- Be clear and educational
+
+{parser.get_format_instructions()}
+
+Provide your response in the exact JSON format specified above."""
+
+        # Generate structured response
+        response = llm.invoke(prompt)  # type: ignore
+
+        # Parse the structured output
+        try:
+            # Ensure content is a string
+            content_str = str(response.content) if response.content else ""
+            structured = parser.parse(content_str)
+            answer = structured.answer
+            confidence = structured.confidence
+            key_points = structured.key_points
+            citations = structured.citations
+        except Exception as parse_error:
+            # Fallback if parsing fails
+            print(f"⚠️ Structured parsing failed: {parse_error}", file=sys.stderr)
+            answer = response.content
+            confidence = "medium"
+            key_points = ["Unable to extract structured key points"]
+            citations = list(range(1, len(relevant_docs) + 1))
+
+        # Format sources
+        sources = [
+            {
+                "content": doc.page_content[:500]
+                + ("..." if len(doc.page_content) > 500 else ""),
+                "metadata": doc.metadata,
+            }
+            for doc in relevant_docs
+        ]
+
+        print(
+            f"✓ Answered structured query with {len(relevant_docs)} chunks (confidence: {confidence})",
+            file=sys.stderr,
+        )
+
+        return {
+            "answer": answer,
+            "confidence": confidence,
+            "key_points": key_points,
+            "citations": citations,
+            "sources": sources,
+            "chunks_retrieved": len(relevant_docs),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"✗ Error in structured query: {e}", file=sys.stderr)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/query-agent", response_model=AgentQueryResponse)
+async def query_agent(request: AgentQueryRequest):
+    """
+    Query using agent with MCP tool calling capabilities
+
+    This endpoint:
+    - Uses LLM with bound MCP tools for function calling
+    - Optionally retrieves RAG context
+    - Executes tool calls as needed
+    - Returns final answer with tool usage logs
+    """
+    try:
+        question = request.question
+
+        if not question or not question.strip():
+            raise HTTPException(status_code=400, detail="Question cannot be empty")
+
+        # Check if tools are available
+        if not mcp_tools:
+            return {
+                "answer": "No MCP tools are currently loaded. Please configure MCP servers.",
+                "tool_calls": [],
+                "sources": [],
+                "chunks_retrieved": 0,
+                "iterations": 0,
+            }
+
+        # Retrieve RAG context if requested
+        relevant_docs = []
+        rag_context = ""
+        if request.use_rag:
+            store = get_vector_store()
+            retriever = store.as_retriever(
+                search_type="similarity", search_kwargs={"k": request.top_k}
+            )
+            relevant_docs = retriever.invoke(question)
+
+            if relevant_docs:
+                rag_context = "\n\nContext from knowledge base:\n" + "\n\n".join(
+                    [
+                        f"[Doc {i+1}] {doc.page_content[:300]}..."
+                        for i, doc in enumerate(relevant_docs[:3])
+                    ]
+                )
+
+        # Prepare messages with RAG context
+        user_message = question + rag_context
+
+        # Agent loop with tool calling
+        messages = [{"role": "user", "content": user_message}]
+        tool_calls_log: List[ToolCall] = []
+        iterations = 0
+
+        for i in range(request.max_iterations):
+            iterations += 1
+
+            # Invoke LLM with tools
+            response = llm_with_tools.invoke(messages)  # type: ignore
+
+            # Check if tool calls were made
+            if hasattr(response, "tool_calls") and response.tool_calls:
+                print(
+                    f"🔧 Agent iteration {i+1}: {len(response.tool_calls)} tool calls",
+                    file=sys.stderr,
+                )
+
+                # Execute each tool call
+                for tool_call in response.tool_calls:
+                    tool_name = tool_call.get("name", "")
+                    tool_args = tool_call.get("args", {})
+                    tool_id = tool_call.get("id", "")
+
+                    print(
+                        f"  🔨 Calling tool: {tool_name} with {tool_args}",
+                        file=sys.stderr,
+                    )
+
+                    # Find and execute the tool
+                    tool_result = "Tool not found"
+                    for mcp_tool in mcp_tools:
+                        if mcp_tool.name == tool_name:
+                            try:
+                                tool_result = await mcp_tool.ainvoke(tool_args)
+                                print(
+                                    f"  ✓ Tool result: {str(tool_result)[:100]}...",
+                                    file=sys.stderr,
+                                )
+                            except Exception as tool_error:
+                                tool_result = f"Tool execution error: {str(tool_error)}"
+                                print(f"  ✗ Tool error: {tool_error}", file=sys.stderr)
+                            break
+
+                    # Log tool call
+                    tool_calls_log.append(
+                        ToolCall(
+                            name=tool_name, arguments=tool_args, result=str(tool_result)
+                        )
+                    )
+
+                    # Add tool result to messages
+                    messages.append(
+                        {
+                            "role": "assistant",
+                            "content": "",
+                            "tool_calls": [tool_call],  # type: ignore
+                        }
+                    )
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "content": str(tool_result),
+                            "tool_call_id": tool_id,
+                        }
+                    )
+            else:
+                # No more tool calls, we have final answer
+                final_answer = (
+                    response.content if hasattr(response, "content") else str(response)
+                )
+                print(f"✓ Agent completed in {iterations} iterations", file=sys.stderr)
+
+                # Format sources
+                sources = [
+                    {
+                        "content": doc.page_content[:500]
+                        + ("..." if len(doc.page_content) > 500 else ""),
+                        "metadata": doc.metadata,
+                    }
+                    for doc in relevant_docs
+                ]
+
+                return {
+                    "answer": final_answer,
+                    "tool_calls": tool_calls_log,
+                    "sources": sources,
+                    "chunks_retrieved": len(relevant_docs),
+                    "iterations": iterations,
+                }
+
+        # Max iterations reached
+        return {
+            "answer": "Agent reached maximum iterations without completing.",
+            "tool_calls": tool_calls_log,
+            "sources": [],
+            "chunks_retrieved": len(relevant_docs),
+            "iterations": iterations,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"✗ Error in agent query: {e}", file=sys.stderr)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/mcp/tools")
+async def list_mcp_tools():
+    """List all available MCP tools"""
+    if not mcp_tools:
+        return {
+            "tools": [],
+            "count": 0,
+            "message": "No MCP tools loaded. Configure MCP_SERVERS in environment.",
+        }
+
+    tools_info = []
+    for tool in mcp_tools:
+        tools_info.append(
+            {
+                "name": tool.name,
+                "description": (
+                    tool.description
+                    if hasattr(tool, "description")
+                    else "No description"
+                ),
+                "schema": tool.args if hasattr(tool, "args") else {},
+            }
+        )
+
+    return {
+        "tools": tools_info,
+        "count": len(tools_info),
+        "message": f"Loaded {len(tools_info)} MCP tools",
+    }
 
 
 @app.delete("/collection")
