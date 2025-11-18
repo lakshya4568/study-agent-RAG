@@ -15,7 +15,9 @@ import { logger } from "../client/logger";
 /**
  * Default base URL for the RAG service
  */
-const DEFAULT_BASE_URL = "http://localhost:8000";
+const DEFAULT_BASE_URL = process.env.RAG_PORT
+  ? `http://localhost:${process.env.RAG_PORT}`
+  : "http://localhost:8000";
 const DEFAULT_TIMEOUT_MS = 120000; // 2 minutes for document loading
 
 export interface DocumentLoadRequest {
@@ -81,6 +83,18 @@ export class RAGClient {
   ) {
     this.baseURL = baseURL.replace(/\/$/, ""); // Remove trailing slash
     this.timeoutMs = timeoutMs;
+  }
+
+  /**
+   * Update service base URL (used when the port is assigned dynamically)
+   */
+  setBaseURL(baseURL: string): void {
+    this.baseURL = baseURL.replace(/\/$/, "");
+    logger.info(`RAG client base URL set to ${this.baseURL}`);
+  }
+
+  getBaseURL(): string {
+    return this.baseURL;
   }
 
   /**

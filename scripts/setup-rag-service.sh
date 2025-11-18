@@ -17,20 +17,25 @@ fi
 
 echo "Python version: $(python3 --version)"
 
-# Navigate to python directory
-cd "$(dirname "$0")/../python"
+# Get project root directory
+PROJECT_ROOT="$(dirname "$0")/.."
+cd "$PROJECT_ROOT"
 
-# Create virtual environment if it doesn't exist
+# Check if root .venv exists
 if [ ! -d ".venv" ]; then
-    echo "Creating virtual environment..."
-    python3 -m venv .venv
+    echo "Error: Virtual environment not found at project root"
+    echo "Please run 'uv venv' or 'python3 -m venv .venv' at the project root first"
+    exit 1
 else
-    echo "Virtual environment already exists"
+    echo "Using virtual environment at project root"
 fi
 
 # Activate virtual environment
 echo "Activating virtual environment..."
 source .venv/bin/activate
+
+# Navigate to python directory for requirements
+cd python
 
 # Upgrade pip
 echo "Upgrading pip..."
@@ -46,11 +51,10 @@ echo "Setup Complete!"
 echo "=================================="
 echo ""
 echo "To activate the environment:"
-echo "  cd python"
 echo "  source .venv/bin/activate"
 echo ""
 echo "To start the RAG service manually:"
-echo "  python nvidia_rag_service.py"
+echo "  .venv/bin/python python/nvidia_rag_service.py"
 echo ""
 echo "Or just run 'npm start' - it will auto-start the service!"
 echo ""
