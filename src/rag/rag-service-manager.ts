@@ -13,7 +13,7 @@ import { logger } from "../client/logger";
 import { ragClient } from "./rag-client";
 
 let ragServiceProcess: ChildProcess | null = null;
-const DEFAULT_RAG_PORT = 9000;
+const DEFAULT_RAG_PORT = 8000;
 const STARTUP_TIMEOUT_MS = 30000; // 30 seconds
 const HEALTH_CHECK_INTERVAL_MS = 2000; // 2 seconds
 

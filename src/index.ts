@@ -98,9 +98,8 @@ app.on("ready", async () => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
+  // Always quit on all platforms for consistent behavior
+  app.quit();
 });
 
 app.on("activate", () => {
@@ -121,14 +120,29 @@ app.on("child-process-gone", (_event, details) => {
   }
 });
 
-// Cleanup on quit
-app.on("before-quit", async () => {
+// Cleanup on quit - prevent multiple cleanup calls
+let isCleaningUp = false;
+app.on("before-quit", async (event) => {
+  if (isCleaningUp) return;
+
+  // Prevent default quit to allow async cleanup
+  event.preventDefault();
+  isCleaningUp = true;
+
   logger.info("Application quitting, cleaning up resources...");
-  await mcpManager.disconnectAll();
-  await studyAgentService.dispose();
-  await stopRAGService();
-  dbManager.close();
-  logger.info("All resources cleaned up");
+
+  try {
+    await mcpManager.disconnectAll();
+    await studyAgentService.dispose();
+    await stopRAGService();
+    dbManager.close();
+    logger.info("All resources cleaned up");
+  } catch (error) {
+    logger.error("Error during cleanup", error);
+  }
+
+  // Now actually quit
+  app.exit(0);
 });
 
 // ========================================

@@ -11,20 +11,21 @@ This service provides REST endpoints for:
 Usage:
     python nvidia_rag_service.py
     # or
-    uvicorn nvidia_rag_service:app --host 0.0.0.0 --port 9000
+    uvicorn nvidia_rag_service:app --host 0.0.0.0 --port 8000
 """
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
+from contextlib import asynccontextmanager
 import os
 import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
 # LangChain imports
-from langchain.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings, ChatNVIDIA
 from langchain_community.vectorstores import Chroma
@@ -47,23 +48,7 @@ CHUNK_SIZE = 2048  # ~512 tokens
 CHUNK_OVERLAP = 200  # ~50 tokens overlap
 TOP_K_RETRIEVAL = 4
 
-# Initialize FastAPI
-app = FastAPI(
-    title="NVIDIA RAG Service",
-    description="RAG pipeline with NVIDIA embeddings and ChromaDB persistence",
-    version="1.0.0",
-)
-
-# Enable CORS for Electron frontend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your Electron app origin
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Global instances
+# Global instances (defined before lifespan)
 embeddings: Optional[NVIDIAEmbeddings] = None
 llm: Optional[ChatNVIDIA] = None
 vector_store: Optional[Chroma] = None
@@ -85,7 +70,7 @@ def initialize_nvidia_clients():
             model=LLM_MODEL,
             nvidia_api_key=NVIDIA_API_KEY,
             temperature=0.1,
-            max_tokens=2048,
+            max_completion_tokens=2048,
         )
 
         print(
@@ -116,6 +101,42 @@ def get_vector_store() -> Chroma:
         )
 
     return vector_store
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown"""
+    # Startup
+    try:
+        initialize_nvidia_clients()
+        get_vector_store()  # Initialize ChromaDB
+        print("✓ RAG service ready", file=sys.stderr)
+    except Exception as e:
+        print(f"✗ Startup failed: {e}", file=sys.stderr)
+        raise
+
+    yield
+
+    # Shutdown (if needed)
+    pass
+
+
+# Initialize FastAPI with lifespan
+app = FastAPI(
+    title="NVIDIA RAG Service",
+    description="RAG pipeline with NVIDIA embeddings and ChromaDB persistence",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+# Enable CORS for Electron frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, specify your Electron app origin
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # Pydantic models for request/response validation
@@ -157,18 +178,6 @@ class HealthResponse(BaseModel):
     collection_name: str
     embedding_model: str
     llm_model: str
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize services on startup"""
-    try:
-        initialize_nvidia_clients()
-        get_vector_store()  # Initialize ChromaDB
-        print("✓ RAG service ready", file=sys.stderr)
-    except Exception as e:
-        print(f"✗ Startup failed: {e}", file=sys.stderr)
-        raise
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -384,13 +393,17 @@ async def collection_stats():
 if __name__ == "__main__":
     import uvicorn
 
+    # Get port from environment or use default
+    PORT = int(os.getenv("RAG_PORT", "8000"))
+
     print("=" * 60, file=sys.stderr)
     print("NVIDIA RAG Service Starting", file=sys.stderr)
     print("=" * 60, file=sys.stderr)
+    print(f"Port: {PORT}", file=sys.stderr)
     print(f"Persist Directory: {CHROMA_PERSIST_DIR}", file=sys.stderr)
     print(f"Collection Name: {COLLECTION_NAME}", file=sys.stderr)
     print(f"Embedding Model: {EMBEDDING_MODEL}", file=sys.stderr)
     print(f"LLM Model: {LLM_MODEL}", file=sys.stderr)
     print("=" * 60, file=sys.stderr)
 
-    uvicorn.run(app, host="0.0.0.0", port=9000, log_level="info")
+    uvicorn.run(app, host="0.0.0.0", port=PORT, log_level="info")

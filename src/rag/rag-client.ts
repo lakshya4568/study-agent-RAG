@@ -12,7 +12,10 @@
 
 import { logger } from "../client/logger";
 
-const DEFAULT_BASE_URL = "http://localhost:9000";
+/**
+ * Default base URL for the RAG service
+ */
+const DEFAULT_BASE_URL = "http://localhost:8000";
 const DEFAULT_TIMEOUT_MS = 120000; // 2 minutes for document loading
 
 export interface DocumentLoadRequest {

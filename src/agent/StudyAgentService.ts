@@ -103,11 +103,8 @@ export class StudyAgentService {
       }
 
       logger.info("StudyAgentService setup: building study mentor graph");
-      // Note: Graph now queries RAG service directly, no need to pass vector store
-      this.graph = await createStudyMentorGraph(
-        null, // vectorStore parameter is now unused
-        this.mcpTools?.tools ?? []
-      );
+      // Graph queries RAG service directly via ragClient
+      this.graph = await createStudyMentorGraph(this.mcpTools?.tools ?? []);
       logger.info("Study agent initialized successfully.");
       this.lastInitError = undefined;
     } catch (error) {
@@ -316,11 +313,14 @@ export class StudyAgentService {
 
       const input: StudyAgentStateType = {
         messages: [...conversationHistory, new HumanMessage(userMessage)],
+        documents: [],
+        currentTopic: "",
       };
 
       const result = await this.graph.invoke(input);
 
-      const lastMessage = result.messages[result.messages.length - 1];
+      const messages = result.messages as BaseMessage[];
+      const lastMessage = messages[messages.length - 1];
       const content =
         typeof lastMessage.content === "string"
           ? lastMessage.content
@@ -332,9 +332,20 @@ export class StudyAgentService {
       );
 
       return {
-        response: content,
         success: true,
-        conversationHistory: result.messages,
+        finalMessage: content,
+        messages: messages.map((msg) => ({
+          role: msg._getType(),
+          content:
+            typeof msg.content === "string"
+              ? msg.content
+              : JSON.stringify(msg.content),
+          name:
+            "name" in msg
+              ? (msg as BaseMessage & { name?: string }).name
+              : undefined,
+        })),
+        latencyMs: this.lastInvocationLatencyMs,
       };
     } catch (error) {
       const errorMessage =
@@ -344,10 +355,10 @@ export class StudyAgentService {
       this.lastInvocationLatencyMs = performance.now() - startTime;
 
       return {
-        response: `I encountered an error: ${errorMessage}`,
         success: false,
-        conversationHistory,
+        finalMessage: `I encountered an error: ${errorMessage}`,
         error: errorMessage,
+        latencyMs: this.lastInvocationLatencyMs,
       };
     }
   }

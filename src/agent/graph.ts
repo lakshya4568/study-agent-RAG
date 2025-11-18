@@ -1,13 +1,11 @@
 import { StateGraph, START, END, MemorySaver } from "@langchain/langgraph";
 import type { CompiledStateGraph } from "@langchain/langgraph";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
-import { Chroma } from "@langchain/community/vectorstores/chroma";
 import type { StudyAgentStateType } from "./state";
 import { StudyAgentState } from "./state";
 import { queryNode, retrieveNode, generateNode } from "./nodes";
 
 export async function createStudyMentorGraph(
-  vectorStore: Chroma,
   tools: ConstructorParameters<typeof ToolNode>[0]
 ): Promise<
   CompiledStateGraph<StudyAgentStateType, Partial<StudyAgentStateType>>
@@ -16,9 +14,7 @@ export async function createStudyMentorGraph(
 
   const workflow = new StateGraph(StudyAgentState)
     .addNode("query", queryNode)
-    .addNode("retrieve", (state: StudyAgentStateType) =>
-      retrieveNode(state, vectorStore)
-    )
+    .addNode("retrieve", retrieveNode)
     .addNode("tools", toolNode)
     .addNode("generate", generateNode);
 
