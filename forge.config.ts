@@ -22,6 +22,8 @@ const config: ForgeConfig = {
   plugins: [
     new WebpackPlugin({
       mainConfig,
+      devContentSecurityPolicy:
+        "default-src 'self' 'unsafe-inline' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; font-src 'self' data:; style-src 'self' 'unsafe-inline'; img-src 'self' data:;",
       renderer: {
         config: rendererConfig,
         entryPoints: [

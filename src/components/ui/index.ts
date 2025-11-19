@@ -8,4 +8,5 @@ export { QuickActionCard } from "./QuickActionCard";
 export { MessageBubble } from "./MessageBubble";
 export { LoadingSpinner } from "./LoadingSpinner";
 export { ToolCallApproval } from "./ToolCallApproval";
+export { MarkdownRenderer } from "./MarkdownRenderer";
 export type { PendingToolCall } from "./ToolCallApproval";

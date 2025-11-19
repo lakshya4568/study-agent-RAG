@@ -1,11 +1,13 @@
 /**
- * Tool Schema Enricher - Enhances MCP tool schemas with rich descriptions and examples
+ * Tool Schema Enricher - Dynamically enhances MCP tool schemas with rich descriptions
  *
  * This module ensures LLMs understand:
  * 1. When to use each tool
  * 2. What arguments are required/optional
  * 3. Expected formats and examples
  * 4. Default values and constraints
+ *
+ * All enrichment is DYNAMIC - no hardcoding required!
  */
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
@@ -44,320 +46,338 @@ export interface ToolExample {
 }
 
 /**
- * Registry of tool enhancements
- * Maps tool names to enhanced schemas with examples
+ * Dynamically extract default values from JSON schema
  */
-const TOOL_ENHANCEMENTS: Record<string, Partial<EnrichedToolSchema>> = {
-  // Time-related tools
-  current_time: {
-    description:
-      "Get the current time in a specified timezone or UTC by default. Use this when the user asks 'what time is it?', 'current time', or similar queries.",
-    parameters: {
-      type: "object",
-      properties: {
-        timezone: {
-          type: "string",
-          description:
-            "IANA timezone name (e.g., 'America/New_York', 'Asia/Tokyo', 'Europe/London'). Defaults to 'UTC' if not specified.",
-          examples: ["America/New_York", "Asia/Tokyo", "UTC", "Europe/London"],
-          default: "UTC",
-        },
-        format: {
-          type: "string",
-          description:
-            "Time format string. Common formats: 'RFC3339' (default), 'DateOnly', 'TimeOnly', 'Kitchen'. See mcp-time documentation for all options.",
-          examples: ["RFC3339", "Kitchen", "DateOnly"],
-          default: "RFC3339",
-        },
-      },
-      required: [],
-    },
-    examples: [
-      {
-        userQuery: "What's the current time?",
-        toolCall: {
-          arguments: {},
-          expectedBehavior: "Returns current UTC time in RFC3339 format",
-        },
-      },
-      {
-        userQuery: "What time is it in New York?",
-        toolCall: {
-          arguments: { timezone: "America/New_York" },
-          expectedBehavior: "Returns current time in New York timezone",
-        },
-      },
-      {
-        userQuery: "Show me the current time in a readable format",
-        toolCall: {
-          arguments: { format: "Kitchen" },
-          expectedBehavior: "Returns time like '3:04PM'",
-        },
-      },
-    ],
-  },
+function extractDefaults(schema: unknown): Record<string, unknown> {
+  const defaults: Record<string, unknown> = {};
 
-  add_time: {
-    description:
-      "Add or subtract a duration from a given time. Use positive duration to add (e.g., '2h') or negative to subtract (e.g., '-30m'). This is useful for time calculations and scheduling.",
-    parameters: {
-      type: "object",
-      properties: {
-        duration: {
-          type: "string",
-          description:
-            "Duration to add/subtract. Format: '1h2m3s' for 1 hour, 2 minutes, 3 seconds. Use negative for subtraction: '-1h'. Units: h (hours), m (minutes), s (seconds).",
-          examples: ["2h", "-30m", "1h30m", "45s", "-2h15m"],
-        },
-        time: {
-          type: "string",
-          description:
-            "Starting time in any parseable format (ISO8601 recommended: 'YYYY-MM-DDTHH:mm:ssZ'). Defaults to current time if not provided.",
-          examples: [
-            "2025-11-19T15:40:19+05:30",
-            "2025-11-19T10:00:00Z",
-            "now",
-          ],
-          default: "now",
-        },
-        format: {
-          type: "string",
-          description: "Output time format (default: RFC3339)",
-          default: "RFC3339",
-        },
-        timezone: {
-          type: "string",
-          description: "Target timezone for output (IANA format, default: UTC)",
-          default: "UTC",
-        },
-      },
-      required: ["duration"],
-    },
-    examples: [
-      {
-        userQuery: "What time will it be 2 hours from now?",
-        toolCall: {
-          arguments: { duration: "2h" },
-          expectedBehavior:
-            "Adds 2 hours to current time and returns the result",
-        },
-      },
-      {
-        userQuery: "Add 30 minutes to 3:00 PM",
-        toolCall: {
-          arguments: { time: "2025-11-19T15:00:00Z", duration: "30m" },
-          expectedBehavior: "Returns 3:30 PM",
-        },
-      },
-      {
-        userQuery: "What was the time 1 hour ago?",
-        toolCall: {
-          arguments: { duration: "-1h" },
-          expectedBehavior: "Subtracts 1 hour from current time",
-        },
-      },
-    ],
-  },
+  if (!schema || typeof schema !== "object") {
+    return defaults;
+  }
 
-  convert_timezone: {
-    description:
-      "Convert a time from one timezone to another. Essential for coordinating across time zones or understanding when an event occurs in different locations.",
-    parameters: {
-      type: "object",
-      properties: {
-        time: {
-          type: "string",
-          description:
-            "Time to convert (ISO8601 format: 'YYYY-MM-DDTHH:mm:ssZ' or with timezone offset). Can also be 'now' for current time.",
-          examples: ["2025-11-19T15:40:19+05:30", "2025-11-19T10:00:00Z"],
-        },
-        input_timezone: {
-          type: "string",
-          description:
-            "Source timezone (IANA format). If the time string includes a timezone, this takes precedence.",
-          examples: ["America/New_York", "Asia/Kolkata", "UTC"],
-          default: "UTC",
-        },
-        output_timezone: {
-          type: "string",
-          description: "Target timezone (IANA format) for the output time",
-          examples: ["America/Los_Angeles", "Europe/London", "Asia/Tokyo"],
-          default: "UTC",
-        },
-        format: {
-          type: "string",
-          description: "Output time format (default: RFC3339)",
-          default: "RFC3339",
-        },
-      },
-      required: ["time", "input_timezone", "output_timezone"],
-    },
-    examples: [
-      {
-        userQuery: "Convert 3PM IST to New York time",
-        toolCall: {
-          arguments: {
-            time: "2025-11-19T15:00:00+05:30",
-            input_timezone: "Asia/Kolkata",
-            output_timezone: "America/New_York",
-          },
-          expectedBehavior: "Returns the equivalent time in New York timezone",
-        },
-      },
-      {
-        userQuery: "What time is 10AM UTC in Tokyo?",
-        toolCall: {
-          arguments: {
-            time: "2025-11-19T10:00:00Z",
-            input_timezone: "UTC",
-            output_timezone: "Asia/Tokyo",
-          },
-          expectedBehavior: "Returns 7PM JST (Tokyo time)",
-        },
-      },
-    ],
-  },
+  const schemaObj = schema as { properties?: Record<string, unknown> };
+  if (!schemaObj.properties) {
+    return defaults;
+  }
 
-  compare_time: {
-    description:
-      "Compare two times to determine which is earlier, later, or if they're equal. Returns -1 if time_a is before time_b, 0 if equal, 1 if time_a is after time_b.",
-    parameters: {
-      type: "object",
-      properties: {
-        time_a: {
-          type: "string",
-          description: "First time to compare (ISO8601 format)",
-          examples: ["2025-11-19T15:00:00Z"],
-        },
-        time_b: {
-          type: "string",
-          description: "Second time to compare (ISO8601 format)",
-          examples: ["2025-11-19T16:00:00Z"],
-        },
-        time_a_timezone: {
-          type: "string",
-          description: "Timezone for time_a (default: UTC)",
-          default: "UTC",
-        },
-        time_b_timezone: {
-          type: "string",
-          description: "Timezone for time_b (default: UTC)",
-          default: "UTC",
-        },
-      },
-      required: ["time_a", "time_b"],
-    },
-    examples: [
-      {
-        userQuery: "Is 3PM earlier than 5PM?",
-        toolCall: {
-          arguments: {
-            time_a: "2025-11-19T15:00:00Z",
-            time_b: "2025-11-19T17:00:00Z",
-          },
-          expectedBehavior: "Returns -1 (time_a is earlier)",
-        },
-      },
-    ],
-  },
+  for (const [key, propSchema] of Object.entries(schemaObj.properties)) {
+    if (
+      propSchema &&
+      typeof propSchema === "object" &&
+      "default" in propSchema
+    ) {
+      defaults[key] = (propSchema as { default: unknown }).default;
+    }
+  }
 
-  relative_time: {
-    description:
-      "Parse natural language time expressions like 'yesterday', '5 minutes ago', 'next week', 'tomorrow at 3pm'. Converts human-friendly time descriptions to actual timestamps.",
-    parameters: {
-      type: "object",
-      properties: {
-        text: {
-          type: "string",
-          description:
-            "Natural language time expression. Examples: 'now', 'yesterday', '5 minutes ago', 'next Monday at 10am', 'last month', 'tomorrow at 3:30pm'",
-          examples: [
-            "now",
-            "yesterday",
-            "5 minutes ago",
-            "next Monday at 10am",
-            "tomorrow at 3pm",
-            "last week",
-          ],
-        },
-        time: {
-          type: "string",
-          description: "Reference time (default: current time)",
-          default: "now",
-        },
-        timezone: {
-          type: "string",
-          description: "Target timezone (default: UTC)",
-          default: "UTC",
-        },
-        format: {
-          type: "string",
-          description: "Output format (default: RFC3339)",
-          default: "RFC3339",
-        },
-      },
-      required: ["text"],
-    },
-    examples: [
-      {
-        userQuery: "When is tomorrow at 3pm?",
-        toolCall: {
-          arguments: { text: "tomorrow at 3pm" },
-          expectedBehavior: "Returns timestamp for 3pm tomorrow",
-        },
-      },
-      {
-        userQuery: "What was the date 5 days ago?",
-        toolCall: {
-          arguments: { text: "5 days ago" },
-          expectedBehavior: "Returns timestamp for 5 days before now",
-        },
-      },
-    ],
-  },
-
-  // Add more tool enhancements as needed
-};
+  return defaults;
+}
 
 /**
- * Enrich a tool's schema with detailed descriptions and examples
+ * Generate example values based on parameter type and description
+ */
+function generateExampleValue(
+  paramName: string,
+  paramSchema: unknown
+): unknown[] {
+  const examples: unknown[] = [];
+
+  if (!paramSchema || typeof paramSchema !== "object") {
+    return [];
+  }
+
+  const schema = paramSchema as {
+    examples?: unknown[];
+    example?: unknown;
+    enum?: unknown[];
+    type?: string;
+    description?: string;
+  };
+
+  // Use existing examples if available
+  if (schema.examples) {
+    return schema.examples;
+  }
+  if (schema.example) {
+    return [schema.example];
+  }
+
+  // Generate based on enum
+  if (schema.enum) {
+    return schema.enum.slice(0, 3);
+  }
+
+  // Generate based on type
+  const type = schema.type;
+  const description = schema.description?.toLowerCase() || "";
+
+  if (type === "string") {
+    // Context-aware string examples
+    if (description.includes("timezone") || description.includes("iana")) {
+      return ["America/New_York", "Europe/London", "Asia/Tokyo"];
+    }
+    if (description.includes("time") && description.includes("format")) {
+      return ["RFC3339", "DateOnly", "Kitchen"];
+    }
+    if (description.includes("duration")) {
+      return ["2h", "30m", "1h30m"];
+    }
+    if (description.includes("date") || description.includes("timestamp")) {
+      return ["2025-11-19T10:00:00Z", "2025-11-19T15:30:00+05:30"];
+    }
+    if (description.includes("url") || description.includes("uri")) {
+      return ["https://example.com", "https://api.example.com/endpoint"];
+    }
+    if (description.includes("path") || description.includes("file")) {
+      return ["/path/to/file.txt", "./documents/example.pdf"];
+    }
+    if (description.includes("email")) {
+      return ["user@example.com", "contact@domain.com"];
+    }
+    return [`example_${paramName}`, `sample_${paramName}`];
+  }
+
+  if (type === "number" || type === "integer") {
+    if (description.includes("port")) {
+      return [8080, 3000, 5432];
+    }
+    if (description.includes("count") || description.includes("limit")) {
+      return [10, 50, 100];
+    }
+    if (description.includes("percentage") || description.includes("percent")) {
+      return [50, 75, 100];
+    }
+    return [1, 10, 100];
+  }
+
+  if (type === "boolean") {
+    return [true, false];
+  }
+
+  if (type === "array") {
+    return [["item1", "item2"], ["example"]];
+  }
+
+  return [];
+}
+
+/**
+ * Generate a natural usage example for a tool
+ */
+function generateToolExample(
+  toolName: string,
+  toolDescription: string,
+  parameters: unknown
+): ToolExample | null {
+  if (!parameters || typeof parameters !== "object") {
+    return null;
+  }
+
+  const params = parameters as {
+    required?: string[];
+    properties?: Record<string, unknown>;
+  };
+
+  const required = Array.isArray(params.required) ? params.required : [];
+  const properties = params.properties || {};
+
+  // Create example arguments using only required params + common optional ones
+  const exampleArgs: Record<string, unknown> = {};
+
+  for (const paramName of required) {
+    const paramSchema = properties[paramName];
+    if (paramSchema) {
+      const examples = generateExampleValue(paramName, paramSchema);
+      exampleArgs[paramName] = examples[0] || `example_${paramName}`;
+    }
+  }
+
+  // Generate a natural user query based on tool name and description
+  const userQuery = generateNaturalQuery(
+    toolName,
+    toolDescription,
+    exampleArgs
+  );
+
+  return {
+    userQuery,
+    toolCall: {
+      arguments: exampleArgs,
+      expectedBehavior: `Uses ${toolName} to ${toolDescription.split(".")[0].toLowerCase()}`,
+    },
+  };
+}
+
+/**
+ * Generate natural language query for a tool
+ */
+function generateNaturalQuery(
+  toolName: string,
+  description: string,
+  args: Record<string, unknown>
+): string {
+  const name = toolName.replace(/_/g, " ");
+
+  // Extract action verb from description
+  const actionMatch = description.match(
+    /^(get|fetch|retrieve|create|update|delete|search|find|list|show|calculate|convert|compare|add|remove|generate|parse)/i
+  );
+  const action = actionMatch ? actionMatch[1].toLowerCase() : "use";
+
+  // Context-aware query generation
+  if (toolName.includes("time") || toolName.includes("date")) {
+    if (action === "get" || action === "fetch") {
+      return `What's the current ${name}?`;
+    }
+    if (action === "convert") {
+      return `Convert time between timezones`;
+    }
+    if (action === "add" || action === "calculate") {
+      return `Calculate time in the future`;
+    }
+  }
+
+  if (toolName.includes("search") || toolName.includes("find")) {
+    return `Search for ${Object.keys(args)[0] || "information"}`;
+  }
+
+  if (toolName.includes("create") || toolName.includes("generate")) {
+    return `Create a new ${name.replace("create ", "")}`;
+  }
+
+  if (toolName.includes("list") || toolName.includes("get")) {
+    return `Show me ${name.replace("get ", "").replace("list ", "")}`;
+  }
+
+  // Fallback: use action + tool name
+  return `${action.charAt(0).toUpperCase() + action.slice(1)} ${name}`;
+}
+
+/**
+ * Enrich parameter descriptions dynamically
+ */
+function enrichParameterDescription(
+  paramName: string,
+  paramSchema: unknown
+): string {
+  if (!paramSchema || typeof paramSchema !== "object") {
+    return `${paramName} parameter`;
+  }
+
+  const schema = paramSchema as {
+    description?: string;
+    type?: string;
+    enum?: unknown[];
+    default?: unknown;
+    format?: string;
+    minimum?: number;
+    maximum?: number;
+    pattern?: string;
+  };
+
+  let description = schema.description || `${paramName} parameter`;
+
+  // Add type information
+  const type = schema.type;
+  if (type && !description.toLowerCase().includes(type)) {
+    description += ` (${type})`;
+  }
+
+  // Add enum info
+  if (schema.enum) {
+    const enumValues = schema.enum.map((v) => String(v)).join(", ");
+    description += `. Allowed values: ${enumValues}`;
+  }
+
+  // Add default info
+  if (schema.default !== undefined) {
+    description += `. Defaults to: ${JSON.stringify(schema.default)}`;
+  }
+
+  // Add format info
+  if (schema.format) {
+    description += `. Format: ${schema.format}`;
+  }
+
+  // Add range info for numbers
+  if (type === "number" || type === "integer") {
+    if (schema.minimum !== undefined) {
+      description += `. Minimum: ${schema.minimum}`;
+    }
+    if (schema.maximum !== undefined) {
+      description += `. Maximum: ${schema.maximum}`;
+    }
+  }
+
+  // Add pattern info for strings
+  if (type === "string" && schema.pattern) {
+    description += `. Pattern: ${schema.pattern}`;
+  }
+
+  return description;
+}
+
+/**
+ * Dynamically enrich a tool's schema with detailed descriptions and examples
  */
 export function enrichToolSchema(tool: Tool): EnrichedToolSchema {
-  const enhancement = TOOL_ENHANCEMENTS[tool.name];
+  const inputSchema = tool.inputSchema;
 
-  if (!enhancement) {
-    // Return basic enrichment if no specific enhancement exists
-    return {
-      name: tool.name,
-      description:
-        tool.description ||
-        `Execute the ${tool.name} tool with provided arguments.`,
-      parameters: (tool.inputSchema as EnrichedToolSchema["parameters"]) || {
-        type: "object",
-        properties: {},
-      },
+  const schema = (
+    inputSchema && typeof inputSchema === "object" ? inputSchema : {}
+  ) as {
+    properties?: Record<string, unknown>;
+    required?: string[];
+  };
+
+  const properties = schema.properties || {};
+  const required = Array.isArray(schema.required) ? schema.required : [];
+
+  // Extract defaults from schema
+  const defaults = extractDefaults(inputSchema);
+
+  // Enrich each parameter
+  const enrichedProperties: Record<string, ParameterSchema> = {};
+
+  for (const [paramName, paramSchema] of Object.entries(properties)) {
+    const pSchema = (
+      paramSchema && typeof paramSchema === "object" ? paramSchema : {}
+    ) as {
+      type?: string;
+      enum?: unknown[];
+      default?: unknown;
+      format?: string;
+    };
+
+    enrichedProperties[paramName] = {
+      type: pSchema.type || "string",
+      description: enrichParameterDescription(paramName, paramSchema),
+      enum: pSchema.enum as string[] | undefined,
+      default: pSchema.default || defaults[paramName],
+      format: pSchema.format,
+      examples: generateExampleValue(paramName, paramSchema),
     };
   }
 
-  // Merge original schema with enhancements
+  // Generate example usage
+  const example = generateToolExample(tool.name, tool.description || "", {
+    properties: enrichedProperties,
+    required,
+  });
+
   const enriched: EnrichedToolSchema = {
     name: tool.name,
-    description: enhancement.description || tool.description || "",
+    description:
+      tool.description || `Execute ${tool.name.replace(/_/g, " ")} operation`,
     parameters: {
       type: "object",
-      properties: {
-        ...(tool.inputSchema as any)?.properties,
-        ...enhancement.parameters?.properties,
-      },
-      required:
-        enhancement.parameters?.required ||
-        (tool.inputSchema as any)?.required ||
-        [],
+      properties: enrichedProperties,
+      required,
     },
-    examples: enhancement.examples,
+    examples: example ? [example] : undefined,
   };
 
-  logger.debug(`Enriched schema for tool: ${tool.name}`);
+  logger.debug(`Dynamically enriched schema for tool: ${tool.name}`);
   return enriched;
 }
 
