@@ -15,6 +15,18 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 
 export class MCPClientManager {
   private sessions = new Map<string, MCPSession>();
+  private toolChangeListeners: (() => void)[] = [];
+
+  /**
+   * Subscribe to tool changes across all servers
+   */
+  onToolsChanged(callback: () => void): void {
+    this.toolChangeListeners.push(callback);
+  }
+
+  private notifyToolChange() {
+    this.toolChangeListeners.forEach((cb) => cb());
+  }
 
   /**
    * Add and connect to a new MCP server
@@ -29,13 +41,15 @@ export class MCPClientManager {
     // Register callback for tool changes
     session.onToolsChanged(() => {
       console.log(`[MCPClientManager] Tools changed for server ${config.id}`);
-      // Could emit an event here if needed for UI updates
+      this.notifyToolChange();
     });
 
     this.sessions.set(config.id, session);
 
     try {
       await session.connect();
+      // Notify listeners that a new server (and its tools) are available
+      this.notifyToolChange();
     } catch (error) {
       this.sessions.delete(config.id);
       throw error;
@@ -53,6 +67,7 @@ export class MCPClientManager {
 
     await session.disconnect();
     this.sessions.delete(serverId);
+    this.notifyToolChange();
   }
 
   /**

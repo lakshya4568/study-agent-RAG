@@ -21,6 +21,7 @@ from typing import List, Optional, Dict, Any
 from contextlib import asynccontextmanager
 import os
 import sys
+import json
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -64,19 +65,37 @@ CHUNK_SIZE = 2048  # ~512 tokens
 CHUNK_OVERLAP = 200  # ~50 tokens overlap
 TOP_K_RETRIEVAL = 4
 
-# MCP Server Configuration (can be customized via environment)
-MCP_SERVERS = {
-    # Example MCP server configs - customize based on your needs
-    # "github": {
-    #     "transport": "sse",
-    #     "url": os.getenv("MCP_GITHUB_URL", "http://localhost:8001/mcp"),
-    # },
-    # "filesystem": {
-    #     "transport": "stdio",
-    #     "command": "npx",
-    #     "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/allowed/dir"],
-    # },
-}
+# MCP Server Configuration
+MCP_SERVERS = {}
+mcp_config_path = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "mcp.json"
+)
+
+if os.path.exists(mcp_config_path):
+    try:
+        with open(mcp_config_path, "r") as f:
+            config = json.load(f)
+            servers = config.get("mcpServers", {})
+            for name, server_config in servers.items():
+                if "command" in server_config:
+                    MCP_SERVERS[name] = {
+                        "transport": "stdio",
+                        "command": server_config["command"],
+                        "args": server_config.get("args", []),
+                        "env": server_config.get("env", {}),
+                    }
+                elif "url" in server_config:
+                    MCP_SERVERS[name] = {
+                        "transport": "sse",
+                        "url": server_config["url"],
+                        "env": server_config.get("env", {}),
+                    }
+        print(f"✓ Loaded {len(MCP_SERVERS)} MCP servers from mcp.json", file=sys.stderr)
+    except Exception as e:
+        print(f"⚠️ Failed to load mcp.json: {e}", file=sys.stderr)
+else:
+    print(f"ℹ️ mcp.json not found at {mcp_config_path}", file=sys.stderr)
+
 
 # Global instances (defined before lifespan)
 embeddings: Optional[NVIDIAEmbeddings] = None

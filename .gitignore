@@ -110,6 +110,8 @@ dev-debug.log
 
 .chromadb/*
 
+chroma_db
+
 .env.example
 
 # Task files

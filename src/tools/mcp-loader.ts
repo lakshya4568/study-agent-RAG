@@ -12,6 +12,18 @@ export interface LoadedStudyTools {
   transport: StdioClientTransport;
 }
 
+export interface McpConfig {
+  mcpServers: Record<
+    string,
+    {
+      command?: string;
+      args?: string[];
+      url?: string;
+      env?: Record<string, string>;
+    }
+  >;
+}
+
 function resolveServerPath(): string {
   const explicit = process.env.MCP_SERVER_PATH;
   if (explicit) {
@@ -39,7 +51,8 @@ export function jsonSchemaToZod(schema: any): z.ZodType<any> {
     ][]) {
       let fieldSchema = jsonSchemaToZod(value);
       if (!required.has(key)) {
-        fieldSchema = fieldSchema.optional();
+        // Fix for OpenAI/NVIDIA API strict mode: optional fields must be nullable
+        fieldSchema = fieldSchema.optional().nullable();
       }
       shape[key] = fieldSchema;
     }
@@ -107,4 +120,17 @@ export async function loadStudyMCPTools(): Promise<LoadedStudyTools> {
   logger.info(`Loaded ${patchedTools.length} MCP tools for the study agent.`);
 
   return { tools: patchedTools, client, transport };
+}
+
+export function loadMcpConfig(): McpConfig {
+  const configPath = path.resolve(process.cwd(), "mcp.json");
+  if (fs.existsSync(configPath)) {
+    try {
+      const content = fs.readFileSync(configPath, "utf-8");
+      return JSON.parse(content);
+    } catch (error) {
+      logger.error("Failed to parse mcp.json", error);
+    }
+  }
+  return { mcpServers: {} };
 }

@@ -12,6 +12,7 @@ import {
 import { MCPClientManager } from "../client/MCPClientManager";
 import { loadMcpTools } from "@langchain/mcp-adapters";
 import { logger } from "../client/logger";
+import { mcpToolService } from "../client";
 import type { BaseMessage } from "@langchain/core/messages";
 import type { StudyAgentStateType } from "./state";
 import type {
@@ -50,6 +51,22 @@ export class StudyAgentService {
     private mcpManager?: MCPClientManager
   ) {
     this.options = { ...options };
+
+    // Listen for tool changes if manager is provided
+    if (this.mcpManager) {
+      this.mcpManager.onToolsChanged(() => {
+        logger.info(
+          "StudyAgentService: Tools changed, refreshing agent graph..."
+        );
+        this.refresh();
+      });
+    }
+  }
+
+  async refresh(): Promise<void> {
+    this.initPromise = undefined;
+    this.graph = undefined;
+    await this.initialize();
   }
 
   async initialize(): Promise<void> {
@@ -129,6 +146,12 @@ export class StudyAgentService {
             logger.error(`Failed to load tools from server ${serverId}`, error);
           }
         }
+      }
+
+      // Wrap tools with approval logic
+      if (allTools.length > 0) {
+        logger.info("Wrapping tools with approval logic");
+        allTools = this.wrapToolsWithApproval(allTools);
       }
 
       logger.info("StudyAgentService setup: building study mentor graph");
@@ -319,6 +342,58 @@ export class StudyAgentService {
         documentStats: {},
       };
     }
+  }
+
+  private wrapToolsWithApproval(tools: any[]): any[] {
+    return tools.map((tool) => {
+      const originalInvoke = tool.invoke.bind(tool);
+      const toolName = tool.name;
+      const toolDescription = tool.description;
+
+      // We need to preserve the tool's properties so LangChain can inspect them
+      // Proxy is good for this
+      return new Proxy(tool, {
+        get(target, prop, receiver) {
+          if (prop === "invoke") {
+            return async (input: any, config: any) => {
+              const serverId = target.serverId || "unknown";
+              const serverName = target.serverName || "unknown";
+
+              logger.info(`Requesting approval for tool: ${toolName}`);
+
+              // Request approval
+              const request = await mcpToolService.requestToolExecution(
+                toolName,
+                serverId,
+                serverName,
+                input,
+                toolDescription
+              );
+
+              // Wait for approval
+              const { approved, result } = await mcpToolService.waitForApproval(
+                request.id
+              );
+
+              if (!approved) {
+                logger.info(`Tool execution denied: ${toolName}`);
+                return "Tool execution denied by user.";
+              }
+
+              logger.info(`Tool execution approved: ${toolName}`);
+
+              // If result is provided (e.g. mock result), return it
+              if (result !== undefined) {
+                return result;
+              }
+
+              return originalInvoke(input, config);
+            };
+          }
+          return Reflect.get(target, prop, receiver);
+        },
+      });
+    });
   }
 
   async invoke(

@@ -2,6 +2,7 @@ import {
   HumanMessage,
   SystemMessage,
   AIMessage,
+  ChatMessage,
 } from "@langchain/core/messages";
 import type { Document } from "@langchain/core/documents";
 import { createNVIDIAChat } from "../models/nvidia-chat";
@@ -26,6 +27,13 @@ Your Mission as a Study Mentor:
 - Build confidence by highlighting what they're doing right
 - NEVER just give answers - help students THINK and UNDERSTAND
 - Remember: Your job isn't to do their homework, but to empower them to tackle it themselves!
+
+TOOL USAGE & APPROVAL:
+- You have access to external tools (MCP tools) to help you.
+- **CRITICAL**: When you use a tool, you MUST use the output provided by the tool. Do not hallucinate or ignore the tool result.
+- **APPROVAL**: Before executing any tool that modifies data or performs a significant action (like creating a quiz, searching the web, or accessing files), briefly explain what you are about to do and ask the user for confirmation.
+  - Exception: You can skip asking for confirmation for simple, read-only lookups if the user explicitly asked for it (e.g. "what time is it?").
+- If a tool returns an error, explain it to the user and ask how they want to proceed.
 
 Your Approach:
 1. Always acknowledge their question/concern with empathy
@@ -106,7 +114,7 @@ export function createQueryNode(tools: StructuredTool[]) {
       // Bind tools if available
       if (tools.length > 0) {
         logger.info(
-          `Binding ${tools.length} tools: ${tools.map((t) => t.name).join(", ")}`
+          `[QueryNode] Binding ${tools.length} tools: ${tools.map((t) => t.name).join(", ")}`
         );
         // Log tool schemas for debugging
         tools.forEach((t) => {
@@ -114,12 +122,14 @@ export function createQueryNode(tools: StructuredTool[]) {
             if (t.schema) {
               // logger.info(`Tool ${t.name} schema:`, JSON.stringify(t.schema));
             } else {
-              logger.warn(`Tool ${t.name} has no schema`);
+              logger.warn(`[QueryNode] Tool ${t.name} has no schema`);
             }
           } catch (e) {
-            logger.error(`Error inspecting tool ${t.name}`, e);
+            logger.error(`[QueryNode] Error inspecting tool ${t.name}`, e);
           }
         });
+      } else {
+        logger.info("[QueryNode] No tools available to bind");
       }
 
       const modelWithTools = tools.length > 0 ? model.bindTools(tools) : model;
@@ -129,7 +139,40 @@ export function createQueryNode(tools: StructuredTool[]) {
         ...state.messages,
       ];
 
-      const response = await modelWithTools.invoke(messages);
+      logger.info(
+        `[QueryNode] Invoking model with ${messages.length} messages`
+      );
+
+      // Sanitize messages for NVIDIA API (requires non-empty content)
+      const safeMessages = messages.map((msg) => {
+        // 1. Handle AIMessage with tool_calls (often has empty content)
+        // Convert to ChatMessage to ensure content="ok" is preserved during serialization
+        if (
+          msg._getType() === "ai" &&
+          (msg as AIMessage).tool_calls?.length &&
+          (!msg.content || msg.content === "")
+        ) {
+          const chatMsg = new ChatMessage({
+            content: "ok",
+            role: "assistant",
+          });
+          (chatMsg as any).tool_calls = (msg as AIMessage).tool_calls;
+          if (msg.id) (chatMsg as any).id = msg.id;
+          return chatMsg;
+        }
+
+        // 2. Handle any other message with empty content
+        if (typeof msg.content === "string" && msg.content.trim() === "") {
+          // Clone and force content to "ok"
+          // Using 'any' for constructor to avoid strict type checks on copy
+          const NewMsgClass = msg.constructor as any;
+          return new NewMsgClass({ ...msg, content: "ok" });
+        }
+
+        return msg;
+      });
+
+      const response = await modelWithTools.invoke(safeMessages);
       logger.info("Query node: Generated response");
 
       return { messages: [response] };

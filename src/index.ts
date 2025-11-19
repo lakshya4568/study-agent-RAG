@@ -9,6 +9,7 @@ import {
   ConfigManager,
   mcpToolService,
 } from "./client";
+import { loadMcpConfig } from "./tools/mcp-loader";
 import {
   HumanMessage,
   AIMessage,
@@ -38,6 +39,23 @@ if (require("electron-squirrel-startup")) {
 
 // Initialize MCP Client Manager
 const mcpManager = new MCPClientManager();
+
+// Load MCP servers from config
+const mcpConfig = loadMcpConfig();
+for (const [id, config] of Object.entries(mcpConfig.mcpServers)) {
+  if (config.command) {
+    mcpManager
+      .addServer({
+        id,
+        name: id,
+        command: config.command,
+        args: config.args || [],
+        env: config.env,
+      })
+      .catch((err) => logger.error(`Failed to add MCP server ${id}`, err));
+  }
+}
+
 const studyAgentService = new StudyAgentService({}, mcpManager);
 const configManager = new ConfigManager();
 
