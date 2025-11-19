@@ -6,6 +6,14 @@ import { logger } from "../client/logger";
 import { ragClient } from "../rag/rag-client";
 import { StructuredTool } from "@langchain/core/tools";
 import type { ChatCompletionTool } from "openai/resources/chat/completions";
+import {
+  enrichAllTools,
+  toOpenAIToolFormat,
+  createToolAwareSystemPrompt,
+  validateToolArguments,
+  mergeWithDefaults,
+} from "../tools/tool-schema-enricher";
+import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 
 const STUDY_MENTOR_SYSTEM_PROMPT = `You are Alex, an enthusiastic and patient AI Study Mentor created by NVIDIA technology! 🎓
 
@@ -104,28 +112,33 @@ export function createQueryNode(tools: StructuredTool[]) {
     try {
       const model = createNVIDIAOpenAIChat();
 
-      // Convert LangChain tools to OpenAI format
-      const openAITools: ChatCompletionTool[] = tools.map((tool) => ({
-        type: "function" as const,
-        function: {
-          name: tool.name,
-          description: tool.description,
-          parameters: tool.schema
-            ? (tool.schema as Record<string, unknown>)
-            : { type: "object", properties: {} },
-        },
+      // Enrich tool schemas with detailed descriptions and examples
+      const mcpTools: Tool[] = tools.map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        inputSchema: tool.schema as Tool["inputSchema"],
       }));
+
+      const enrichedTools = enrichAllTools(mcpTools);
+      const openAITools: ChatCompletionTool[] =
+        enrichedTools.map(toOpenAIToolFormat);
 
       if (openAITools.length > 0) {
         logger.info(
-          `[QueryNode] Using ${openAITools.length} tools: ${openAITools.map((t) => (t.type === "function" ? t.function.name : "unknown")).join(", ")}`
+          `[QueryNode] Using ${openAITools.length} enriched tools: ${openAITools.map((t) => (t.type === "function" ? t.function.name : "unknown")).join(", ")}`
         );
       } else {
         logger.info("[QueryNode] No tools available");
       }
 
+      // Create tool-aware system prompt with examples
+      const enhancedSystemPrompt = createToolAwareSystemPrompt(
+        STUDY_MENTOR_SYSTEM_PROMPT,
+        enrichedTools
+      );
+
       const messages = [
-        new SystemMessage(STUDY_MENTOR_SYSTEM_PROMPT),
+        new SystemMessage(enhancedSystemPrompt),
         ...state.messages,
       ];
 
@@ -155,7 +168,7 @@ export function createQueryNode(tools: StructuredTool[]) {
       // Use invokeWithTools if tools available, otherwise regular invoke
       let responseContent: string;
       if (openAITools.length > 0) {
-        // Tool executor that maps back to LangChain tools
+        // Tool executor that maps back to LangChain tools with validation
         const toolExecutor = async (
           toolName: string,
           args: Record<string, unknown>
@@ -164,6 +177,32 @@ export function createQueryNode(tools: StructuredTool[]) {
           if (!tool) {
             throw new Error(`Tool ${toolName} not found`);
           }
+
+          // Get enriched schema for validation
+          const enrichedSchema = enrichedTools.find((t) => t.name === toolName);
+          if (enrichedSchema) {
+            // Validate and merge with defaults
+            const validation = validateToolArguments(
+              toolName,
+              args,
+              enrichedSchema
+            );
+
+            if (!validation.valid) {
+              logger.warn(
+                `[QueryNode] Invalid arguments for ${toolName}:`,
+                validation.errors
+              );
+              // Attempt to merge with defaults
+              args = mergeWithDefaults(args, validation.defaults);
+              logger.info(`[QueryNode] Applied defaults, final args:`, args);
+            } else if (Object.keys(validation.defaults).length > 0) {
+              // Merge with defaults even if valid
+              args = mergeWithDefaults(args, validation.defaults);
+              logger.info(`[QueryNode] Merged with defaults:`, args);
+            }
+          }
+
           logger.info(
             `[QueryNode] Executing tool: ${toolName} with args:`,
             args

@@ -126,13 +126,50 @@ export class NVIDIAOpenAIChat {
       for (const toolCall of toolCalls) {
         if (toolCall.type !== "function") continue;
         const toolName = toolCall.function.name;
-        let toolArgs = {};
+        let toolArgs: any = {};
         try {
-          toolArgs = JSON.parse(toolCall.function.arguments);
+          const rawArgs = toolCall.function.arguments;
+          let parsed = JSON.parse(rawArgs);
+
+          // Handle double-encoded JSON (stringified JSON inside string)
+          if (typeof parsed === "string") {
+            try {
+              // Check if it looks like a JSON object or array
+              if (
+                parsed.trim().startsWith("{") ||
+                parsed.trim().startsWith("[")
+              ) {
+                parsed = JSON.parse(parsed);
+              }
+            } catch (e) {
+              // Keep as string if second parse fails
+            }
+          }
+
+          toolArgs = parsed;
         } catch (e) {
-          console.error(
-            `Failed to parse arguments for tool ${toolName}:`,
-            toolCall.function.arguments
+          // Fallback: Try to fix single quotes (common in some models)
+          try {
+            const fixed = toolCall.function.arguments.replace(/'/g, '"');
+            toolArgs = JSON.parse(fixed);
+          } catch (e2) {
+            console.error(
+              `Failed to parse arguments for tool ${toolName}:`,
+              toolCall.function.arguments
+            );
+          }
+        }
+
+        // Ensure toolArgs is an object (unless the tool specifically accepts a string, but standard is object)
+        if (typeof toolArgs !== "object" || toolArgs === null) {
+          // If it's a primitive, wrap it? Or just leave it and let validation fail?
+          // For now, let's assume it should be an object.
+          // If it's a string that wasn't JSON, maybe it's the value for the single argument?
+          // But we don't know the argument name.
+          // Let's just log a warning.
+          console.warn(
+            `Tool arguments for ${toolName} are not an object:`,
+            toolArgs
           );
         }
 
@@ -181,24 +218,25 @@ export class NVIDIAOpenAIChat {
   } {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const toolCalls: any[] = [];
+    // Use [\s\S] to match any character including newlines
     const toolCallRegex =
-      /<\|tool_call_begin\|>(.*?)<\|tool_call_argument_begin\|>(.*?)<\|tool_call_end\|>/g;
+      /<\|tool_call_begin\|>([\s\S]*?)<\|tool_call_argument_begin\|>([\s\S]*?)<\|tool_call_end\|>/g;
     let match;
 
     while ((match = toolCallRegex.exec(content)) !== null) {
       const [_, nameAndId, args] = match;
       // nameAndId might be "functions.tool_name:id" or just "tool_name:id"
-      const parts = nameAndId.split(":");
+      const parts = nameAndId.trim().split(":");
       const id = parts.pop() || "0";
       const fnName = parts.join(":"); // Rejoin in case name has colons, though unlikely
-      const name = fnName.replace("functions.", "");
+      const name = fnName.replace("functions.", "").trim();
 
       toolCalls.push({
         id: `call_${id}_${Math.random().toString(36).substr(2, 9)}`, // Generate unique ID
         type: "function",
         function: {
           name: name,
-          arguments: args,
+          arguments: args.trim(),
         },
       });
     }
