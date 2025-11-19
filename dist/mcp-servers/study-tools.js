@@ -61,7 +61,14 @@ server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => {
                 description: "Retrieve all tracked progress entries",
                 inputSchema: {
                     type: "object",
-                    properties: {},
+                    properties: {
+                        format: {
+                            type: "string",
+                            enum: ["text", "json"],
+                            default: "text",
+                            description: "Output format",
+                        },
+                    },
                 },
             },
         ],

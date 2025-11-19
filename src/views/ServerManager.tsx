@@ -300,7 +300,7 @@ export const ServerManager: React.FC = () => {
                         {server.status}
                       </Badge>
                     </div>
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
+                    <div className="w-12 h-12 rounded-xl bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
                       <ServerIcon className="w-6 h-6 text-white" />
                     </div>
                   </div>
@@ -328,7 +328,7 @@ export const ServerManager: React.FC = () => {
 
                   {server.error && (
                     <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs flex items-start gap-2">
-                      <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                       <span>{server.error}</span>
                     </div>
                   )}

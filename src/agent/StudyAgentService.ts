@@ -4,7 +4,11 @@ import dotenv from "dotenv";
 import { HumanMessage } from "@langchain/core/messages";
 import type { RunnableConfig } from "@langchain/core/runnables";
 import { createStudyMentorGraph } from "./graph";
-import { loadStudyMCPTools, type LoadedStudyTools } from "../tools/mcp-loader";
+import {
+  loadStudyMCPTools,
+  type LoadedStudyTools,
+  patchMcpTools,
+} from "../tools/mcp-loader";
 import { MCPClientManager } from "../client/MCPClientManager";
 import { loadMcpTools } from "@langchain/mcp-adapters";
 import { logger } from "../client/logger";
@@ -118,7 +122,9 @@ export class StudyAgentService {
           try {
             const tools = await loadMcpTools(serverId, client);
             logger.info(`Loaded ${tools.length} tools from server ${serverId}`);
-            allTools.push(...tools);
+            // Patch tools to ensure they have valid Zod schemas
+            const patchedTools = patchMcpTools(tools);
+            allTools.push(...patchedTools);
           } catch (error) {
             logger.error(`Failed to load tools from server ${serverId}`, error);
           }

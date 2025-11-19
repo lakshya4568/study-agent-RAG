@@ -4,6 +4,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { loadMcpTools } from "@langchain/mcp-adapters";
 import { logger } from "../client/logger";
+import { z } from "zod";
 
 export interface LoadedStudyTools {
   tools: Awaited<ReturnType<typeof loadMcpTools>>;
@@ -25,6 +26,56 @@ function resolveServerName(resolvedPath: string): string {
     path.parse(resolvedPath).name ??
     "study-tools"
   );
+}
+
+export function jsonSchemaToZod(schema: any): z.ZodType<any> {
+  if (!schema) return z.any();
+  if (schema.type === "object") {
+    const shape: Record<string, z.ZodType<any>> = {};
+    const required = new Set(schema.required || []);
+    for (const [key, value] of Object.entries(schema.properties || {}) as [
+      string,
+      any,
+    ][]) {
+      let fieldSchema = jsonSchemaToZod(value);
+      if (!required.has(key)) {
+        fieldSchema = fieldSchema.optional();
+      }
+      shape[key] = fieldSchema;
+    }
+    return z.object(shape);
+  }
+  if (schema.type === "string") {
+    if (schema.enum && Array.isArray(schema.enum) && schema.enum.length > 0) {
+      return z.enum(schema.enum as [string, ...string[]]);
+    }
+    return z.string();
+  }
+  if (schema.type === "number" || schema.type === "integer") {
+    return z.number();
+  }
+  if (schema.type === "boolean") {
+    return z.boolean();
+  }
+  if (schema.type === "array") {
+    return z.array(jsonSchemaToZod(schema.items));
+  }
+  return z.any();
+}
+
+export function patchMcpTools(tools: any[]): any[] {
+  return tools.map((tool: any) => {
+    // Check if schema is a Zod schema (has _def)
+    if (tool.schema && !tool.schema._def) {
+      try {
+        logger.info(`Patching schema for tool ${tool.name}`);
+        tool.schema = jsonSchemaToZod(tool.schema);
+      } catch (e) {
+        logger.warn(`Failed to convert schema for tool ${tool.name}`, e);
+      }
+    }
+    return tool;
+  });
 }
 
 export async function loadStudyMCPTools(): Promise<LoadedStudyTools> {
@@ -49,7 +100,11 @@ export async function loadStudyMCPTools(): Promise<LoadedStudyTools> {
   await client.connect(transport);
 
   const tools = await loadMcpTools(resolveServerName(serverPath), client);
-  logger.info(`Loaded ${tools.length} MCP tools for the study agent.`);
 
-  return { tools, client, transport };
+  // Patch tools to ensure they have valid Zod schemas
+  const patchedTools = patchMcpTools(tools);
+
+  logger.info(`Loaded ${patchedTools.length} MCP tools for the study agent.`);
+
+  return { tools: patchedTools, client, transport };
 }
