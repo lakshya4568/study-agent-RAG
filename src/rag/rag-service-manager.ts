@@ -16,7 +16,7 @@ import { ragClient } from "./rag-client";
 
 let ragServiceProcess: ChildProcess | null = null;
 const DEFAULT_RAG_PORT = 8000;
-const STARTUP_TIMEOUT_MS = 30000; // 30 seconds
+const STARTUP_TIMEOUT_MS = 60000; // 60 seconds
 const HEALTH_CHECK_INTERVAL_MS = 2000; // 2 seconds
 let activeRAGPort: number | null = null;
 
@@ -137,11 +137,26 @@ function getChromaPersistDir(): string {
   }
 }
 
+function getTiktokenCacheDir(): string {
+  if (process.env.TIKTOKEN_CACHE_DIR) {
+    return path.resolve(process.env.TIKTOKEN_CACHE_DIR);
+  }
+  try {
+    const userDataPath = app.getPath("userData");
+    return path.join(userDataPath, "tiktoken_cache");
+  } catch {
+    return path.join(process.cwd(), "tiktoken_cache");
+  }
+}
+
 /**
  * Wait for RAG service to become healthy
  */
 async function waitForHealthy(timeoutMs: number): Promise<boolean> {
   const startTime = Date.now();
+
+  // Give the service a moment to initialize before first check
+  await new Promise((resolve) => setTimeout(resolve, 2000));
 
   while (Date.now() - startTime < timeoutMs) {
     try {
@@ -177,6 +192,7 @@ export async function startRAGService(): Promise<void> {
     const preferredPort = getPreferredRAGPort();
     const port = await findAvailablePort(preferredPort);
     const persistDir = getChromaPersistDir();
+    const tiktokenCacheDir = getTiktokenCacheDir();
 
     if (port !== preferredPort) {
       logger.warn(
@@ -195,6 +211,7 @@ export async function startRAGService(): Promise<void> {
     logger.info(`Service: ${servicePath}`);
     logger.info(`Port: ${port}`);
     logger.info(`Persist Dir: ${persistDir}`);
+    logger.info(`Tiktoken Cache: ${tiktokenCacheDir}`);
     logger.info("=".repeat(60));
 
     // Ensure NVIDIA API key is set
@@ -208,6 +225,7 @@ export async function startRAGService(): Promise<void> {
       NVIDIA_API_KEY: process.env.NVIDIA_API_KEY,
       RAG_PORT: String(port),
       CHROMA_PERSIST_DIR: persistDir,
+      TIKTOKEN_CACHE_DIR: tiktokenCacheDir,
       PYTHONUNBUFFERED: "1", // Ensure immediate stdout/stderr output
     };
 

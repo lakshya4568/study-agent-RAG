@@ -362,7 +362,7 @@ export class RAGClient {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(this.timeoutMs),
+        signal: AbortSignal.timeout(120000), // Increased timeout for agent queries
       });
 
       if (!response.ok) {

@@ -1,19 +1,8 @@
 #!/usr/bin/env python3
 """
-NVIDIA RAG Service with FastAPI, LangChain, and ChromaDB Persistence
-Single-machine deployment with persistent vector storage
-
-This service provides REST endpoints for:
-- Document ingestion (PDF loading and vectorization)
-- RAG-based querying with NVIDIA embeddings and LLM
-- Health checks and status monitoring
-
-Usage:
-    python nvidia_rag_service.py
-    # or
-    uvicorn nvidia_rag_service:app --host 0.0.0.0 --port 8000
+NVIDIA RAG Service with Optimized Semantic Chunking
+Enhanced document processing with better chunk creation for retrieval
 """
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -33,9 +22,8 @@ from langchain_community.vectorstores import Chroma
 from langchain.schema import Document
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.tools import tool
 import asyncio
-from typing import Callable
+import tiktoken
 
 # MCP imports for tool integration
 try:
@@ -60,17 +48,42 @@ COLLECTION_NAME = "study_materials"
 EMBEDDING_MODEL = "nvidia/llama-3.2-nemoretriever-300m-embed-v2"
 LLM_MODEL = "moonshotai/kimi-k2-instruct"
 
-# RAG Configuration
-CHUNK_SIZE = 2048  # ~512 tokens
-CHUNK_OVERLAP = 200  # ~50 tokens overlap
-TOP_K_RETRIEVAL = 4
+# Optimized RAG Configuration (Token-based for better alignment)
+# Using tokens instead of characters for better model alignment
+CHUNK_SIZE = 512  # tokens (roughly 2000 characters)
+CHUNK_OVERLAP = 128  # tokens (25% overlap recommended)
+TOP_K_RETRIEVAL = 5
+
+# Separators for better semantic boundaries
+SEMANTIC_SEPARATORS = [
+    "\n\n\n",  # Multiple newlines (chapter/section breaks)
+    "\n\n",  # Paragraph breaks
+    "\n",  # Line breaks
+    ". ",  # Sentence ends
+    "! ",  # Exclamation ends
+    "? ",  # Question ends
+    "; ",  # Semicolon breaks
+    ": ",  # Colon breaks
+    ", ",  # Comma breaks
+    " ",  # Word breaks
+    "",  # Character breaks
+]
+
+# Initialize tokenizer for token counting (using cl100k_base encoding for general use)
+try:
+    tokenizer = tiktoken.get_encoding("cl100k_base")
+except Exception as e:
+    print(
+        f"⚠️ Failed to load tiktoken encoder, falling back to character-based: {e}",
+        file=sys.stderr,
+    )
+    tokenizer = None
 
 # MCP Server Configuration
 MCP_SERVERS = {}
 mcp_config_path = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "mcp.json"
 )
-
 if os.path.exists(mcp_config_path):
     try:
         with open(mcp_config_path, "r") as f:
@@ -96,18 +109,25 @@ if os.path.exists(mcp_config_path):
 else:
     print(f"ℹ️ mcp.json not found at {mcp_config_path}", file=sys.stderr)
 
-
-# Global instances (defined before lifespan)
+# Global instances
 embeddings: Optional[NVIDIAEmbeddings] = None
 llm: Optional[ChatNVIDIA] = None
-llm_with_tools: Optional[Any] = None  # LLM with function calling enabled
+llm_with_tools: Optional[Any] = None
 vector_store: Optional[Chroma] = None
-mcp_client: Optional[Any] = None  # MCP client for tool discovery
-mcp_tools: List[Any] = []  # Loaded MCP tools
+mcp_client: Optional[Any] = None
+mcp_tools: List[Any] = []
 tools_loaded: bool = False
 
 
-# Structured output schema for RAG responses
+def token_length_function(text: str) -> int:
+    """Calculate token length for text using tiktoken"""
+    if tokenizer:
+        return len(tokenizer.encode(text))
+    else:
+        # Fallback: approximate 1 token ≈ 4 characters
+        return len(text) // 4
+
+
 class StructuredAnswer(BaseModel):
     """Structured answer format with citations"""
 
@@ -122,24 +142,18 @@ class StructuredAnswer(BaseModel):
 async def load_mcp_tools() -> List[Any]:
     """Load tools from MCP servers asynchronously"""
     global mcp_client, mcp_tools, tools_loaded
-
     if not MCP_AVAILABLE:
         print("⚠️ MCP not available, skipping tool loading", file=sys.stderr)
         return []
-
     if not MCP_SERVERS:
         print("ℹ️ No MCP servers configured, skipping tool loading", file=sys.stderr)
         return []
-
     try:
         print("🔧 Loading MCP tools from servers...", file=sys.stderr)
         mcp_client = MultiServerMCPClient(MCP_SERVERS)  # type: ignore
-
-        # Get all tools from configured MCP servers
         tools = await mcp_client.get_tools()
         mcp_tools = tools
         tools_loaded = True
-
         print(
             f"✓ Loaded {len(tools)} MCP tools: {[t.name for t in tools]}",
             file=sys.stderr,
@@ -152,10 +166,9 @@ async def load_mcp_tools() -> List[Any]:
         return []
 
 
-def initialize_nvidia_clients():
+async def initialize_nvidia_clients():
     """Initialize NVIDIA embeddings and LLM clients"""
     global embeddings, llm, llm_with_tools
-
     if not NVIDIA_API_KEY:
         raise ValueError("NVIDIA_API_KEY environment variable is not set")
 
@@ -176,19 +189,15 @@ def initialize_nvidia_clients():
         loaded_tools = []
         if MCP_AVAILABLE and MCP_SERVERS:
             try:
-                # Run async tool loading in sync context
-                loaded_tools = asyncio.run(load_mcp_tools())
+                loaded_tools = await load_mcp_tools()
             except Exception as e:
                 print(f"⚠️ MCP tool loading failed: {e}", file=sys.stderr)
 
-        # Enable function calling and structured output with MCP tools
         if loaded_tools:
             llm_with_tools = llm.bind_tools(loaded_tools, tool_choice="auto")
             print(f"✓ LLM bound with {len(loaded_tools)} MCP tools", file=sys.stderr)
         else:
-            llm_with_tools = llm.bind_tools(
-                [], tool_choice="auto"
-            )  # Ready for tool binding
+            llm_with_tools = llm.bind_tools([], tool_choice="auto")
             print("ℹ️ LLM initialized without MCP tools", file=sys.stderr)
 
         print(
@@ -203,11 +212,8 @@ def initialize_nvidia_clients():
 def get_vector_store() -> Chroma:
     """Get or create ChromaDB vector store with persistent storage"""
     global vector_store
-
     if vector_store is None:
-        # Ensure persist directory exists
         Path(CHROMA_PERSIST_DIR).mkdir(parents=True, exist_ok=True)
-
         vector_store = Chroma(
             collection_name=COLLECTION_NAME,
             embedding_function=embeddings,
@@ -217,47 +223,97 @@ def get_vector_store() -> Chroma:
             f"✓ ChromaDB initialized (persist_dir: {CHROMA_PERSIST_DIR})",
             file=sys.stderr,
         )
-
     return vector_store
+
+
+def create_optimized_chunks(documents: List[Document]) -> List[Document]:
+    """
+    Create optimized semantic chunks using token-based splitting
+    This approach is similar to ChatGPT's chunking strategy:
+    - Token-based measurement (not character-based)
+    - Semantic separators that preserve context
+    - Optimal overlap for context retention
+    - Metadata enrichment for better retrieval
+    """
+    # Create token-based text splitter with semantic separators
+    text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+        encoding_name="cl100k_base",  # Use tiktoken for accurate token counting
+        chunk_size=CHUNK_SIZE,
+        chunk_overlap=CHUNK_OVERLAP,
+        separators=SEMANTIC_SEPARATORS,
+        is_separator_regex=False,
+    )
+
+    print(f"📄 Processing {len(documents)} document pages...", file=sys.stderr)
+
+    # Split documents
+    chunks = text_splitter.split_documents(documents)
+
+    # Enrich metadata for better retrieval
+    enriched_chunks = []
+    for i, chunk in enumerate(chunks):
+        # Add chunk metadata
+        chunk.metadata.update(
+            {
+                "chunk_id": i,
+                "chunk_index": i,
+                "total_chunks": len(chunks),
+                "chunk_size_tokens": token_length_function(chunk.page_content),
+            }
+        )
+
+        # Add first 100 characters as preview for debugging
+        chunk.metadata["preview"] = chunk.page_content[:100].replace("\n", " ")
+
+        enriched_chunks.append(chunk)
+
+    print(
+        f"✓ Created {len(enriched_chunks)} optimized semantic chunks", file=sys.stderr
+    )
+    print(
+        f"  - Average size: {sum(token_length_function(c.page_content) for c in enriched_chunks) // len(enriched_chunks)} tokens",
+        file=sys.stderr,
+    )
+    print(
+        f"  - Chunk size range: {min(token_length_function(c.page_content) for c in enriched_chunks)}-{max(token_length_function(c.page_content) for c in enriched_chunks)} tokens",
+        file=sys.stderr,
+    )
+
+    return enriched_chunks
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown"""
-    # Startup
     try:
-        initialize_nvidia_clients()
-        get_vector_store()  # Initialize ChromaDB
+        await initialize_nvidia_clients()
+        get_vector_store()
         print("✓ RAG service ready", file=sys.stderr)
     except Exception as e:
         print(f"✗ Startup failed: {e}", file=sys.stderr)
         raise
-
     yield
-
-    # Shutdown (if needed)
-    pass
 
 
 # Initialize FastAPI with lifespan
 app = FastAPI(
     title="NVIDIA RAG Service",
-    description="RAG pipeline with NVIDIA embeddings and ChromaDB persistence",
-    version="1.0.0",
+    description="RAG pipeline with optimized semantic chunking and NVIDIA embeddings",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
-# Enable CORS for Electron frontend
+# Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your Electron app origin
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# Pydantic models for request/response validation
+# Request/Response Models
 class DocumentRequest(BaseModel):
     pdf_path: str = Field(..., description="Absolute or relative path to PDF file")
 
@@ -276,6 +332,7 @@ class DocumentResponse(BaseModel):
     status: str
     chunks: int
     message: str
+    chunk_stats: Dict[str, Any]
 
 
 class Source(BaseModel):
@@ -289,115 +346,38 @@ class QueryResponse(BaseModel):
     chunks_retrieved: int
 
 
-class StructuredQueryResponse(BaseModel):
-    """Enhanced response with structured output"""
+class ToolDefinition(BaseModel):
+    name: str
+    description: str
+    inputSchema: Optional[Dict[str, Any]] = None
+    serverId: str
+    serverName: str
 
+
+class AgentQueryRequest(BaseModel):
+    question: str
+    use_rag: bool = True
+    auto_route: bool = True
+    top_k: int = 5
+    max_iterations: int = 5
+    tools: Optional[List[ToolDefinition]] = None
+
+
+class AgentQueryResponse(BaseModel):
+    success: bool
+    answer: str
+    sources: Optional[List[str]] = None
+    tool_calls: Optional[List[Dict[str, Any]]] = None
+    error: Optional[str] = None
+
+
+class StructuredQueryResponse(BaseModel):
     answer: str
     confidence: str
     key_points: List[str]
     citations: List[int]
     sources: List[Source]
     chunks_retrieved: int
-
-
-class AgentQueryRequest(BaseModel):
-    """Request for agent-based query with tool calling"""
-
-    question: str = Field(..., description="User's question to answer")
-    use_rag: bool = Field(default=True, description="Whether to use RAG for context")
-    auto_route: bool = Field(
-        default=True, description="Whether to automatically route the request"
-    )
-    top_k: int = Field(
-        default=TOP_K_RETRIEVAL, description="Number of chunks to retrieve for RAG"
-    )
-    max_iterations: int = Field(default=10, description="Maximum agent iterations")
-
-
-class ToolCall(BaseModel):
-    """Tool call information"""
-
-    name: str
-    arguments: Dict[str, Any]
-    result: Optional[str] = None
-
-
-class AgentQueryResponse(BaseModel):
-    """Response from agent with tool usage"""
-
-    answer: str
-    tool_calls: List[ToolCall]
-    sources: List[Source]
-    chunks_retrieved: int
-    iterations: int
-
-
-class RouteResponse(BaseModel):
-    """Response from the router deciding the execution strategy"""
-
-    strategy: str = Field(
-        description="The selected strategy: RAG, TOOL, HYBRID, or GENERAL"
-    )
-    reasoning: str = Field(description="Brief reason for the choice")
-
-
-async def route_request(question: str, llm_client: ChatNVIDIA) -> RouteResponse:
-    """
-    Route the user query to the appropriate strategy
-    """
-    try:
-        parser = PydanticOutputParser(pydantic_object=RouteResponse)
-
-        prompt = f"""You are an expert router for a study assistant. Your task is to decide the best strategy to answer a user's question.
-
-Available strategies:
-1. "RAG": Use this when the user asks about specific documents, study materials, or information that would be found in the knowledge base.
-2. "TOOL": Use this when the user asks to perform a specific action (e.g., read a file, list directory, search github, calculate something) that requires using external tools.
-3. "HYBRID": Use this when the user asks a complex question that requires both retrieving information from documents AND performing an action or using a tool.
-4. "GENERAL": Use this for general conversation, greetings, or questions that don't need external tools or specific document context.
-
-User Question: {question}
-
-Instructions:
-- Analyze the user's intent carefully.
-- If the user asks to "list files", "read file", "search code", etc., prioritize "TOOL".
-- If the user asks "what does this document say", prioritize "RAG".
-- If the user asks "summarize the file I just uploaded", prioritize "RAG" (or "HYBRID" if file reading is needed).
-- Return the strategy and a brief reasoning.
-
-{parser.get_format_instructions()}"""
-
-        response = await llm_client.ainvoke(prompt)
-
-        # Parse the output
-        try:
-            content_str = str(response.content) if response.content else ""
-            # Clean up potential markdown code blocks if the model adds them
-            if "```json" in content_str:
-                content_str = content_str.split("```json")[1].split("```")[0].strip()
-            elif "```" in content_str:
-                content_str = content_str.split("```")[1].split("```")[0].strip()
-
-            return parser.parse(content_str)
-        except Exception:
-            # Fallback to simple keyword matching if parsing fails
-            lower_q = question.lower()
-            if (
-                "read" in lower_q
-                or "list" in lower_q
-                or "search" in lower_q
-                or "tool" in lower_q
-            ):
-                return RouteResponse(
-                    strategy="TOOL", reasoning="Fallback: Keywords detected"
-                )
-            return RouteResponse(
-                strategy="GENERAL", reasoning="Fallback: Parsing failed"
-            )
-
-    except Exception as e:
-        print(f"⚠️ Routing failed: {e}", file=sys.stderr)
-        return RouteResponse(strategy="GENERAL", reasoning=f"Error: {str(e)}")
 
 
 class HealthResponse(BaseModel):
@@ -407,17 +387,22 @@ class HealthResponse(BaseModel):
     collection_name: str
     embedding_model: str
     llm_model: str
-    function_calling_enabled: bool
-    structured_output_enabled: bool
-    mcp_available: bool
-    mcp_tools_loaded: int
-    mcp_tool_names: List[str]
+    chunk_size_tokens: int
+    chunk_overlap_tokens: int
+
+
+class EmbeddingRequest(BaseModel):
+    texts: List[str] = Field(..., description="List of texts to embed")
+
+
+class EmbeddingResponse(BaseModel):
+    embeddings: List[List[float]]
+    dimensions: int
 
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint"""
-    tool_names = [t.name for t in mcp_tools] if mcp_tools else []
     return {
         "status": "ok",
         "nvidia_key_set": bool(NVIDIA_API_KEY),
@@ -425,29 +410,20 @@ async def health_check():
         "collection_name": COLLECTION_NAME,
         "embedding_model": EMBEDDING_MODEL,
         "llm_model": LLM_MODEL,
-        "function_calling_enabled": True,
-        "structured_output_enabled": True,
-        "mcp_available": MCP_AVAILABLE,
-        "mcp_tools_loaded": len(mcp_tools),
-        "mcp_tool_names": tool_names,
+        "chunk_size_tokens": CHUNK_SIZE,
+        "chunk_overlap_tokens": CHUNK_OVERLAP,
     }
 
 
 @app.post("/load-document", response_model=DocumentResponse)
 async def load_document(request: DocumentRequest):
     """
-    Load and vectorize a PDF document
-
-    This endpoint:
-    1. Loads PDF from the provided path
-    2. Splits into chunks with semantic boundaries
-    3. Generates embeddings using NVIDIA
-    4. Stores in ChromaDB with persistence
+    Load and vectorize a PDF document with optimized semantic chunking
     """
     try:
         pdf_path = request.pdf_path
 
-        # Resolve path (support relative and absolute)
+        # Resolve path
         if not os.path.isabs(pdf_path):
             pdf_path = os.path.abspath(pdf_path)
 
@@ -458,7 +434,7 @@ async def load_document(request: DocumentRequest):
             raise HTTPException(status_code=400, detail="Only PDF files are supported")
 
         # Load PDF
-        print(f"Loading PDF: {pdf_path}", file=sys.stderr)
+        print(f"📥 Loading PDF: {pdf_path}", file=sys.stderr)
         loader = PyPDFLoader(pdf_path)
         documents = loader.load()
 
@@ -467,42 +443,38 @@ async def load_document(request: DocumentRequest):
                 status_code=400, detail="PDF contains no extractable content"
             )
 
-        # Split documents into chunks
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=CHUNK_SIZE,
-            chunk_overlap=CHUNK_OVERLAP,
-            separators=[
-                "\n\n\n",
-                "\n\n",
-                "\n",
-                ". ",
-                "! ",
-                "? ",
-                "; ",
-                ": ",
-                ", ",
-                " ",
-                "",
-            ],
-        )
-        split_docs = text_splitter.split_documents(documents)
+        print(f"✓ Loaded {len(documents)} pages from PDF", file=sys.stderr)
+
+        # Create optimized chunks with semantic boundaries
+        chunks = create_optimized_chunks(documents)
 
         # Add to vector store
         store = get_vector_store()
-        store.add_documents(split_docs)
+        store.add_documents(chunks)
 
         # Persist to disk
         store.persist()
 
-        print(
-            f"✓ Loaded {len(split_docs)} chunks from {os.path.basename(pdf_path)}",
-            file=sys.stderr,
-        )
+        # Calculate statistics
+        token_counts = [token_length_function(c.page_content) for c in chunks]
+        chunk_stats = {
+            "total_chunks": len(chunks),
+            "avg_tokens_per_chunk": (
+                sum(token_counts) // len(token_counts) if token_counts else 0
+            ),
+            "min_tokens": min(token_counts) if token_counts else 0,
+            "max_tokens": max(token_counts) if token_counts else 0,
+            "total_tokens": sum(token_counts),
+        }
+
+        print(f"✓ Indexed {len(chunks)} chunks to ChromaDB", file=sys.stderr)
+        print(f"  Stats: {chunk_stats}", file=sys.stderr)
 
         return {
             "status": "success",
-            "chunks": len(split_docs),
-            "message": f"Successfully loaded {len(split_docs)} chunks from {os.path.basename(pdf_path)}",
+            "chunks": len(chunks),
+            "message": f"Successfully processed {os.path.basename(pdf_path)} into {len(chunks)} semantic chunks",
+            "chunk_stats": chunk_stats,
         }
 
     except HTTPException:
@@ -514,18 +486,9 @@ async def load_document(request: DocumentRequest):
 
 @app.post("/query", response_model=QueryResponse)
 async def query_rag(request: QueryRequest):
-    """
-    Query the RAG pipeline
-
-    This endpoint:
-    1. Retrieves relevant document chunks using similarity search
-    2. Constructs a prompt with context
-    3. Generates answer using NVIDIA LLM
-    4. Returns answer with source citations
-    """
+    """Query the RAG pipeline with enhanced retrieval"""
     try:
         question = request.question
-
         if not question or not question.strip():
             raise HTTPException(status_code=400, detail="Question cannot be empty")
 
@@ -534,7 +497,6 @@ async def query_rag(request: QueryRequest):
         retriever = store.as_retriever(
             search_type="similarity", search_kwargs={"k": request.top_k}
         )
-
         relevant_docs = retriever.invoke(question)
 
         if not relevant_docs:
@@ -582,7 +544,6 @@ Answer:"""
         ]
 
         print(f"✓ Answered query with {len(relevant_docs)} chunks", file=sys.stderr)
-
         return {
             "answer": response.content,
             "sources": sources,
@@ -596,356 +557,122 @@ Answer:"""
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/query-structured", response_model=StructuredQueryResponse)
-async def query_rag_structured(request: QueryRequest):
-    """
-    Query the RAG pipeline with structured output
-
-    This endpoint provides enhanced responses with:
-    - Confidence scoring
-    - Key points extraction
-    - Document citations
-    - Structured JSON format
-    """
-    try:
-        question = request.question
-
-        if not question or not question.strip():
-            raise HTTPException(status_code=400, detail="Question cannot be empty")
-
-        # Retrieve relevant documents
-        store = get_vector_store()
-        retriever = store.as_retriever(
-            search_type="similarity", search_kwargs={"k": request.top_k}
-        )
-
-        relevant_docs = retriever.invoke(question)
-
-        if not relevant_docs:
-            return {
-                "answer": "I don't have enough information in my knowledge base to answer this question.",
-                "confidence": "low",
-                "key_points": ["No relevant documents found"],
-                "citations": [],
-                "sources": [],
-                "chunks_retrieved": 0,
-            }
-
-        # Build context with document numbers
-        context = "\n\n".join(
-            [
-                f"[Document {i+1}]\n{doc.page_content}"
-                for i, doc in enumerate(relevant_docs)
-            ]
-        )
-
-        # Create structured output parser
-        parser = PydanticOutputParser(pydantic_object=StructuredAnswer)
-
-        # Construct prompt with structured output instructions
-        prompt = f"""You are a helpful study assistant. Use the following context from study materials to answer the question.
-
-Context from documents:
-{context}
-
-Question: {question}
-
-Instructions:
-- Answer based ONLY on the provided context
-- Assess your confidence level (high/medium/low) based on context relevance
-- Extract 3-5 key points from your answer
-- Cite which documents you used (by number, e.g., [1, 2])
-- Be clear and educational
-
-{parser.get_format_instructions()}
-
-Provide your response in the exact JSON format specified above."""
-
-        # Generate structured response
-        response = llm.invoke(prompt)  # type: ignore
-
-        # Parse the structured output
-        try:
-            # Ensure content is a string
-            content_str = str(response.content) if response.content else ""
-            structured = parser.parse(content_str)
-            answer = structured.answer
-            confidence = structured.confidence
-            key_points = structured.key_points
-            citations = structured.citations
-        except Exception as parse_error:
-            # Fallback if parsing fails
-            print(f"⚠️ Structured parsing failed: {parse_error}", file=sys.stderr)
-            answer = response.content
-            confidence = "medium"
-            key_points = ["Unable to extract structured key points"]
-            citations = list(range(1, len(relevant_docs) + 1))
-
-        # Format sources
-        sources = [
-            {
-                "content": doc.page_content[:500]
-                + ("..." if len(doc.page_content) > 500 else ""),
-                "metadata": doc.metadata,
-            }
-            for doc in relevant_docs
-        ]
-
-        print(
-            f"✓ Answered structured query with {len(relevant_docs)} chunks (confidence: {confidence})",
-            file=sys.stderr,
-        )
-
-        return {
-            "answer": answer,
-            "confidence": confidence,
-            "key_points": key_points,
-            "citations": citations,
-            "sources": sources,
-            "chunks_retrieved": len(relevant_docs),
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"✗ Error in structured query: {e}", file=sys.stderr)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @app.post("/query-agent", response_model=AgentQueryResponse)
 async def query_agent(request: AgentQueryRequest):
     """
-    Query using agent with MCP tool calling capabilities
-
-    This endpoint:
-    - Uses LLM with bound MCP tools for function calling
-    - Optionally retrieves RAG context
-    - Executes tool calls as needed
-    - Returns final answer with tool usage logs
+    Advanced agent query with tool support and RAG integration.
+    Allows the LLM to decide whether to use RAG context, call tools, or answer directly.
     """
     try:
         question = request.question
-
         if not question or not question.strip():
             raise HTTPException(status_code=400, detail="Question cannot be empty")
 
-        # Check if tools are available
-        if not mcp_tools:
-            return {
-                "answer": "No MCP tools are currently loaded. Please configure MCP servers.",
-                "tool_calls": [],
-                "sources": [],
-                "chunks_retrieved": 0,
-                "iterations": 0,
-            }
+        # 1. Retrieve Context (if RAG is enabled)
+        context_text = ""
+        sources_list = []
 
-        # Determine strategy via routing
-        strategy = "GENERAL"
-        if request.auto_route:
-            route_result = await route_request(question, llm)  # type: ignore
-            strategy = route_result.strategy
-            print(
-                f"🧭 Routing decision: {strategy} ({route_result.reasoning})",
-                file=sys.stderr,
-            )
-        else:
-            # Manual override or default behavior
-            strategy = "HYBRID" if request.use_rag else "TOOL"
+        if request.use_rag:
+            try:
+                store = get_vector_store()
+                retriever = store.as_retriever(
+                    search_type="similarity", search_kwargs={"k": request.top_k}
+                )
+                relevant_docs = retriever.invoke(question)
 
-        # Configure execution based on strategy
-        should_use_rag = request.use_rag and (strategy in ["RAG", "HYBRID"])
-        should_use_tools = strategy in ["TOOL", "HYBRID"]
-
-        # Retrieve RAG context if requested and routed
-        relevant_docs = []
-        rag_context = ""
-        if should_use_rag:
-            store = get_vector_store()
-            retriever = store.as_retriever(
-                search_type="similarity", search_kwargs={"k": request.top_k}
-            )
-            relevant_docs = retriever.invoke(question)
-
-            if relevant_docs:
-                rag_context = "\n\nContext from knowledge base:\n" + "\n\n".join(
-                    [
-                        f"[Doc {i+1}] {doc.page_content[:300]}..."
-                        for i, doc in enumerate(relevant_docs[:3])
+                if relevant_docs:
+                    context_text = "\n\n".join(
+                        [
+                            f"[Document {i+1}]\n{doc.page_content}"
+                            for i, doc in enumerate(relevant_docs)
+                        ]
+                    )
+                    sources_list = [
+                        doc.metadata.get("source", "Unknown") for doc in relevant_docs
                     ]
-                )
+            except Exception as e:
                 print(
-                    f"📚 Retrieved {len(relevant_docs)} docs for RAG context",
+                    f"⚠️ RAG retrieval failed (continuing without context): {e}",
                     file=sys.stderr,
                 )
 
-        # Prepare messages with RAG context
-        user_message = question + rag_context
+        # 2. Prepare Tools
+        if llm is None:
+            raise HTTPException(status_code=503, detail="LLM service not initialized")
 
-        # Select LLM client (with or without tools)
-        # If strategy is RAG or GENERAL, we might not strictly need tools,
-        # but keeping them bound allows for "surprise" tool usage if the model really wants to.
-        # However, to strictly enforce "RAG ONLY", we could use plain `llm`.
-        # For now, we'll use `llm_with_tools` if tools are enabled in strategy,
-        # otherwise plain `llm` to prevent accidental tool calls.
-        active_llm = llm_with_tools if should_use_tools else llm
-
-        # Agent loop with tool calling
-        messages = [{"role": "user", "content": user_message}]
-        tool_calls_log: List[ToolCall] = []
-        iterations = 0
-
-        for i in range(request.max_iterations):
-            iterations += 1
-
-            # Invoke LLM
-            response = active_llm.invoke(messages)  # type: ignore
-
-            # Check if tool calls were made
-            if hasattr(response, "tool_calls") and response.tool_calls:
-                print(
-                    f"🔧 Agent iteration {i+1}: {len(response.tool_calls)} tool calls",
-                    file=sys.stderr,
-                )
-
-                # Execute each tool call
-                for tool_call in response.tool_calls:
-                    tool_name = tool_call.get("name", "")
-                    tool_args = tool_call.get("args", {})
-                    tool_id = tool_call.get("id", "")
-
-                    print(
-                        f"  🔨 Calling tool: {tool_name} with {tool_args}",
-                        file=sys.stderr,
-                    )
-
-                    # Find and execute the tool
-                    tool_result = "Tool not found"
-                    for mcp_tool in mcp_tools:
-                        if mcp_tool.name == tool_name:
-                            try:
-                                tool_result = await mcp_tool.ainvoke(tool_args)
-                                print(
-                                    f"  ✓ Tool result: {str(tool_result)[:100]}...",
-                                    file=sys.stderr,
-                                )
-                            except Exception as tool_error:
-                                tool_result = f"Tool execution error: {str(tool_error)}"
-                                print(f"  ✗ Tool error: {tool_error}", file=sys.stderr)
-                            break
-
-                    # Log tool call
-                    tool_calls_log.append(
-                        ToolCall(
-                            name=tool_name, arguments=tool_args, result=str(tool_result)
-                        )
-                    )
-
-                    # Add tool result to messages
-                    messages.append(
-                        {
-                            "role": "assistant",
-                            "content": "",
-                            "tool_calls": [tool_call],  # type: ignore
-                        }
-                    )
-                    messages.append(
-                        {
-                            "role": "tool",
-                            "content": str(tool_result),
-                            "tool_call_id": tool_id,
-                        }
-                    )
-            else:
-                # No more tool calls, we have final answer
-                final_answer = (
-                    response.content if hasattr(response, "content") else str(response)
-                )
-                print(f"✓ Agent completed in {iterations} iterations", file=sys.stderr)
-
-                # Format sources
-                sources = [
-                    {
-                        "content": doc.page_content[:500]
-                        + ("..." if len(doc.page_content) > 500 else ""),
-                        "metadata": doc.metadata,
-                    }
-                    for doc in relevant_docs
-                ]
-
-                return {
-                    "answer": final_answer,
-                    "tool_calls": tool_calls_log,
-                    "sources": sources,
-                    "chunks_retrieved": len(relevant_docs),
-                    "iterations": iterations,
+        active_llm = llm
+        if request.tools:
+            # Convert client-provided tool definitions to LangChain format
+            langchain_tools = []
+            for tool in request.tools:
+                # Create a dynamic tool definition for the LLM
+                tool_def = {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "parameters": tool.inputSchema
+                    or {"type": "object", "properties": {}},
                 }
+                langchain_tools.append(tool_def)
 
-        # Max iterations reached
+            # Bind tools to the LLM
+            if langchain_tools:
+                active_llm = llm.bind_tools(langchain_tools, tool_choice="auto")
+
+        # 3. Construct Prompt
+        system_prompt = """You are an intelligent study assistant with access to tools and study materials.
+Your goal is to help the user learn effectively.
+
+"""
+        if context_text:
+            system_prompt += f"""
+Here is relevant context from the user's study materials:
+{context_text}
+
+Instructions:
+- Use the provided context to answer questions about the study material.
+- If the context is relevant, cite it.
+- If the user asks to perform an action (like creating a quiz, flashcards, or tracking progress), USE THE AVAILABLE TOOLS.
+- Do not hallucinate tool outputs. Just generate the tool call.
+"""
+        else:
+            system_prompt += """
+Instructions:
+- Answer the user's question to the best of your ability.
+- If the user asks to perform an action, USE THE AVAILABLE TOOLS.
+"""
+
+        messages = [("system", system_prompt), ("user", question)]
+
+        # 4. Invoke LLM
+        response = active_llm.invoke(messages)
+
+        # 5. Process Response
+        tool_calls = []
+        # Use getattr to safely access tool_calls as it might not be typed in BaseMessage
+        response_tool_calls = getattr(response, "tool_calls", None)
+
+        if response_tool_calls:
+            for tc in response_tool_calls:
+                tool_calls.append({"name": tc["name"], "arguments": tc["args"]})
+
         return {
-            "answer": "Agent reached maximum iterations without completing.",
-            "tool_calls": tool_calls_log,
-            "sources": [],
-            "chunks_retrieved": len(relevant_docs),
-            "iterations": iterations,
+            "success": True,
+            "answer": response.content or "I've prepared some actions for you.",
+            "sources": sources_list,
+            "tool_calls": tool_calls if tool_calls else None,
         }
 
-    except HTTPException:
-        raise
     except Exception as e:
         print(f"✗ Error in agent query: {e}", file=sys.stderr)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/mcp/tools")
-async def list_mcp_tools():
-    """List all available MCP tools"""
-    if not mcp_tools:
         return {
-            "tools": [],
-            "count": 0,
-            "message": "No MCP tools loaded. Configure MCP_SERVERS in environment.",
+            "success": False,
+            "answer": "An error occurred while processing your request.",
+            "error": str(e),
         }
-
-    tools_info = []
-    for tool in mcp_tools:
-        tools_info.append(
-            {
-                "name": tool.name,
-                "description": (
-                    tool.description
-                    if hasattr(tool, "description")
-                    else "No description"
-                ),
-                "schema": tool.args if hasattr(tool, "args") else {},
-            }
-        )
-
-    return {
-        "tools": tools_info,
-        "count": len(tools_info),
-        "message": f"Loaded {len(tools_info)} MCP tools",
-    }
-
-
-@app.delete("/collection")
-async def clear_collection():
-    """Clear all documents from the collection"""
-    try:
-        global vector_store
-
-        if vector_store:
-            # Delete and recreate collection
-            vector_store._client.delete_collection(name=COLLECTION_NAME)
-            vector_store = None  # Force recreation
-            get_vector_store()  # Recreate empty collection
-
-        return {"status": "success", "message": "Collection cleared"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/collection/stats")
-async def collection_stats():
+async def get_collection_stats():
     """Get collection statistics"""
     try:
         store = get_vector_store()
@@ -961,20 +688,37 @@ async def collection_stats():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.delete("/collection")
+async def clear_collection():
+    """Clear all documents from collection"""
+    try:
+        store = get_vector_store()
+        store.delete_collection()
+        print("✓ Collection cleared", file=sys.stderr)
+        return {"status": "success", "message": "Collection cleared"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/embed", response_model=EmbeddingResponse)
+async def embed_texts(request: EmbeddingRequest):
+    """Embed texts using the initialized NVIDIA embeddings model"""
+    try:
+        if not embeddings:
+            raise HTTPException(
+                status_code=503, detail="Embeddings model not initialized"
+            )
+
+        vectors = embeddings.embed_documents(request.texts)
+        dims = len(vectors[0]) if vectors else 0
+
+        return {"embeddings": vectors, "dimensions": dims}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 if __name__ == "__main__":
     import uvicorn
 
-    # Get port from environment or use default
-    PORT = int(os.getenv("RAG_PORT", "8000"))
-
-    print("=" * 60, file=sys.stderr)
-    print("NVIDIA RAG Service Starting", file=sys.stderr)
-    print("=" * 60, file=sys.stderr)
-    print(f"Port: {PORT}", file=sys.stderr)
-    print(f"Persist Directory: {CHROMA_PERSIST_DIR}", file=sys.stderr)
-    print(f"Collection Name: {COLLECTION_NAME}", file=sys.stderr)
-    print(f"Embedding Model: {EMBEDDING_MODEL}", file=sys.stderr)
-    print(f"LLM Model: {LLM_MODEL}", file=sys.stderr)
-    print("=" * 60, file=sys.stderr)
-
-    uvicorn.run(app, host="0.0.0.0", port=PORT, log_level="info")
+    port = int(os.getenv("RAG_PORT", "8000"))
+    uvicorn.run(app, host="0.0.0.0", port=port)

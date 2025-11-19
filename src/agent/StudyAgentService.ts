@@ -60,7 +60,9 @@ export class StudyAgentService {
         logger.info(
           "StudyAgentService: Tools changed, refreshing agent graph..."
         );
-        this.refresh();
+        this.refresh().catch((error) => {
+          logger.warn("Failed to refresh agent graph on tool change:", error);
+        });
       });
     }
   }
@@ -78,7 +80,10 @@ export class StudyAgentService {
 
     this.initPromise = this.setup().catch((error) => {
       this.initPromise = undefined;
-      throw error;
+      // Don't re-throw here to prevent unhandled rejections in background inits
+      logger.error("StudyAgentService initialization failed:", error);
+      this.lastInitError =
+        error instanceof Error ? error.message : String(error);
     });
     return this.initPromise;
   }
@@ -105,9 +110,13 @@ export class StudyAgentService {
         this.loadedDocumentCount = stats.document_count;
         logger.info(`RAG collection has ${this.loadedDocumentCount} documents`);
       } catch (error) {
-        logger.error("RAG service not available:", error);
+        // Log warning but continue - RAG might be starting up or unavailable
+        // The agent can still function with tools, just without RAG context
+        logger.warn(
+          "RAG service not available during setup (continuing without it):",
+          error instanceof Error ? error.message : String(error)
+        );
         this.ragServiceConnected = false;
-        throw new Error("RAG service is not running or not accessible");
       }
 
       // Load initial documents if specified

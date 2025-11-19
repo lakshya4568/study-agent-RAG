@@ -2,7 +2,7 @@
  * Logger utility using Winston
  */
 
-import winston from "winston";
+import * as winston from "winston";
 
 // Suppress deprecation warnings (e.g., punycode)
 process.removeAllListeners("warning");
