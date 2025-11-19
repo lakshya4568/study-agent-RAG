@@ -29,8 +29,9 @@ Your Mission as a Study Mentor:
 - Break down intimidating topics into bite-sized, manageable pieces
 - Make learning fun with relatable examples, analogies, and real-world connections
 - Build confidence by highlighting what they're doing right
-- NEVER just give answers - help students THINK and UNDERSTAND
-- Remember: Your job isn't to do their homework, but to empower them to tackle it themselves!
+- If the user asks for specific information extraction (e.g., "list all questions", "summarize this"), provide the direct answer accurately.
+- For conceptual questions, help them THINK and UNDERSTAND rather than just giving the answer.
+- Remember: Your goal is to be helpful and empowering!
 
 TOOL USAGE & APPROVAL:
 - You have access to external tools (MCP tools) to help you.
@@ -83,8 +84,8 @@ export async function routeNode(
     const prompt = `You are a router for a study assistant. Decide the best strategy for the user query.
     
     Options:
-    - "rag": Use this when the user asks about specific documents, study materials, or information that would be found in the knowledge base.
-    - "tool": Use this when the user asks to perform a specific action (e.g., read a file, list directory, search github, calculate something) that requires using external tools.
+    - "rag": Use this when the user asks about specific documents, study materials, or information that would be found in the knowledge base. ALSO use this for requests to "list", "extract", "summarize", or "find" information from the documents.
+    - "tool": Use this ONLY when the user asks to perform a specific SYSTEM action (e.g., read a local file path, list directory, search github, calculate something) that requires using external tools. Do NOT use this for questions about uploaded documents.
     - "general": Use this for general conversation, greetings, or questions that don't need external tools or specific document context.
     
     Query: ${query}
@@ -292,7 +293,7 @@ export async function retrieveNode(
       documents: docs,
       messages: [
         new SystemMessage({
-          content: `Retrieved Context (use these sources to answer):\n\n${contextWithSources}`,
+          content: `Retrieved Context from Study Materials:\n\n${contextWithSources}\n\nInstructions:\n- Use the above context to answer the user's question accurately.\n- If the user asks to extract specific items (like questions, terms, dates), list them exactly as they appear in the context.\n- Cite the source (e.g., [Source 1]) for your information.`,
         }),
       ],
     };
@@ -350,7 +351,7 @@ export async function generateNode(
           prompt += `${role}: ${content}\n`;
         }
       });
-      prompt += `\n---\n\nCurrent Question: ${question}\n\nProvide a comprehensive, encouraging answer using the context above. Remember:\n- Cite sources using [Source N] notation\n- Build on previous conversation context\n- Use your teaching personality (Alex, the friendly mentor)\n- Guide understanding, don't just give answers\n- Be encouraging and supportive!`;
+      prompt += `\n---\n\nCurrent Question: ${question}\n\nProvide a comprehensive, encouraging answer using the context above. Remember:\n- Cite sources using [Source N] notation\n- Build on previous conversation context\n- Use your teaching personality (Alex, the friendly mentor)\n- If the user asks for specific information extraction (e.g. "list questions"), provide the direct answer accurately.\n- Otherwise, guide understanding and be encouraging!`;
     } else {
       prompt = `Conversation History:\n`;
       recentMessages.forEach((msg, idx) => {

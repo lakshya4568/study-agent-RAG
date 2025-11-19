@@ -344,9 +344,40 @@ export class StudyAgentService {
     }
   }
 
+  private async ensureRAGConnection(): Promise<boolean> {
+    if (this.ragServiceConnected) {
+      return true;
+    }
+
+    try {
+      logger.info("Attempting to reconnect to RAG service...");
+      const health = await ragClient.healthCheck();
+      this.ragServiceConnected = true;
+      logger.info("RAG service reconnected:", {
+        collection: health.collection_name,
+        embedModel: health.embedding_model,
+        llmModel: health.llm_model,
+      });
+
+      // Also update stats if we just reconnected
+      const stats = await ragClient.getCollectionStats();
+      this.loadedDocumentCount = stats.document_count;
+
+      return true;
+    } catch (error) {
+      logger.warn("RAG service reconnection failed:", error);
+      return false;
+    }
+  }
+
   async addDocuments(documentPaths: string[]): Promise<AgentDocumentAddResult> {
     try {
       await this.initialize();
+
+      // Try to ensure connection if missing
+      if (!this.ragServiceConnected) {
+        await this.ensureRAGConnection();
+      }
 
       if (!this.ragServiceConnected) {
         throw new Error("RAG service not connected");
@@ -478,6 +509,11 @@ export class StudyAgentService {
 
     try {
       await this.initialize();
+
+      // Try to ensure connection if missing
+      if (!this.ragServiceConnected) {
+        await this.ensureRAGConnection();
+      }
 
       if (!this.graph) {
         throw new Error("Study agent graph not initialized");

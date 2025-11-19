@@ -486,25 +486,27 @@ async def load_document(request: DocumentRequest):
 
 @app.post("/query", response_model=QueryResponse)
 async def query_rag(request: QueryRequest):
-    """Query the RAG pipeline with enhanced retrieval"""
+    """Query the RAG pipeline with enhanced retrieval and scoring"""
     try:
         question = request.question
         if not question or not question.strip():
             raise HTTPException(status_code=400, detail="Question cannot be empty")
 
-        # Retrieve relevant documents
+        # Retrieve relevant documents with scores
         store = get_vector_store()
-        retriever = store.as_retriever(
-            search_type="similarity", search_kwargs={"k": request.top_k}
+        # Use similarity_search_with_score to get relevance scores
+        results_with_scores = store.similarity_search_with_score(
+            question, k=request.top_k
         )
-        relevant_docs = retriever.invoke(question)
 
-        if not relevant_docs:
+        if not results_with_scores:
             return {
                 "answer": "I don't have enough information in my knowledge base to answer this question. Please upload relevant documents first.",
                 "sources": [],
                 "chunks_retrieved": 0,
             }
+
+        relevant_docs = [doc for doc, _ in results_with_scores]
 
         # Build context from retrieved documents
         context = "\n\n".join(
@@ -522,26 +524,30 @@ Context from documents:
 
 Question: {question}
 
-Instructions:
-- Answer based ONLY on the provided context
-- If the context doesn't contain the answer, say so
-- Cite specific information from the documents when relevant
-- Be clear and educational in your explanation
-
 Answer:"""
+
+        print(f"📝 Generated Prompt for RAG:\n{prompt}", file=sys.stderr)
 
         # Generate response
         response = llm.invoke(prompt)  # type: ignore
 
-        # Format sources
-        sources = [
-            {
-                "content": doc.page_content[:500]
-                + ("..." if len(doc.page_content) > 500 else ""),
-                "metadata": doc.metadata,
-            }
-            for doc in relevant_docs
-        ]
+        # Format sources with scores in metadata
+        sources = []
+        for doc, score in results_with_scores:
+            # Create a copy of metadata to avoid modifying the original
+            metadata = doc.metadata.copy()
+            # Add retrieval score (lower is better for L2/Euclidean, higher is better for Cosine depending on impl)
+            # Chroma default is usually L2 (lower is better), but LangChain might normalize.
+            # We'll just pass the raw score.
+            metadata["retrieval_score"] = float(score)
+
+            sources.append(
+                {
+                    "content": doc.page_content[:500]
+                    + ("..." if len(doc.page_content) > 500 else ""),
+                    "metadata": metadata,
+                }
+            )
 
         print(f"✓ Answered query with {len(relevant_docs)} chunks", file=sys.stderr)
         return {
@@ -575,10 +581,12 @@ async def query_agent(request: AgentQueryRequest):
         if request.use_rag:
             try:
                 store = get_vector_store()
-                retriever = store.as_retriever(
-                    search_type="similarity", search_kwargs={"k": request.top_k}
+                # Use similarity_search_with_score for consistency and better debugging
+                results_with_scores = store.similarity_search_with_score(
+                    question, k=request.top_k
                 )
-                relevant_docs = retriever.invoke(question)
+
+                relevant_docs = [doc for doc, _ in results_with_scores]
 
                 if relevant_docs:
                     context_text = "\n\n".join(
@@ -587,9 +595,14 @@ async def query_agent(request: AgentQueryRequest):
                             for i, doc in enumerate(relevant_docs)
                         ]
                     )
-                    sources_list = [
-                        doc.metadata.get("source", "Unknown") for doc in relevant_docs
-                    ]
+                    # Include scores in sources list for debugging/transparency
+                    sources_list = []
+                    for doc, score in results_with_scores:
+                        source_info = doc.metadata.get("source", "Unknown")
+                        page = doc.metadata.get("page", "?")
+                        sources_list.append(
+                            f"{source_info} (Page {page}, Score: {score:.4f})"
+                        )
             except Exception as e:
                 print(
                     f"⚠️ RAG retrieval failed (continuing without context): {e}",
