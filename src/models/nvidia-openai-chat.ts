@@ -56,10 +56,11 @@ export class NVIDIAOpenAIChat {
 
   /**
    * Invoke the chat model with tools enabled
-   * This handles the complete tool-calling flow:
+   * This handles the complete tool-calling flow with recursion:
    * 1. Send initial request with tools
    * 2. If tool calls are made, execute them
-   * 3. Send results back to model for final response
+   * 3. Send results back to model
+   * 4. Repeat until model provides final answer
    */
   async invokeWithTools(
     messages: ChatCompletionMessageParam[],
@@ -71,74 +72,146 @@ export class NVIDIAOpenAIChat {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     toolCalls?: Array<{ name: string; args: any; result: string }>;
   }> {
-    // First call: LLM interprets input, may return tool calls
-    const firstCompletion = await this.client.chat.completions.create({
-      model: this.model,
-      messages,
-      tools,
-      tool_choice: "auto",
-      temperature: this.temperature,
-      max_tokens: this.maxTokens,
-    });
-
-    const firstChoice = firstCompletion.choices[0];
-    const toolCalls = firstChoice.message?.tool_calls || [];
-
-    // If no tool calls, return direct response
-    if (toolCalls.length === 0) {
-      return {
-        content: firstChoice.message.content || "",
-      };
-    }
-
-    // Execute tool calls and collect results
+    const conversationMessages: ChatCompletionMessageParam[] = [...messages];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const executedTools: Array<{ name: string; args: any; result: string }> =
+    const allExecutedTools: Array<{ name: string; args: any; result: string }> =
       [];
-    const conversationMessages: ChatCompletionMessageParam[] = [
-      ...messages,
-      {
-        role: "assistant",
-        content: "Calling tools...", // CRITICAL: Non-empty content required by NVIDIA API
-        tool_calls: toolCalls,
-      },
-    ];
+    const MAX_ITERATIONS = 5; // Prevent infinite loops
+    let iterations = 0;
 
-    for (const toolCall of toolCalls) {
-      if (toolCall.type !== "function") continue;
-      const toolName = toolCall.function.name;
-      const toolArgs = JSON.parse(toolCall.function.arguments);
+    while (iterations < MAX_ITERATIONS) {
+      iterations++;
 
-      // Execute the tool
-      const toolResult = await toolExecutor(toolName, toolArgs);
-      executedTools.push({
-        name: toolName,
-        args: toolArgs,
-        result: toolResult,
+      const completion = await this.client.chat.completions.create({
+        model: this.model,
+        messages: conversationMessages,
+        tools,
+        tool_choice: "auto",
+        temperature: this.temperature,
+        max_tokens: this.maxTokens,
       });
 
-      // Add tool result to conversation
+      const choice = completion.choices[0];
+      let toolCalls = choice.message?.tool_calls || [];
+      let content = choice.message.content || "";
+
+      // Check for raw tool call tokens in content if no structured tool calls found
+      if (
+        toolCalls.length === 0 &&
+        content.includes("<|tool_calls_section_begin|>")
+      ) {
+        const parsed = this.parseToolCallsFromContent(content);
+        if (parsed.toolCalls.length > 0) {
+          toolCalls = parsed.toolCalls;
+          content = parsed.cleanContent;
+        }
+      }
+
+      // If no tool calls, we have our final answer
+      if (toolCalls.length === 0) {
+        return {
+          content: content,
+          toolCalls: allExecutedTools,
+        };
+      }
+
+      // Add assistant message with tool calls to history
       conversationMessages.push({
-        role: "tool",
-        tool_call_id: toolCall.id,
-        content: toolResult,
+        role: "assistant",
+        content: content || "Calling tools...", // Ensure non-empty content
+        tool_calls: toolCalls,
+      });
+
+      // Execute tool calls
+      for (const toolCall of toolCalls) {
+        if (toolCall.type !== "function") continue;
+        const toolName = toolCall.function.name;
+        let toolArgs = {};
+        try {
+          toolArgs = JSON.parse(toolCall.function.arguments);
+        } catch (e) {
+          console.error(
+            `Failed to parse arguments for tool ${toolName}:`,
+            toolCall.function.arguments
+          );
+        }
+
+        // Execute the tool
+        let toolResult = "";
+        try {
+          toolResult = await toolExecutor(toolName, toolArgs);
+        } catch (error) {
+          toolResult = `Error executing tool ${toolName}: ${error instanceof Error ? error.message : String(error)}`;
+        }
+
+        allExecutedTools.push({
+          name: toolName,
+          args: toolArgs,
+          result: toolResult,
+        });
+
+        // Add tool result to conversation
+        conversationMessages.push({
+          role: "tool",
+          tool_call_id: toolCall.id,
+          content: toolResult,
+        });
+      }
+    }
+
+    // If we hit max iterations, return what we have
+    const lastMsg = conversationMessages[conversationMessages.length - 1];
+    return {
+      content:
+        lastMsg.role === "assistant" && lastMsg.content
+          ? String(lastMsg.content)
+          : "Max iterations reached without final response.",
+      toolCalls: allExecutedTools,
+    };
+  }
+
+  /**
+   * Parse raw tool call tokens from content
+   * Format: <|tool_calls_section_begin|><|tool_call_begin|>name:id<|tool_call_argument_begin|>args<|tool_call_end|><|tool_calls_section_end|>
+   */
+  private parseToolCallsFromContent(content: string): {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    toolCalls: any[];
+    cleanContent: string;
+  } {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const toolCalls: any[] = [];
+    const toolCallRegex =
+      /<\|tool_call_begin\|>(.*?)<\|tool_call_argument_begin\|>(.*?)<\|tool_call_end\|>/g;
+    let match;
+
+    while ((match = toolCallRegex.exec(content)) !== null) {
+      const [_, nameAndId, args] = match;
+      // nameAndId might be "functions.tool_name:id" or just "tool_name:id"
+      const parts = nameAndId.split(":");
+      const id = parts.pop() || "0";
+      const fnName = parts.join(":"); // Rejoin in case name has colons, though unlikely
+      const name = fnName.replace("functions.", "");
+
+      toolCalls.push({
+        id: `call_${id}_${Math.random().toString(36).substr(2, 9)}`, // Generate unique ID
+        type: "function",
+        function: {
+          name: name,
+          arguments: args,
+        },
       });
     }
 
-    // Second call: Get final response with tool results
-    const secondCompletion = await this.client.chat.completions.create({
-      model: this.model,
-      messages: conversationMessages,
-      tools,
-      tool_choice: "auto",
-      temperature: this.temperature,
-      max_tokens: this.maxTokens,
-    });
+    // Remove the tool calls section from content
+    const cleanContent = content
+      .replace(
+        /<\|tool_calls_section_begin\|>[\s\S]*?<\|tool_calls_section_end\|>/g,
+        ""
+      )
+      .trim();
 
-    return {
-      content: secondCompletion.choices[0].message.content || "",
-      toolCalls: executedTools,
-    };
+    return { toolCalls, cleanContent };
   }
 
   /**
