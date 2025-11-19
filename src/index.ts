@@ -39,11 +39,25 @@ if (require("electron-squirrel-startup")) {
 
 // Initialize MCP Client Manager
 const mcpManager = new MCPClientManager();
+mcpToolService.setMCPManager(mcpManager);
+
+logger.info("=".repeat(60));
+logger.info("🚀 AI Study Agent - Starting Up");
+logger.info("=".repeat(60));
 
 // Load MCP servers from config
 const mcpConfig = loadMcpConfig();
+logger.info(`📋 Loading MCP configuration from mcp.json`);
+logger.info(
+  `Found ${Object.keys(mcpConfig.mcpServers).length} MCP servers configured`
+);
+
 for (const [id, config] of Object.entries(mcpConfig.mcpServers)) {
   if (config.command) {
+    logger.info(`🔌 Adding MCP server: ${id}`);
+    logger.info(
+      `   Command: ${config.command} ${(config.args || []).join(" ")}`
+    );
     mcpManager
       .addServer({
         id,
@@ -52,12 +66,20 @@ for (const [id, config] of Object.entries(mcpConfig.mcpServers)) {
         args: config.args || [],
         env: config.env,
       })
-      .catch((err) => logger.error(`Failed to add MCP server ${id}`, err));
+      .then(() => logger.info(`✅ MCP server ${id} connected successfully`))
+      .catch((err) => {
+        logger.error(`❌ Failed to add MCP server ${id}:`, err);
+        logger.error(`   This may affect tool availability`);
+      });
   }
 }
 
+logger.info("🤖 Initializing Study Agent Service with MCP Manager");
 const studyAgentService = new StudyAgentService({}, mcpManager);
 const configManager = new ConfigManager();
+
+logger.info("📊 Study Agent ready for initialization");
+logger.info("=".repeat(60));
 
 function convertChatHistoryToMessages(
   history: ChatMessage[],
@@ -100,41 +122,67 @@ const createWindow = (): void => {
   // Open the DevTools.
   mainWindow.webContents.openDevTools();
 
-  logger.info("Main window created");
+  logger.info("🪟 Main window created and DevTools opened");
+  logger.info(`   Size: ${width}x${height}`);
 };
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on("ready", async () => {
+  logger.info("\n" + "=".repeat(60));
+  logger.info("⚡ Electron App Ready - Initializing Services");
+  logger.info("=".repeat(60));
+
   // Initialize file logging now that app is ready
   await initializeFileLogging();
+  logger.info("📝 File logging initialized");
 
   // Initialize database BEFORE registering IPC handlers
   try {
     dbManager.initialize();
-    logger.info("Database initialized", dbManager.getStats());
+    const stats = dbManager.getStats();
+    logger.info("💾 Database initialized successfully");
+    logger.info(`   Conversation threads: ${stats.threads}`);
+    logger.info(`   Total messages: ${stats.messages}`);
+    logger.info(`   Uploaded documents: ${stats.documents}`);
+    logger.info(`   Database size: ${stats.dbSizeMB.toFixed(2)} MB`);
   } catch (error) {
-    logger.error("Failed to initialize database", error);
+    logger.error("❌ Failed to initialize database:", error);
   }
 
   // Register database IPC handlers AFTER database is initialized
   registerDatabaseHandlers();
+  logger.info("🔌 IPC handlers registered");
 
   // Start NVIDIA RAG service after database is ready
   try {
+    logger.info("🚀 Starting NVIDIA RAG service...");
     await startRAGService();
-    logger.info("NVIDIA RAG service started successfully");
+    logger.info("✅ NVIDIA RAG service started successfully");
+    logger.info("   Model: nvidia/llama-3.2-nemoretriever-300m-embed-v2");
+    logger.info("   LLM: moonshotai/kimi-k2-instruct (via OpenAI SDK)");
   } catch (error) {
-    logger.error("Failed to start NVIDIA RAG service", error);
+    logger.error("❌ Failed to start NVIDIA RAG service:", error);
+    logger.error("   RAG features may not be available");
   }
 
   createWindow();
 
   // Warm up the Study Agent so the UI immediately shows status
-  studyAgentService.initialize().catch((error) => {
-    logger.error("Study agent failed to initialize on startup", error);
-  });
+  logger.info("\n🔥 Warming up Study Agent...");
+  studyAgentService
+    .initialize()
+    .then(() => {
+      logger.info("✅ Study Agent initialized and ready");
+      logger.info("=".repeat(60));
+      logger.info("🎉 All systems operational - Ready for queries!");
+      logger.info("=".repeat(60) + "\n");
+    })
+    .catch((error) => {
+      logger.error("❌ Study agent failed to initialize on startup:", error);
+      logger.warn("   Agent will initialize on first query instead");
+    });
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common
@@ -373,7 +421,13 @@ ipcMain.handle(
     _,
     payload: { threadId: string; message: string; messageId?: string }
   ) => {
-    logger.info("Agent invocation requested", { threadId: payload.threadId });
+    logger.info("\n" + "─".repeat(60));
+    logger.info("💬 New Agent Query Received");
+    logger.info("─".repeat(60));
+    logger.info(`Thread ID: ${payload.threadId}`);
+    logger.info(
+      `Message: ${payload.message.substring(0, 100)}${payload.message.length > 100 ? "..." : ""}`
+    );
 
     let conversationHistory: BaseMessage[] = [];
     try {
@@ -382,18 +436,37 @@ ipcMain.handle(
         historyRecords,
         payload.messageId
       );
+      logger.info(
+        `📚 Loaded ${conversationHistory.length} messages from history`
+      );
     } catch (error) {
-      logger.warn("Failed to load conversation history", {
+      logger.warn("⚠️  Failed to load conversation history", {
         threadId: payload.threadId,
         error,
       });
     }
+
+    logger.info("🤖 Invoking Study Agent with NVIDIA Kimi-K2-Instruct...");
+    const startTime = Date.now();
 
     const result = await studyAgentService.invoke(
       payload.message,
       conversationHistory,
       { threadId: payload.threadId }
     );
+
+    const duration = Date.now() - startTime;
+    logger.info("✅ Agent response generated");
+    logger.info(`⏱️  Processing time: ${duration}ms`);
+    const responseText = result.finalMessage || "";
+    logger.info(`📝 Response length: ${responseText.length} characters`);
+    if (responseText.length > 0) {
+      logger.info(
+        `Response preview: ${responseText.substring(0, 150)}${responseText.length > 150 ? "..." : ""}`
+      );
+    }
+    logger.info("─".repeat(60) + "\n");
+
     return result;
   }
 );

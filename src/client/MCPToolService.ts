@@ -5,6 +5,7 @@
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { PendingToolCall } from "../components/ui";
+import type { MCPClientManager } from "./MCPClientManager";
 
 export interface MCPToolMetadata extends Tool {
   serverId: string;
@@ -40,6 +41,11 @@ export class MCPToolService {
       onError: (error: string) => void;
     }
   >();
+  private mcpManager?: MCPClientManager;
+
+  setMCPManager(manager: MCPClientManager) {
+    this.mcpManager = manager;
+  }
 
   /**
    * Request tool execution with user approval
@@ -106,7 +112,11 @@ export class MCPToolService {
       request.status = "executing";
       this.pendingRequests.set(requestId, request);
 
-      const result = await window.mcpClient.executeTool(
+      if (!this.mcpManager) {
+        throw new Error("MCPManager not initialized in MCPToolService");
+      }
+
+      const result = await this.mcpManager.executeTool(
         request.serverId,
         request.toolName,
         request.args

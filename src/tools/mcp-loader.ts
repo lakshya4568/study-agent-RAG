@@ -76,13 +76,41 @@ export function jsonSchemaToZod(schema: any): z.ZodType<any> {
   return z.any();
 }
 
+export function sanitizeSchema(schema: any): any {
+  if (typeof schema !== "object" || schema === null) {
+    return schema;
+  }
+
+  if (Array.isArray(schema)) {
+    return schema.map(sanitizeSchema);
+  }
+
+  const newSchema: any = {};
+  for (const [key, value] of Object.entries(schema)) {
+    // Skip unsupported JSON Schema constructs for NVIDIA NIM API / Outlines
+    if (
+      key === "not" ||
+      key === "allOf" ||
+      key === "oneOf" ||
+      key === "anyOf"
+    ) {
+      logger.info(`Removing unsupported JSON Schema construct: '${key}'`);
+      continue;
+    }
+    // Recursively sanitize nested objects and arrays
+    newSchema[key] = sanitizeSchema(value);
+  }
+  return newSchema;
+}
+
 export function patchMcpTools(tools: any[]): any[] {
   return tools.map((tool: any) => {
     // Check if schema is a Zod schema (has _def)
     if (tool.schema && !tool.schema._def) {
       try {
         logger.info(`Patching schema for tool ${tool.name}`);
-        tool.schema = jsonSchemaToZod(tool.schema);
+        const sanitized = sanitizeSchema(tool.schema);
+        tool.schema = jsonSchemaToZod(sanitized);
       } catch (e) {
         logger.warn(`Failed to convert schema for tool ${tool.name}`, e);
       }

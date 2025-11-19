@@ -8,6 +8,8 @@ import {
   loadStudyMCPTools,
   type LoadedStudyTools,
   patchMcpTools,
+  sanitizeSchema,
+  jsonSchemaToZod,
 } from "../tools/mcp-loader";
 import { MCPClientManager } from "../client/MCPClientManager";
 import { loadMcpTools } from "@langchain/mcp-adapters";
@@ -123,6 +125,14 @@ export class StudyAgentService {
       try {
         this.mcpTools = await loadStudyMCPTools();
         logger.info("StudyAgentService setup: MCP tools ready");
+
+        // Attach serverId for local tools
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        this.mcpTools.tools.forEach((tool: any) => {
+          tool.serverId = "study-tools";
+          tool.serverName = "study-tools";
+        });
+
         allTools = [...this.mcpTools.tools];
       } catch (error) {
         logger.warn(
@@ -139,8 +149,60 @@ export class StudyAgentService {
           try {
             const tools = await loadMcpTools(serverId, client);
             logger.info(`Loaded ${tools.length} tools from server ${serverId}`);
+
+            // Sanitize schemas using raw definitions from MCP server
+            const serverInfo = this.mcpManager.getServerInfo(serverId);
+            if (serverInfo && serverInfo.tools) {
+              logger.info(
+                `Server ${serverId} has ${serverInfo.tools.length} raw tools available: ${serverInfo.tools.map((t) => t.name).join(", ")}`
+              );
+
+              const rawSchemas = new Map(
+                serverInfo.tools.map((t) => [t.name, t.inputSchema])
+              );
+
+              for (const tool of tools) {
+                const rawSchema = rawSchemas.get(tool.name);
+                if (rawSchema) {
+                  try {
+                    logger.info(`Sanitizing schema for tool: ${tool.name}`);
+                    const sanitized = sanitizeSchema(rawSchema);
+                    // Log if 'not' was present and removed (simple check)
+                    if (JSON.stringify(rawSchema).includes('"not":')) {
+                      logger.info(
+                        `Removed 'not' keyword from schema of tool: ${tool.name}`
+                      );
+                    }
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    tool.schema = jsonSchemaToZod(sanitized) as any;
+                  } catch (e) {
+                    logger.warn(
+                      `Failed to sanitize/convert schema for tool ${tool.name}`,
+                      e
+                    );
+                  }
+                } else {
+                  logger.warn(
+                    `Could not find raw schema for tool: ${tool.name} in server info`
+                  );
+                }
+              }
+            } else {
+              logger.warn(
+                `No server info or tools found for server ${serverId}`
+              );
+            }
+
             // Patch tools to ensure they have valid Zod schemas
             const patchedTools = patchMcpTools(tools);
+
+            // Attach serverId to tools for approval logic
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            patchedTools.forEach((tool: any) => {
+              tool.serverId = serverId;
+              tool.serverName = serverId;
+            });
+
             allTools.push(...patchedTools);
           } catch (error) {
             logger.error(`Failed to load tools from server ${serverId}`, error);
@@ -344,6 +406,7 @@ export class StudyAgentService {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private wrapToolsWithApproval(tools: any[]): any[] {
     return tools.map((tool) => {
       const originalInvoke = tool.invoke.bind(tool);
@@ -355,6 +418,7 @@ export class StudyAgentService {
       return new Proxy(tool, {
         get(target, prop, receiver) {
           if (prop === "invoke") {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             return async (input: any, config: any) => {
               const serverId = target.serverId || "unknown";
               const serverName = target.serverName || "unknown";

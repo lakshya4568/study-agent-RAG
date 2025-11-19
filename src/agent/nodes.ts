@@ -1,15 +1,11 @@
-import {
-  HumanMessage,
-  SystemMessage,
-  AIMessage,
-  ChatMessage,
-} from "@langchain/core/messages";
+import { SystemMessage, AIMessage } from "@langchain/core/messages";
 import type { Document } from "@langchain/core/documents";
-import { createNVIDIAChat } from "../models/nvidia-chat";
+import { createNVIDIAOpenAIChat } from "../models/nvidia-openai-chat";
 import type { StudyAgentStateType } from "./state";
 import { logger } from "../client/logger";
 import { ragClient } from "../rag/rag-client";
 import { StructuredTool } from "@langchain/core/tools";
+import type { ChatCompletionTool } from "openai/resources/chat/completions";
 
 const STUDY_MENTOR_SYSTEM_PROMPT = `You are Alex, an enthusiastic and patient AI Study Mentor created by NVIDIA technology! 🎓
 
@@ -69,7 +65,7 @@ export async function routeNode(
   state: StudyAgentStateType
 ): Promise<Partial<StudyAgentStateType>> {
   try {
-    const model = createNVIDIAChat({ temperature: 0 });
+    const model = createNVIDIAOpenAIChat();
     const lastMessage = state.messages[state.messages.length - 1];
     const query =
       typeof lastMessage.content === "string"
@@ -87,8 +83,8 @@ export async function routeNode(
     
     Return ONLY the option name (rag, tool, or general).`;
 
-    const response = await model.invoke([new HumanMessage(prompt)]);
-    const route = response.content.toString().toLowerCase().trim();
+    const response = await model.invoke([{ role: "user", content: prompt }]);
+    const route = response.toLowerCase().trim();
 
     logger.info(`Router decision: ${route}`);
 
@@ -106,33 +102,27 @@ export function createQueryNode(tools: StructuredTool[]) {
     state: StudyAgentStateType
   ): Promise<Partial<StudyAgentStateType>> {
     try {
-      const model = createNVIDIAChat({
-        temperature: 0.3,
-        maxTokens: 2000,
-      });
+      const model = createNVIDIAOpenAIChat();
 
-      // Bind tools if available
-      if (tools.length > 0) {
+      // Convert LangChain tools to OpenAI format
+      const openAITools: ChatCompletionTool[] = tools.map((tool) => ({
+        type: "function" as const,
+        function: {
+          name: tool.name,
+          description: tool.description,
+          parameters: tool.schema
+            ? (tool.schema as Record<string, unknown>)
+            : { type: "object", properties: {} },
+        },
+      }));
+
+      if (openAITools.length > 0) {
         logger.info(
-          `[QueryNode] Binding ${tools.length} tools: ${tools.map((t) => t.name).join(", ")}`
+          `[QueryNode] Using ${openAITools.length} tools: ${openAITools.map((t) => (t.type === "function" ? t.function.name : "unknown")).join(", ")}`
         );
-        // Log tool schemas for debugging
-        tools.forEach((t) => {
-          try {
-            if (t.schema) {
-              // logger.info(`Tool ${t.name} schema:`, JSON.stringify(t.schema));
-            } else {
-              logger.warn(`[QueryNode] Tool ${t.name} has no schema`);
-            }
-          } catch (e) {
-            logger.error(`[QueryNode] Error inspecting tool ${t.name}`, e);
-          }
-        });
       } else {
-        logger.info("[QueryNode] No tools available to bind");
+        logger.info("[QueryNode] No tools available");
       }
-
-      const modelWithTools = tools.length > 0 ? model.bindTools(tools) : model;
 
       const messages = [
         new SystemMessage(STUDY_MENTOR_SYSTEM_PROMPT),
@@ -143,39 +133,59 @@ export function createQueryNode(tools: StructuredTool[]) {
         `[QueryNode] Invoking model with ${messages.length} messages`
       );
 
-      // Sanitize messages for NVIDIA API (requires non-empty content)
-      const safeMessages = messages.map((msg) => {
-        // 1. Handle AIMessage with tool_calls (often has empty content)
-        // Convert to ChatMessage to ensure content="ok" is preserved during serialization
-        if (
-          msg._getType() === "ai" &&
-          (msg as AIMessage).tool_calls?.length &&
-          (!msg.content || msg.content === "")
-        ) {
-          const chatMsg = new ChatMessage({
-            content: "ok",
-            role: "assistant",
-          });
-          (chatMsg as any).tool_calls = (msg as AIMessage).tool_calls;
-          if (msg.id) (chatMsg as any).id = msg.id;
-          return chatMsg;
-        }
-
-        // 2. Handle any other message with empty content
-        if (typeof msg.content === "string" && msg.content.trim() === "") {
-          // Clone and force content to "ok"
-          // Using 'any' for constructor to avoid strict type checks on copy
-          const NewMsgClass = msg.constructor as any;
-          return new NewMsgClass({ ...msg, content: "ok" });
-        }
-
-        return msg;
+      // Convert LangChain messages to OpenAI format
+      const openAIMessages = messages.map((msg) => {
+        const msgType = msg._getType();
+        const role =
+          msgType === "human"
+            ? "user"
+            : msgType === "system"
+              ? "system"
+              : "assistant";
+        const content =
+          typeof msg.content === "string"
+            ? msg.content
+            : JSON.stringify(msg.content);
+        return { role, content } as {
+          role: "user" | "system" | "assistant";
+          content: string;
+        };
       });
 
-      const response = await modelWithTools.invoke(safeMessages);
+      // Use invokeWithTools if tools available, otherwise regular invoke
+      let responseContent: string;
+      if (openAITools.length > 0) {
+        // Tool executor that maps back to LangChain tools
+        const toolExecutor = async (
+          toolName: string,
+          args: Record<string, unknown>
+        ) => {
+          const tool = tools.find((t) => t.name === toolName);
+          if (!tool) {
+            throw new Error(`Tool ${toolName} not found`);
+          }
+          logger.info(
+            `[QueryNode] Executing tool: ${toolName} with args:`,
+            args
+          );
+          const result = await tool.invoke(args);
+          logger.info(`[QueryNode] Tool ${toolName} result:`, result);
+          return typeof result === "string" ? result : JSON.stringify(result);
+        };
+
+        const toolResponse = await model.invokeWithTools(
+          openAIMessages,
+          openAITools,
+          toolExecutor
+        );
+        responseContent = toolResponse.content;
+      } else {
+        responseContent = await model.invoke(openAIMessages);
+      }
+
       logger.info("Query node: Generated response");
 
-      return { messages: [response] };
+      return { messages: [new AIMessage({ content: responseContent })] };
     } catch (error) {
       logger.error("Query node failed", error);
       return {
@@ -265,10 +275,7 @@ export async function generateNode(
   state: StudyAgentStateType
 ): Promise<Partial<StudyAgentStateType>> {
   try {
-    const model = createNVIDIAChat({
-      temperature: 0.3,
-      maxTokens: 2000,
-    });
+    const model = createNVIDIAOpenAIChat();
 
     // Extract context from retrieved documents
     const context = (state.documents ?? [])
@@ -321,8 +328,8 @@ export async function generateNode(
     }
 
     const response = await model.invoke([
-      new SystemMessage(STUDY_MENTOR_SYSTEM_PROMPT),
-      new HumanMessage(prompt),
+      { role: "system", content: STUDY_MENTOR_SYSTEM_PROMPT },
+      { role: "user", content: prompt },
     ]);
 
     logger.info(
@@ -330,7 +337,7 @@ export async function generateNode(
     );
 
     return {
-      messages: [response],
+      messages: [new AIMessage({ content: response })],
       currentTopic:
         typeof question === "string" ? question.substring(0, 100) : "",
     };
