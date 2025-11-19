@@ -8,6 +8,7 @@ import { createNVIDIAChat } from "../models/nvidia-chat";
 import type { StudyAgentStateType } from "./state";
 import { logger } from "../client/logger";
 import { ragClient } from "../rag/rag-client";
+import { StructuredTool } from "@langchain/core/tools";
 
 const STUDY_MENTOR_SYSTEM_PROMPT = `You are Alex, an enthusiastic and patient AI Study Mentor created by NVIDIA technology! 🎓
 
@@ -92,7 +93,7 @@ export async function routeNode(
   }
 }
 
-export function createQueryNode(tools: any[]) {
+export function createQueryNode(tools: StructuredTool[]) {
   return async function queryNode(
     state: StudyAgentStateType
   ): Promise<Partial<StudyAgentStateType>> {
@@ -103,6 +104,24 @@ export function createQueryNode(tools: any[]) {
       });
 
       // Bind tools if available
+      if (tools.length > 0) {
+        logger.info(
+          `Binding ${tools.length} tools: ${tools.map((t) => t.name).join(", ")}`
+        );
+        // Log tool schemas for debugging
+        tools.forEach((t) => {
+          try {
+            if (t.schema) {
+              // logger.info(`Tool ${t.name} schema:`, JSON.stringify(t.schema));
+            } else {
+              logger.warn(`Tool ${t.name} has no schema`);
+            }
+          } catch (e) {
+            logger.error(`Error inspecting tool ${t.name}`, e);
+          }
+        });
+      }
+
       const modelWithTools = tools.length > 0 ? model.bindTools(tools) : model;
 
       const messages = [

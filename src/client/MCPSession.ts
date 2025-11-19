@@ -67,6 +67,13 @@ export class MCPSession {
   }
 
   /**
+   * Get the MCP client instance
+   */
+  get mcpClient(): Client {
+    return this.client;
+  }
+
+  /**
    * Connect to the MCP server
    */
   async connect(): Promise<void> {

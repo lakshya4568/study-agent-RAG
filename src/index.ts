@@ -38,7 +38,7 @@ if (require("electron-squirrel-startup")) {
 
 // Initialize MCP Client Manager
 const mcpManager = new MCPClientManager();
-const studyAgentService = new StudyAgentService();
+const studyAgentService = new StudyAgentService({}, mcpManager);
 const configManager = new ConfigManager();
 
 function convertChatHistoryToMessages(

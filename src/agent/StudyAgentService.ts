@@ -5,6 +5,8 @@ import { HumanMessage } from "@langchain/core/messages";
 import type { RunnableConfig } from "@langchain/core/runnables";
 import { createStudyMentorGraph } from "./graph";
 import { loadStudyMCPTools, type LoadedStudyTools } from "../tools/mcp-loader";
+import { MCPClientManager } from "../client/MCPClientManager";
+import { loadMcpTools } from "@langchain/mcp-adapters";
 import { logger } from "../client/logger";
 import type { BaseMessage } from "@langchain/core/messages";
 import type { StudyAgentStateType } from "./state";
@@ -39,7 +41,10 @@ export class StudyAgentService {
   private lastInitDurationMs?: number;
   private lastInitError?: string;
 
-  constructor(options: StudyAgentOptions = {}) {
+  constructor(
+    options: StudyAgentOptions = {},
+    private mcpManager?: MCPClientManager
+  ) {
     this.options = { ...options };
   }
 
@@ -92,9 +97,12 @@ export class StudyAgentService {
       }
 
       logger.info("StudyAgentService setup: loading MCP tools");
+      let allTools: any[] = [];
+
       try {
         this.mcpTools = await loadStudyMCPTools();
         logger.info("StudyAgentService setup: MCP tools ready");
+        allTools = [...this.mcpTools.tools];
       } catch (error) {
         logger.warn(
           "StudyAgentService setup: MCP tools unavailable, continuing without them",
@@ -103,9 +111,23 @@ export class StudyAgentService {
         this.mcpTools = undefined;
       }
 
+      // Load tools from MCPClientManager
+      if (this.mcpManager) {
+        const clients = this.mcpManager.getAllClients();
+        for (const { client, serverId } of clients) {
+          try {
+            const tools = await loadMcpTools(serverId, client);
+            logger.info(`Loaded ${tools.length} tools from server ${serverId}`);
+            allTools.push(...tools);
+          } catch (error) {
+            logger.error(`Failed to load tools from server ${serverId}`, error);
+          }
+        }
+      }
+
       logger.info("StudyAgentService setup: building study mentor graph");
       // Graph queries RAG service directly via ragClient
-      this.graph = await createStudyMentorGraph(this.mcpTools?.tools ?? []);
+      this.graph = await createStudyMentorGraph(allTools);
       logger.info("Study agent initialized successfully.");
       this.lastInitError = undefined;
     } catch (error) {

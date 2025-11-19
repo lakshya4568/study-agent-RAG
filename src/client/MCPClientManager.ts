@@ -11,6 +11,7 @@ import {
   ToolExecutionResult,
 } from "./types";
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 
 export class MCPClientManager {
   private sessions = new Map<string, MCPSession>();
@@ -161,5 +162,18 @@ export class MCPClientManager {
       }
     });
     return count;
+  }
+
+  /**
+   * Get all connected MCP clients
+   */
+  getAllClients(): Array<{ client: Client; serverId: string }> {
+    const clients: Array<{ client: Client; serverId: string }> = [];
+    this.sessions.forEach((session, serverId) => {
+      if (session.isConnected()) {
+        clients.push({ client: session.mcpClient, serverId });
+      }
+    });
+    return clients;
   }
 }
