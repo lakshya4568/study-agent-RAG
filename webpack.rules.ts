@@ -13,13 +13,6 @@ export const rules: Required<ModuleOptions>["rules"] = [
     type: "javascript/auto",
   },
   {
-    test: /pdf\.worker\.min\.mjs$/,
-    type: "asset/resource",
-    generator: {
-      filename: "[name][ext]",
-    },
-  },
-  {
     test: /[/\\]node_modules[/\\].+\.(m?js|node)$/,
     parser: { amd: false },
     exclude: /pdfjs-dist/,
