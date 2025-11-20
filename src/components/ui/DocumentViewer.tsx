@@ -25,17 +25,23 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   const [content, setContent] = useState<string>("");
 
   React.useEffect(() => {
-    if (type === "markdown" || type === "text") {
-      // In a real app, we'd fetch the content here.
-      // For local files in Electron, we might need an IPC call to read the file.
-      // For now, assuming 'url' might be the content or we need to fetch it.
-      // If it's a file path, we can't fetch it directly in renderer without IPC.
-      // Let's assume for now we pass the content directly or handle fetching via a prop?
-      // Or better, let's add a 'fetchContent' prop or use window.fs if exposed (it's not).
-      // We'll assume 'url' is a file path and we need to read it.
-      // But wait, we don't have a generic 'readFile' exposed.
-      // I should probably expose a 'readFile' in preload.
-    }
+    const loadContent = async () => {
+      if (type === "markdown" || type === "text") {
+        try {
+          const result = await window.fs.readFile(url);
+          if (result.success && result.content) {
+            setContent(result.content);
+          } else {
+            console.error("Failed to read file:", result.error);
+            setContent("Error loading file content.");
+          }
+        } catch (error) {
+          console.error("Error reading file:", error);
+          setContent("Error loading file content.");
+        }
+      }
+    };
+    loadContent();
   }, [url, type]);
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
@@ -81,7 +87,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setPageNumber((p) => Math.min(numPages || 1, p + 1))}
+                onClick={() =>
+                  setPageNumber((p) => Math.min(numPages || 1, p + 1))
+                }
                 disabled={pageNumber >= (numPages || 1)}
                 icon={<ChevronRight className="w-4 h-4" />}
               />

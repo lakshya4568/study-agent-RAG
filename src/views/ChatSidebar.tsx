@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useChatStore, useAuthStore } from "../client/store";
 import { MessageSquare, Plus, Trash2 } from "lucide-react";
-import type { ConversationThread } from "../client/DatabaseManager";
+import type { ConversationThread } from "../client/types";
 
 export const ChatSidebar: React.FC = () => {
   const { activeThreadId, setActiveThreadId } = useChatStore();
@@ -66,8 +66,8 @@ export const ChatSidebar: React.FC = () => {
               <div className="text-sm font-medium text-gray-200 truncate">
                 {thread.title}
               </div>
-              <div className="text-xs text-gray-500">
-                {new Date(thread.createdAt).toLocaleDateString()}
+              <div className="text-xs text-gray-500 mt-1">
+                {new Date(thread.created_at).toLocaleDateString()}
               </div>
             </div>
             <div

@@ -24,6 +24,7 @@ import {
   Badge,
   ToolCallApproval,
   PendingToolCall,
+  DocumentViewer,
 } from "../components/ui";
 import { useChatStore, useAuthStore } from "../client/store";
 
@@ -101,7 +102,12 @@ const quickActions = [
 ];
 
 export const Chat: React.FC = () => {
-  const { activeThreadId, setActiveThreadId } = useChatStore();
+  const {
+    activeThreadId,
+    setActiveThreadId,
+    selectedDocument,
+    setSelectedDocument,
+  } = useChatStore();
   const { user } = useAuthStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -471,6 +477,10 @@ export const Chat: React.FC = () => {
           message: `✅ Successfully uploaded ${result.addedCount} document${result.addedCount > 1 ? "s" : ""}!`,
         });
 
+        if (filePaths.length > 0) {
+          setSelectedDocument(filePaths[0]);
+        }
+
         // Add success message to chat
         const chunkInfo = result.documentStats
           ? Object.values(result.documentStats)[0]?.chunkCount || 0
@@ -547,207 +557,219 @@ export const Chat: React.FC = () => {
   };
 
   return (
-    <ContentContainer className="flex flex-col h-full p-0">
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
-        {/* Quick Actions - Show only when no messages (except welcome) */}
-        {messages.length <= 1 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
-          >
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2 mb-2">
-                <Sparkles className="w-6 h-6 text-emerald-500" />
-                Quick Actions
-              </h2>
-              <p className="text-gray-600">
-                Choose an action to get started with AI-powered learning
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {quickActions.map((action, index) => (
-                <QuickActionCard
-                  key={action.id}
-                  icon={action.Icon}
-                  title={action.title}
-                  description={action.description}
-                  onClick={() => handleQuickAction(action.prompt)}
-                  gradient={action.gradient}
-                  delay={index * 0.05}
-                />
-              ))}
-            </div>
-          </motion.div>
-        )}
-
-        {/* Messages */}
-        <AnimatePresence>
-          {messages.map((message, index) => (
-            <MessageBubble
-              key={message.id}
-              role={message.role}
-              content={message.content}
-              timestamp={message.timestamp}
-              delay={index * 0.02}
-            />
-          ))}
-        </AnimatePresence>
-
-        {/* Pending Tool Call Approvals */}
-        <AnimatePresence>
-          {pendingToolCalls.map((toolCall) => (
-            <ToolCallApproval
-              key={toolCall.id}
-              toolCall={toolCall}
-              onApprove={handleToolApprove}
-              onDeny={handleToolDeny}
-            />
-          ))}
-        </AnimatePresence>
-
-        {/* Loading indicator */}
-        {loading && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex items-center gap-3"
-          >
-            <div className="w-10 h-10 rounded-xl bg-linear-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <LoadingSpinner size="sm" />
-            <span className="text-gray-600 text-sm">Alex is thinking...</span>
-          </motion.div>
-        )}
-
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input Area */}
-      <div className="shrink-0 p-6 bg-linear-to-r from-emerald-50/50 to-green-50/50 backdrop-blur-xl border-t border-emerald-200">
-        <div className="max-w-4xl mx-auto">
-          {/* Upload Progress */}
-          {uploadProgress && (
+    <div className="flex h-full w-full overflow-hidden">
+      <ContentContainer className="flex flex-col h-full p-0 flex-1 min-w-0">
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {/* Quick Actions - Show only when no messages (except welcome) */}
+          {messages.length <= 1 && (
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-3 px-4 py-3 rounded-lg bg-linear-to-r from-emerald-50 to-green-50 border border-emerald-300"
+              className="mb-8"
             >
-              <div className="flex items-center gap-3">
-                <div className="shrink-0">
-                  {uploadProgress.stage === "complete" ? (
-                    <CheckCircle className="w-5 h-5 text-emerald-600" />
-                  ) : (
-                    <LoadingSpinner size="sm" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-emerald-900">
-                    {uploadProgress.message}
-                  </div>
-                  {uploadProgress.fileName && (
-                    <div className="text-xs text-emerald-600 mt-0.5">
-                      {uploadProgress.fileName}
-                    </div>
-                  )}
-                  {/* Progress bar */}
-                  <div className="mt-2 h-1.5 bg-emerald-200 rounded-full overflow-hidden">
-                    <motion.div
-                      initial={{ width: "0%" }}
-                      animate={{
-                        width:
-                          uploadProgress.stage === "selecting"
-                            ? "10%"
-                            : uploadProgress.stage === "loading"
-                              ? "25%"
-                              : uploadProgress.stage === "chunking"
-                                ? "45%"
-                                : uploadProgress.stage === "embedding"
-                                  ? "70%"
-                                  : uploadProgress.stage === "storing"
-                                    ? "90%"
-                                    : "100%",
-                      }}
-                      transition={{ duration: 0.5 }}
-                      className="h-full bg-linear-to-r from-emerald-500 to-green-600"
-                    />
-                  </div>
-                </div>
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2 mb-2">
+                  <Sparkles className="w-6 h-6 text-emerald-500" />
+                  Quick Actions
+                </h2>
+                <p className="text-gray-600">
+                  Choose an action to get started with AI-powered learning
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {quickActions.map((action, index) => (
+                  <QuickActionCard
+                    key={action.id}
+                    icon={action.Icon}
+                    title={action.title}
+                    description={action.description}
+                    onClick={() => handleQuickAction(action.prompt)}
+                    gradient={action.gradient}
+                    delay={index * 0.05}
+                  />
+                ))}
               </div>
             </motion.div>
           )}
 
-          {/* Upload Status */}
-          {uploadStatus && !uploadProgress && (
+          {/* Messages */}
+          <AnimatePresence>
+            {messages.map((message, index) => (
+              <MessageBubble
+                key={message.id}
+                role={message.role}
+                content={message.content}
+                timestamp={message.timestamp}
+                delay={index * 0.02}
+              />
+            ))}
+          </AnimatePresence>
+
+          {/* Pending Tool Call Approvals */}
+          <AnimatePresence>
+            {pendingToolCalls.map((toolCall) => (
+              <ToolCallApproval
+                key={toolCall.id}
+                toolCall={toolCall}
+                onApprove={handleToolApprove}
+                onDeny={handleToolDeny}
+              />
+            ))}
+          </AnimatePresence>
+
+          {/* Loading indicator */}
+          {loading && (
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`mb-3 px-4 py-2 rounded-lg flex items-center gap-2 ${
-                uploadStatus.type === "success"
-                  ? "bg-emerald-100 text-emerald-700 border border-emerald-300"
-                  : "bg-red-100 text-red-700 border border-red-300"
-              }`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex items-center gap-3"
             >
-              {uploadStatus.type === "success" ? (
-                <CheckCircle className="w-4 h-4" />
-              ) : (
-                <AlertCircle className="w-4 h-4" />
-              )}
-              <span className="text-sm font-medium">
-                {uploadStatus.message}
-              </span>
+              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                <Sparkles className="w-5 h-5 text-white" />
+              </div>
+              <LoadingSpinner size="sm" />
+              <span className="text-gray-600 text-sm">Alex is thinking...</span>
             </motion.div>
           )}
 
-          <div className="flex items-center gap-3 mb-3">
-            <Badge
-              variant="info"
-              size="sm"
-              className="bg-emerald-100 text-emerald-700 border-emerald-300"
-            >
-              {tools.length} tools available
-            </Badge>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={<Upload className="w-4 h-4" />}
-              onClick={handleFileUpload}
-              disabled={uploading}
-            >
-              {uploading ? "Uploading..." : "Upload Docs"}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={<Trash2 className="w-4 h-4" />}
-              onClick={handleClearChat}
-            >
-              Clear Chat
-            </Button>
-          </div>
-          <div className="flex gap-3">
-            <TextArea
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyPress}
-              placeholder="Ask me anything... (Press Enter to send, Shift+Enter for new line)"
-              className="flex-1 min-h-[60px] max-h-[200px] border-emerald-200 focus:border-emerald-400 focus:ring-emerald-400"
-              rows={2}
-            />
-            <Button
-              onClick={handleSend}
-              disabled={!input.trim() || loading}
-              icon={<Send className="w-5 h-5" />}
-              size="lg"
-              className="self-end bg-linear-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 shadow-lg shadow-emerald-500/30"
-            >
-              Send
-            </Button>
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input Area */}
+        <div className="shrink-0 p-6 bg-linear-to-r from-emerald-50/50 to-green-50/50 backdrop-blur-xl border-t border-emerald-200">
+          <div className="max-w-4xl mx-auto">
+            {/* Upload Progress */}
+            {uploadProgress && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-3 px-4 py-3 rounded-lg bg-linear-to-r from-emerald-50 to-green-50 border border-emerald-300"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="shrink-0">
+                    {uploadProgress.stage === "complete" ? (
+                      <CheckCircle className="w-5 h-5 text-emerald-600" />
+                    ) : (
+                      <LoadingSpinner size="sm" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-emerald-900">
+                      {uploadProgress.message}
+                    </div>
+                    {uploadProgress.fileName && (
+                      <div className="text-xs text-emerald-600 mt-0.5">
+                        {uploadProgress.fileName}
+                      </div>
+                    )}
+                    {/* Progress bar */}
+                    <div className="mt-2 h-1.5 bg-emerald-200 rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: "0%" }}
+                        animate={{
+                          width:
+                            uploadProgress.stage === "selecting"
+                              ? "10%"
+                              : uploadProgress.stage === "loading"
+                                ? "25%"
+                                : uploadProgress.stage === "chunking"
+                                  ? "45%"
+                                  : uploadProgress.stage === "embedding"
+                                    ? "70%"
+                                    : uploadProgress.stage === "storing"
+                                      ? "90%"
+                                      : "100%",
+                        }}
+                        transition={{ duration: 0.5 }}
+                        className="h-full bg-linear-to-r from-emerald-500 to-green-600"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Upload Status */}
+            {uploadStatus && !uploadProgress && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`mb-3 px-4 py-2 rounded-lg flex items-center gap-2 ${
+                  uploadStatus.type === "success"
+                    ? "bg-emerald-100 text-emerald-700 border border-emerald-300"
+                    : "bg-red-100 text-red-700 border border-red-300"
+                }`}
+              >
+                {uploadStatus.type === "success" ? (
+                  <CheckCircle className="w-4 h-4" />
+                ) : (
+                  <AlertCircle className="w-4 h-4" />
+                )}
+                <span className="text-sm font-medium">
+                  {uploadStatus.message}
+                </span>
+              </motion.div>
+            )}
+
+            <div className="flex items-center gap-3 mb-3">
+              <Badge
+                variant="info"
+                size="sm"
+                className="bg-emerald-100 text-emerald-700 border-emerald-300"
+              >
+                {tools.length} tools available
+              </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<Upload className="w-4 h-4" />}
+                onClick={handleFileUpload}
+                disabled={uploading}
+              >
+                {uploading ? "Uploading..." : "Upload Docs"}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<Trash2 className="w-4 h-4" />}
+                onClick={handleClearChat}
+              >
+                Clear Chat
+              </Button>
+            </div>
+            <div className="flex gap-3">
+              <TextArea
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyPress}
+                placeholder="Ask me anything... (Press Enter to send, Shift+Enter for new line)"
+                className="flex-1 min-h-[60px] max-h-[200px] border-emerald-200 focus:border-emerald-400 focus:ring-emerald-400"
+                rows={2}
+              />
+              <Button
+                onClick={handleSend}
+                disabled={!input.trim() || loading}
+                icon={<Send className="w-5 h-5" />}
+                size="lg"
+                className="self-end bg-linear-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 shadow-lg shadow-emerald-500/30"
+              >
+                Send
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
-    </ContentContainer>
+      </ContentContainer>
+
+      {selectedDocument && (
+        <div className="w-1/2 border-l border-gray-200 h-full">
+          <DocumentViewer
+            url={selectedDocument}
+            type={selectedDocument.endsWith(".pdf") ? "pdf" : "markdown"}
+            onClose={() => setSelectedDocument(null)}
+          />
+        </div>
+      )}
+    </div>
   );
 };

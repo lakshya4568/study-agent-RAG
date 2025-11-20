@@ -7,7 +7,6 @@ import type {
   ServerInfo,
   ToolExecutionResult,
 } from "./client/types";
-import type { ChatMessage } from "./client/DatabaseManager";
 
 // Expose MCP Client APIs to the renderer process
 contextBridge.exposeInMainWorld("mcpClient", {
@@ -155,16 +154,6 @@ contextBridge.exposeInMainWorld("appConfig", {
   },
 });
 
-contextBridge.exposeInMainWorld("db", {
-  getThreads: (userId: number) =>
-    ipcRenderer.invoke("db:get-threads", { userId }),
-  createThread: (id: string, title: string, userId: number) =>
-    ipcRenderer.invoke("db:create-thread", { id, title, userId }),
-  deleteThread: (id: string) => ipcRenderer.invoke("db:delete-thread", { id }),
-  getMessages: (threadId: string) =>
-    ipcRenderer.invoke("db:get-messages", { threadId }),
-  saveMessage: (message: ChatMessage) =>
-    ipcRenderer.invoke("db:save-message", { message }),
-  clearMessages: (threadId: string) =>
-    ipcRenderer.invoke("db:clear-messages", { threadId }),
+contextBridge.exposeInMainWorld("fs", {
+  readFile: (path: string) => ipcRenderer.invoke("fs:readFile", path),
 });

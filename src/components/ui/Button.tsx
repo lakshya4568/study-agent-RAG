@@ -5,7 +5,7 @@ import { cn } from "../../lib/utils";
 interface ButtonProps {
   variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
   size?: "sm" | "md" | "lg";
-  children: React.ReactNode;
+  children?: React.ReactNode;
   icon?: React.ReactNode;
   loading?: boolean;
   className?: string;

@@ -50,23 +50,41 @@ export interface ToolExecutionResult {
   error?: string;
 }
 
-export interface ConfigSummaryItem {
-  key: string;
-  value?: string;
-  maskedValue?: string;
-  isSecret: boolean;
-  isSet: boolean;
-  description?: string;
+export interface User {
+  id: string;
+  email: string;
+  username: string;
+  password_hash?: string; // In a real app, never return this to client
+  created_at: string;
 }
 
-/**
- * Configuration manager interface
- */
-export interface IConfigManager {
-  get<T>(key: string): T | undefined;
-  set<T>(key: string, value: T): void;
-  getAll(): Record<string, unknown>;
-  getSummary(): ConfigSummaryItem[];
-  update(values: Record<string, string | undefined>): Promise<void>;
-  getEnvPath(): string;
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  timestamp: number;
+  threadId: string;
+  metadata?: Record<string, unknown>;
 }
+
+export interface UploadedDocument {
+  id: string;
+  name: string;
+  path: string;
+  type: string;
+  size: number;
+  uploadedAt: number;
+  status?: "processing" | "ready" | "error";
+  chunkCount?: number;
+  error?: string;
+}
+
+export interface Thread {
+  id: string;
+  title: string;
+  created_at: number;
+  updated_at: number;
+  userId?: string;
+}
+
+export type ConversationThread = Thread;

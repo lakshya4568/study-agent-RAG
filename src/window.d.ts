@@ -7,17 +7,15 @@ import type {
   ServerInfo,
   ToolExecutionResult,
   ConfigSummaryItem,
+  ChatMessage,
+  ConversationThread,
+  User,
 } from "./client/types";
 import type {
   AgentInvocationResult,
   AgentStatus,
 } from "./agent/StudyAgentService";
 import type { AgentDocumentAddResult } from "./agent/types";
-import type {
-  ChatMessage,
-  ConversationThread,
-  User,
-} from "./client/DatabaseManager";
 
 declare global {
   interface Window {
@@ -62,7 +60,7 @@ declare global {
         password: string;
       }) => Promise<{ success: boolean; user?: User; error?: string }>;
       getUser: (
-        id: number
+        id: string
       ) => Promise<{ success: boolean; user?: User; error?: string }>;
     };
     studyAgent: {
@@ -88,9 +86,7 @@ declare global {
       ) => Promise<ConfigSummaryItem[]>;
     };
     db: {
-      getThreads: (
-        userId: number
-      ) => Promise<{
+      getThreads: (userId: string) => Promise<{
         success: boolean;
         threads?: ConversationThread[];
         error?: string;
@@ -98,14 +94,12 @@ declare global {
       createThread: (
         id: string,
         title: string,
-        userId: number
+        userId: string
       ) => Promise<{ success: boolean; error?: string }>;
       deleteThread: (
         id: string
       ) => Promise<{ success: boolean; error?: string }>;
-      getMessages: (
-        threadId: string
-      ) => Promise<{
+      getMessages: (threadId: string) => Promise<{
         success: boolean;
         messages?: ChatMessage[];
         error?: string;
@@ -116,6 +110,11 @@ declare global {
       clearMessages: (
         threadId: string
       ) => Promise<{ success: boolean; error?: string }>;
+    };
+    fs: {
+      readFile: (
+        path: string
+      ) => Promise<{ success: boolean; content?: string; error?: string }>;
     };
   }
 }
