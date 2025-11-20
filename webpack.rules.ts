@@ -18,6 +18,19 @@ export const rules: Required<ModuleOptions>["rules"] = [
       },
     },
   },
+  // Fix for pdfjs-dist ESM compatibility
+  {
+    test: /[/\\]node_modules[/\\]pdfjs-dist[/\\]/,
+    type: "javascript/auto",
+  },
+  // Bundle PDF worker as a local asset
+  {
+    test: /pdf\.worker\.(min\.)?m?js$/,
+    type: "asset/resource",
+    generator: {
+      filename: "pdf.worker.[contenthash].mjs",
+    },
+  },
   {
     test: /\.tsx?$/,
     exclude: /(node_modules|\.webpack)/,
