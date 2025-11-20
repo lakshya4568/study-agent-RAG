@@ -9,8 +9,20 @@ export const rules: Required<ModuleOptions>["rules"] = [
     use: "node-loader",
   },
   {
+    test: /pdfjs-dist/,
+    type: "javascript/auto",
+  },
+  {
+    test: /pdf\.worker\.min\.mjs$/,
+    type: "asset/resource",
+    generator: {
+      filename: "[name][ext]",
+    },
+  },
+  {
     test: /[/\\]node_modules[/\\].+\.(m?js|node)$/,
     parser: { amd: false },
+    exclude: /pdfjs-dist/,
     use: {
       loader: "@vercel/webpack-asset-relocator-loader",
       options: {

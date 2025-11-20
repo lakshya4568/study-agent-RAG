@@ -113,6 +113,17 @@ export class DatabaseManager {
         error TEXT
       )
     `);
+
+    // Vector Store State table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS vector_store_state (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        total_documents INTEGER DEFAULT 0,
+        total_chunks INTEGER DEFAULT 0,
+        last_updated INTEGER NOT NULL,
+        metadata TEXT
+      )
+    `);
   }
 
   // User methods
@@ -325,6 +336,71 @@ export class DatabaseManager {
       documents: documents.count,
       dbSizeMB,
     };
+  }
+
+  getDocumentByPath(path: string): UploadedDocument | null {
+    if (!this.db) throw new Error("Database not initialized");
+    const stmt = this.db.prepare("SELECT * FROM documents WHERE path = ?");
+    const doc = stmt.get(path) as DocumentRow | undefined;
+
+    if (!doc) return null;
+    return {
+      id: doc.id,
+      name: doc.name,
+      path: doc.path,
+      type: doc.type as "pdf" | "markdown" | "text",
+      size: doc.size,
+      uploadedAt: doc.uploaded_at,
+      status: (doc.status as "processing" | "ready" | "error") || "processing",
+      chunkCount: doc.chunk_count,
+      error: doc.error,
+    };
+  }
+
+  getVectorStoreState(): {
+    totalDocuments: number;
+    totalChunks: number;
+  } | null {
+    if (!this.db) throw new Error("Database not initialized");
+    const stmt = this.db.prepare(
+      "SELECT * FROM vector_store_state WHERE id = 1"
+    );
+    const row = stmt.get() as
+      | { total_documents: number; total_chunks: number }
+      | undefined;
+
+    if (!row) return null;
+    return {
+      totalDocuments: row.total_documents,
+      totalChunks: row.total_chunks,
+    };
+  }
+
+  updateVectorStoreState(
+    totalDocuments: number,
+    totalChunks: number,
+    metadata?: unknown
+  ) {
+    if (!this.db) throw new Error("Database not initialized");
+
+    const existing = this.getVectorStoreState();
+    const timestamp = Date.now();
+    const metadataStr = metadata ? JSON.stringify(metadata) : null;
+
+    if (existing) {
+      const stmt = this.db.prepare(`
+        UPDATE vector_store_state 
+        SET total_documents = ?, total_chunks = ?, last_updated = ?, metadata = ?
+        WHERE id = 1
+      `);
+      stmt.run(totalDocuments, totalChunks, timestamp, metadataStr);
+    } else {
+      const stmt = this.db.prepare(`
+        INSERT INTO vector_store_state (id, total_documents, total_chunks, last_updated, metadata)
+        VALUES (1, ?, ?, ?, ?)
+      `);
+      stmt.run(totalDocuments, totalChunks, timestamp, metadataStr);
+    }
   }
 
   close() {

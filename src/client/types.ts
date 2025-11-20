@@ -50,6 +50,28 @@ export interface ToolExecutionResult {
   error?: string;
 }
 
+/**
+ * Configuration summary item for display
+ */
+export interface ConfigSummaryItem {
+  key: string;
+  value?: string;
+  maskedValue?: string;
+  isSecret: boolean;
+  isSet: boolean;
+  description?: string;
+}
+
+/**
+ * Interface for Configuration Manager
+ */
+export interface IConfigManager {
+  get(key: string): unknown;
+  set(key: string, value: unknown): void;
+  getAll(): Record<string, unknown>;
+  getSummary(): ConfigSummaryItem[];
+}
+
 export interface User {
   id: string;
   email: string;
