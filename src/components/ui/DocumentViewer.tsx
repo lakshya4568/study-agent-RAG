@@ -5,8 +5,18 @@ import remarkGfm from "remark-gfm";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, X } from "lucide-react";
 import { Button } from "./Button";
 
-// Configure PDF worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+// Use local bundled worker (Webpack will handle this)
+try {
+  // @ts-ignore - dynamic import for worker
+  const workerUrl = new URL(
+    "pdfjs-dist/build/pdf.worker.min.mjs",
+    import.meta.url
+  ).toString();
+  pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+} catch {
+  // Fallback to CDN if bundling fails (development mode)
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+}
 
 interface DocumentViewerProps {
   url: string;
