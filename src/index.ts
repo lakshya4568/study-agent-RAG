@@ -41,6 +41,40 @@ if (require("electron-squirrel-startup")) {
 const mcpManager = new MCPClientManager();
 mcpToolService.setMCPManager(mcpManager);
 
+// Auth IPC Handlers
+ipcMain.handle("auth:register", async (_, { email, password, username }) => {
+  try {
+    const user = dbManager.registerUser(email, password, username);
+    return { success: true, user };
+  } catch (error) {
+    const err = error as Error;
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle("auth:login", async (_, { email, password }) => {
+  try {
+    const user = dbManager.loginUser(email, password);
+    if (!user) {
+      return { success: false, error: "Invalid email or password" };
+    }
+    return { success: true, user };
+  } catch (error) {
+    const err = error as Error;
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle("auth:get-user", async (_, { id }) => {
+  try {
+    const user = dbManager.getUser(id);
+    return { success: true, user };
+  } catch (error) {
+    const err = error as Error;
+    return { success: false, error: err.message };
+  }
+});
+
 logger.info("=".repeat(60));
 logger.info("🚀 AI Study Agent - Starting Up");
 logger.info("=".repeat(60));
@@ -761,6 +795,67 @@ function registerDatabaseHandlers() {
     } catch (error) {
       logger.error("Failed to get database stats", error);
       return { threads: 0, messages: 0, documents: 0, dbSizeMB: 0 };
+    }
+  });
+
+  // Database IPC Handlers
+  ipcMain.handle("db:get-threads", async (_, { userId }) => {
+    try {
+      const threads = dbManager.getAllThreads(userId);
+      return { success: true, threads };
+    } catch (error) {
+      const err = error as Error;
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle("db:create-thread", async (_, { id, title, userId }) => {
+    try {
+      dbManager.createThread(id, title, userId);
+      return { success: true };
+    } catch (error) {
+      const err = error as Error;
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle("db:delete-thread", async (_, { id }) => {
+    try {
+      dbManager.deleteThread(id);
+      return { success: true };
+    } catch (error) {
+      const err = error as Error;
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle("db:get-messages", async (_, { threadId }) => {
+    try {
+      const messages = dbManager.getMessages(threadId);
+      return { success: true, messages };
+    } catch (error) {
+      const err = error as Error;
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle("db:save-message", async (_, { message }) => {
+    try {
+      dbManager.saveMessage(message);
+      return { success: true };
+    } catch (error) {
+      const err = error as Error;
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle("db:clear-messages", async (_, { threadId }) => {
+    try {
+      dbManager.clearMessages(threadId);
+      return { success: true };
+    } catch (error) {
+      const err = error as Error;
+      return { success: false, error: err.message };
     }
   });
 

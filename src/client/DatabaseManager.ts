@@ -7,11 +7,32 @@
  * - User preferences
  */
 
-import Database from "better-sqlite3";
+import DatabaseConstructor, { type Database } from "better-sqlite3";
 import path from "node:path";
 import { app } from "electron";
 import fs from "node:fs";
+import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { logger } from "../client/logger";
+
+interface UserRow {
+  id: number;
+  email: string;
+  username: string;
+  password_hash: string;
+  salt: string;
+  avatar_url: string;
+  created_at: number;
+}
+
+export interface User {
+  id: number;
+  email: string;
+  username: string;
+  passwordHash: string;
+  salt: string;
+  avatarUrl?: string;
+  createdAt: number;
+}
 
 export interface ChatMessage {
   id: string;
@@ -48,10 +69,11 @@ export interface ConversationThread {
   createdAt: number;
   lastMessageAt: number;
   messageCount: number;
+  userId: number;
 }
 
 export class DatabaseManager {
-  private db: Database.Database | null = null;
+  private db: Database | null = null;
   private dbPath: string;
 
   constructor() {
@@ -74,7 +96,7 @@ export class DatabaseManager {
     if (this.db) return;
 
     try {
-      this.db = new Database(this.dbPath);
+      this.db = new DatabaseConstructor(this.dbPath);
       this.db.pragma("journal_mode = WAL"); // Better concurrency
       this.db.pragma("foreign_keys = ON"); // Enable foreign keys
 
@@ -92,14 +114,29 @@ export class DatabaseManager {
   private createTables(): void {
     if (!this.db) throw new Error("Database not initialized");
 
+    // Users table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT UNIQUE NOT NULL,
+        username TEXT,
+        password_hash TEXT NOT NULL,
+        salt TEXT NOT NULL,
+        avatar_url TEXT,
+        created_at INTEGER NOT NULL
+      )
+    `);
+
     // Conversation threads table
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS conversation_threads (
         id TEXT PRIMARY KEY,
+        user_id INTEGER,
         title TEXT NOT NULL,
         created_at INTEGER NOT NULL,
         last_message_at INTEGER NOT NULL,
-        message_count INTEGER DEFAULT 0
+        message_count INTEGER DEFAULT 0,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
 
@@ -120,6 +157,7 @@ export class DatabaseManager {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS uploaded_documents (
         id TEXT PRIMARY KEY,
+        user_id INTEGER,
         file_path TEXT NOT NULL UNIQUE,
         file_name TEXT NOT NULL,
         file_type TEXT NOT NULL,
@@ -127,7 +165,32 @@ export class DatabaseManager {
         chunk_count INTEGER DEFAULT 0,
         uploaded_at INTEGER NOT NULL,
         status TEXT NOT NULL CHECK(status IN ('processing', 'ready', 'error')),
-        error_message TEXT
+        error_message TEXT,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+
+    // Document chunks table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS document_chunks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        document_id TEXT NOT NULL,
+        content TEXT NOT NULL,
+        embedding BLOB,
+        metadata TEXT,
+        chunk_index INTEGER,
+        FOREIGN KEY (document_id) REFERENCES uploaded_documents(id) ON DELETE CASCADE
+      )
+    `);
+
+    // Settings table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS settings (
+        user_id INTEGER PRIMARY KEY,
+        theme TEXT DEFAULT 'dark',
+        model_preferences TEXT,
+        api_keys TEXT,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
 
@@ -170,19 +233,103 @@ export class DatabaseManager {
     logger.info("Database tables created/verified");
   }
 
+  // ==================== User Management ====================
+
+  registerUser(email: string, password: string, username?: string): User {
+    if (!this.db) throw new Error("Database not initialized");
+
+    const salt = randomBytes(16).toString("hex");
+    const passwordHash = scryptSync(password, salt, 64).toString("hex");
+    const now = Date.now();
+
+    try {
+      const info = this.db
+        .prepare(
+          `INSERT INTO users (email, username, password_hash, salt, created_at)
+           VALUES (?, ?, ?, ?, ?)`
+        )
+        .run(email, username || email.split("@")[0], passwordHash, salt, now);
+
+      return {
+        id: info.lastInsertRowid as number,
+        email,
+        username: username || email.split("@")[0],
+        passwordHash,
+        salt,
+        createdAt: now,
+      };
+    } catch (error) {
+      const err = error as { code?: string };
+      if (err.code === "SQLITE_CONSTRAINT_UNIQUE") {
+        throw new Error("Email already exists");
+      }
+      throw error;
+    }
+  }
+
+  loginUser(email: string, password: string): User | null {
+    if (!this.db) throw new Error("Database not initialized");
+
+    const user = this.db
+      .prepare("SELECT * FROM users WHERE email = ?")
+      .get(email) as UserRow | undefined;
+
+    if (!user) return null;
+
+    const hashedPassword = scryptSync(password, user.salt, 64).toString("hex");
+    const match = timingSafeEqual(
+      Buffer.from(user.password_hash, "hex"),
+      Buffer.from(hashedPassword, "hex")
+    );
+
+    if (match) {
+      return {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        passwordHash: user.password_hash,
+        salt: user.salt,
+        avatarUrl: user.avatar_url,
+        createdAt: user.created_at,
+      };
+    }
+
+    return null;
+  }
+
+  getUser(id: number): User | null {
+    if (!this.db) throw new Error("Database not initialized");
+
+    const user = this.db.prepare("SELECT * FROM users WHERE id = ?").get(id) as
+      | UserRow
+      | undefined;
+
+    if (!user) return null;
+
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      passwordHash: user.password_hash,
+      salt: user.salt,
+      avatarUrl: user.avatar_url,
+      createdAt: user.created_at,
+    };
+  }
+
   // ==================== Conversation Threads ====================
 
-  createThread(id: string, title: string): void {
+  createThread(id: string, title: string, userId?: number): void {
     if (!this.db) throw new Error("Database not initialized");
 
     const now = Date.now();
     this.db
       .prepare(
         `INSERT OR REPLACE INTO conversation_threads 
-         (id, title, created_at, last_message_at, message_count)
-         VALUES (?, ?, ?, ?, 0)`
+         (id, user_id, title, created_at, last_message_at, message_count)
+         VALUES (?, ?, ?, ?, ?, 0)`
       )
-      .run(id, title, now, now);
+      .run(id, userId || null, title, now, now);
 
     logger.info(`Created conversation thread: ${id}`);
   }
@@ -192,7 +339,7 @@ export class DatabaseManager {
 
     const row = this.db
       .prepare(
-        `SELECT id, title, created_at as createdAt, last_message_at as lastMessageAt, 
+        `SELECT id, user_id as userId, title, created_at as createdAt, last_message_at as lastMessageAt, 
          message_count as messageCount FROM conversation_threads WHERE id = ?`
       )
       .get(id) as ConversationThread | undefined;
@@ -200,16 +347,20 @@ export class DatabaseManager {
     return row || null;
   }
 
-  getAllThreads(): ConversationThread[] {
+  getAllThreads(userId?: number): ConversationThread[] {
     if (!this.db) throw new Error("Database not initialized");
 
-    return this.db
-      .prepare(
-        `SELECT id, title, created_at as createdAt, last_message_at as lastMessageAt,
+    const query = userId
+      ? `SELECT id, user_id as userId, title, created_at as createdAt, last_message_at as lastMessageAt,
          message_count as messageCount FROM conversation_threads 
+         WHERE user_id = ?
          ORDER BY last_message_at DESC`
-      )
-      .all() as ConversationThread[];
+      : `SELECT id, user_id as userId, title, created_at as createdAt, last_message_at as lastMessageAt,
+         message_count as messageCount FROM conversation_threads 
+         ORDER BY last_message_at DESC`;
+
+    const params = userId ? [userId] : [];
+    return this.db.prepare(query).all(...params) as ConversationThread[];
   }
 
   deleteThread(id: string): void {
@@ -224,9 +375,10 @@ export class DatabaseManager {
   saveMessage(message: ChatMessage): void {
     if (!this.db) throw new Error("Database not initialized");
 
+    const db = this.db;
     const transaction = this.db.transaction(() => {
       // Insert message
-      this.db!.prepare(
+      db.prepare(
         `INSERT OR REPLACE INTO chat_messages 
          (id, thread_id, role, content, timestamp, metadata)
          VALUES (?, ?, ?, ?, ?, ?)`
@@ -240,7 +392,7 @@ export class DatabaseManager {
       );
 
       // Update thread's last message time and count
-      this.db!.prepare(
+      db.prepare(
         `UPDATE conversation_threads 
          SET last_message_at = ?, 
              message_count = message_count + 1
@@ -284,18 +436,19 @@ export class DatabaseManager {
 
   // ==================== Uploaded Documents ====================
 
-  saveDocument(doc: UploadedDocument): void {
+  saveDocument(doc: UploadedDocument, userId?: number): void {
     if (!this.db) throw new Error("Database not initialized");
 
     this.db
       .prepare(
         `INSERT OR REPLACE INTO uploaded_documents 
-         (id, file_path, file_name, file_type, file_size, chunk_count, 
+         (id, user_id, file_path, file_name, file_type, file_size, chunk_count, 
           uploaded_at, status, error_message)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         doc.id,
+        userId || null,
         doc.filePath,
         doc.fileName,
         doc.fileType,

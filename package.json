@@ -85,7 +85,7 @@
     "dotenv": "^16.4.5",
     "electron-squirrel-startup": "^1.0.1",
     "fastmcp": "^3.23.0",
-    "framer-motion": "^12.23.22",
+    "framer-motion": "^12.23.24",
     "katex": "^0.16.25",
     "langchain": "^0.3.7",
     "lucide-react": "^0.544.0",
@@ -96,16 +96,18 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-markdown": "^10.1.0",
+    "react-pdf": "^10.2.0",
     "rehype-katex": "^7.0.1",
     "rehype-raw": "^7.0.0",
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
-    "tailwind-merge": "^3.3.1",
+    "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.14",
     "uuid": "^13.0.0",
     "winston": "^3.18.3",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "zustand": "^5.0.8"
   },
   "type": "commonjs"
 }

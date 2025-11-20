@@ -15,8 +15,8 @@ import type {
 import type { AgentDocumentAddResult } from "./agent/types";
 import type {
   ChatMessage,
-  UploadedDocument,
   ConversationThread,
+  User,
 } from "./client/DatabaseManager";
 
 declare global {
@@ -49,7 +49,21 @@ declare global {
       ) => Promise<{ requestId: string }>;
       approveToolExecution: (requestId: string) => Promise<void>;
       denyToolExecution: (requestId: string) => Promise<void>;
-      getPendingToolRequests: () => Promise<any[]>;
+      getPendingToolRequests: () => Promise<unknown[]>;
+    };
+    auth: {
+      register: (data: {
+        email: string;
+        password: string;
+        username?: string;
+      }) => Promise<{ success: boolean; user?: User; error?: string }>;
+      login: (data: {
+        email: string;
+        password: string;
+      }) => Promise<{ success: boolean; user?: User; error?: string }>;
+      getUser: (
+        id: number
+      ) => Promise<{ success: boolean; user?: User; error?: string }>;
     };
     studyAgent: {
       sendMessage: (payload: {
@@ -73,29 +87,35 @@ declare global {
         values: Record<string, string | undefined>
       ) => Promise<ConfigSummaryItem[]>;
     };
-    database: {
+    db: {
+      getThreads: (
+        userId: number
+      ) => Promise<{
+        success: boolean;
+        threads?: ConversationThread[];
+        error?: string;
+      }>;
+      createThread: (
+        id: string,
+        title: string,
+        userId: number
+      ) => Promise<{ success: boolean; error?: string }>;
+      deleteThread: (
+        id: string
+      ) => Promise<{ success: boolean; error?: string }>;
+      getMessages: (
+        threadId: string
+      ) => Promise<{
+        success: boolean;
+        messages?: ChatMessage[];
+        error?: string;
+      }>;
       saveMessage: (
         message: ChatMessage
       ) => Promise<{ success: boolean; error?: string }>;
-      getMessages: (threadId: string, limit?: number) => Promise<ChatMessage[]>;
       clearMessages: (
         threadId: string
       ) => Promise<{ success: boolean; error?: string }>;
-      createThread: (
-        id: string,
-        title: string
-      ) => Promise<{ success: boolean; error?: string }>;
-      getAllThreads: () => Promise<ConversationThread[]>;
-      getAllDocuments: () => Promise<UploadedDocument[]>;
-      deleteDocument: (
-        id: string
-      ) => Promise<{ success: boolean; error?: string }>;
-      getStats: () => Promise<{
-        threads: number;
-        messages: number;
-        documents: number;
-        dbSizeMB: number;
-      }>;
     };
   }
 }

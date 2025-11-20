@@ -116,6 +116,14 @@ contextBridge.exposeInMainWorld("mcpClient", {
   },
 });
 
+contextBridge.exposeInMainWorld("auth", {
+  register: (data: { email: string; password: string; username?: string }) =>
+    ipcRenderer.invoke("auth:register", data),
+  login: (data: { email: string; password: string }) =>
+    ipcRenderer.invoke("auth:login", data),
+  getUser: (id: number) => ipcRenderer.invoke("auth:get-user", { id }),
+});
+
 contextBridge.exposeInMainWorld("studyAgent", {
   sendMessage: (payload: {
     threadId: string;
@@ -147,29 +155,16 @@ contextBridge.exposeInMainWorld("appConfig", {
   },
 });
 
-contextBridge.exposeInMainWorld("database", {
-  saveMessage: (message: ChatMessage) => {
-    return ipcRenderer.invoke("db:saveMessage", message);
-  },
-  getMessages: (threadId: string, limit?: number) => {
-    return ipcRenderer.invoke("db:getMessages", threadId, limit);
-  },
-  clearMessages: (threadId: string) => {
-    return ipcRenderer.invoke("db:clearMessages", threadId);
-  },
-  createThread: (id: string, title: string) => {
-    return ipcRenderer.invoke("db:createThread", id, title);
-  },
-  getAllThreads: () => {
-    return ipcRenderer.invoke("db:getAllThreads");
-  },
-  getAllDocuments: () => {
-    return ipcRenderer.invoke("db:getAllDocuments");
-  },
-  deleteDocument: (id: string) => {
-    return ipcRenderer.invoke("db:deleteDocument", id);
-  },
-  getStats: () => {
-    return ipcRenderer.invoke("db:getStats");
-  },
+contextBridge.exposeInMainWorld("db", {
+  getThreads: (userId: number) =>
+    ipcRenderer.invoke("db:get-threads", { userId }),
+  createThread: (id: string, title: string, userId: number) =>
+    ipcRenderer.invoke("db:create-thread", { id, title, userId }),
+  deleteThread: (id: string) => ipcRenderer.invoke("db:delete-thread", { id }),
+  getMessages: (threadId: string) =>
+    ipcRenderer.invoke("db:get-messages", { threadId }),
+  saveMessage: (message: ChatMessage) =>
+    ipcRenderer.invoke("db:save-message", { message }),
+  clearMessages: (threadId: string) =>
+    ipcRenderer.invoke("db:clear-messages", { threadId }),
 });

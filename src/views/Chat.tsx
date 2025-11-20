@@ -25,6 +25,7 @@ import {
   ToolCallApproval,
   PendingToolCall,
 } from "../components/ui";
+import { useChatStore, useAuthStore } from "../client/store";
 
 interface Message {
   id: string;
@@ -100,6 +101,8 @@ const quickActions = [
 ];
 
 export const Chat: React.FC = () => {
+  const { activeThreadId, setActiveThreadId } = useChatStore();
+  const { user } = useAuthStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -125,27 +128,54 @@ export const Chat: React.FC = () => {
   } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const threadIdRef = useRef<string>(`thread-${Date.now()}`);
 
   useEffect(() => {
     loadTools();
-    loadMessagesFromDb();
+    if (activeThreadId) {
+      loadMessages(activeThreadId);
+    } else {
+      setMessages([]);
+    }
 
     // Poll for pending tool calls every 2 seconds
     const pollInterval = setInterval(loadPendingToolCalls, 2000);
     return () => clearInterval(pollInterval);
-  }, []);
+  }, [activeThreadId]);
+
+  const loadMessages = async (threadId: string) => {
+    const result = await window.db.getMessages(threadId);
+    if (result.success && result.messages) {
+      setMessages(
+        result.messages.map((msg) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date(msg.timestamp),
+        }))
+      );
+    }
+  };
+
+  const loadTools = async () => {
+    try {
+      const availableTools = await window.mcpClient.getAllTools();
+      setTools(availableTools);
+    } catch (err) {
+      console.error("Failed to load tools:", err);
+    }
+  };
 
   const loadPendingToolCalls = async () => {
     try {
       const pending = await window.mcpClient.getPendingToolRequests();
-      setPendingToolCalls(pending);
+      setPendingToolCalls(pending as PendingToolCall[]);
     } catch (err) {
       console.error("Failed to load pending tool calls:", err);
     }
   };
 
   const handleToolApprove = async (toolCallId: string) => {
+    if (!activeThreadId) return;
     try {
       await window.mcpClient.approveToolExecution(toolCallId);
 
@@ -161,9 +191,9 @@ export const Chat: React.FC = () => {
       };
       setMessages((prev) => [...prev, systemMsg]);
 
-      await window.database.saveMessage({
+      await window.db.saveMessage({
         id: systemMsg.id,
-        threadId: threadIdRef.current,
+        threadId: activeThreadId,
         role: systemMsg.role,
         content: systemMsg.content,
         timestamp: systemMsg.timestamp.getTime(),
@@ -181,6 +211,7 @@ export const Chat: React.FC = () => {
   };
 
   const handleToolDeny = async (toolCallId: string) => {
+    if (!activeThreadId) return;
     try {
       await window.mcpClient.denyToolExecution(toolCallId);
 
@@ -196,53 +227,15 @@ export const Chat: React.FC = () => {
       };
       setMessages((prev) => [...prev, systemMsg]);
 
-      await window.database.saveMessage({
+      await window.db.saveMessage({
         id: systemMsg.id,
-        threadId: threadIdRef.current,
+        threadId: activeThreadId,
         role: systemMsg.role,
         content: systemMsg.content,
         timestamp: systemMsg.timestamp.getTime(),
       });
     } catch (err) {
       console.error("Failed to deny tool:", err);
-    }
-  };
-
-  const loadMessagesFromDb = async () => {
-    try {
-      const dbMessages = await window.database.getMessages(threadIdRef.current);
-      if (dbMessages.length > 0) {
-        const loadedMessages: Message[] = dbMessages.map((msg) => ({
-          id: msg.id,
-          role: msg.role,
-          content: msg.content,
-          timestamp: new Date(msg.timestamp),
-        }));
-        setMessages(loadedMessages);
-      } else {
-        // Create thread and show welcome message
-        await window.database.createThread(
-          threadIdRef.current,
-          "New Conversation"
-        );
-        const welcomeMsg: Message = {
-          id: "welcome",
-          role: "system",
-          content:
-            "👋 Hey there! I'm Alex, your AI Study Mentor! 🎓\n\n✨ I'm here to help you:\n\n📚 **Study Smart** - Upload documents, create summaries, flashcards & quizzes\n💬 **Learn Better** - Ask questions, explore concepts, get explanations\n🎯 **Stay Organized** - Build study plans and track progress\n\n**📤 Getting Started:**\n1. Click the '**Upload Docs**' button below to add your study materials (PDFs, text files, markdown docs)\n2. Once uploaded, I can answer questions directly from your materials with citations!\n3. Without uploads, I'll provide general knowledge answers\n\n💡 **Tip:** I work best when I have your actual study materials to reference. Upload your lecture notes, textbooks, or study guides for the most accurate help!\n\nWhat would you like to learn today?",
-          timestamp: new Date(),
-        };
-        setMessages([welcomeMsg]);
-        await window.database.saveMessage({
-          id: welcomeMsg.id,
-          threadId: threadIdRef.current,
-          role: welcomeMsg.role,
-          content: welcomeMsg.content,
-          timestamp: welcomeMsg.timestamp.getTime(),
-        });
-      }
-    } catch (error) {
-      console.error("Failed to load messages from database:", error);
     }
   };
 
@@ -254,17 +247,24 @@ export const Chat: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const loadTools = async () => {
-    try {
-      const allTools = await window.mcpClient.getAllTools();
-      setTools(allTools);
-    } catch (err) {
-      console.error("Failed to load tools:", err);
-    }
-  };
-
   const handleSend = async () => {
     if (!input.trim() || loading) return;
+
+    let currentThreadId = activeThreadId;
+    if (!currentThreadId) {
+      if (!user) {
+        alert("Please log in to start a chat.");
+        return;
+      }
+      // Create new thread if none active
+      currentThreadId = crypto.randomUUID();
+      await window.db.createThread(
+        currentThreadId,
+        "New Conversation",
+        user.id
+      );
+      setActiveThreadId(currentThreadId);
+    }
 
     const userMessage: Message = {
       id: `msg-${Date.now()}`,
@@ -278,9 +278,9 @@ export const Chat: React.FC = () => {
     setLoading(true);
 
     // Save user message to database
-    await window.database.saveMessage({
+    await window.db.saveMessage({
       id: userMessage.id,
-      threadId: threadIdRef.current,
+      threadId: currentThreadId,
       role: userMessage.role,
       content: userMessage.content,
       timestamp: userMessage.timestamp.getTime(),
@@ -292,7 +292,7 @@ export const Chat: React.FC = () => {
       }
 
       const result = await window.studyAgent.sendMessage({
-        threadId: threadIdRef.current,
+        threadId: currentThreadId,
         message: userMessage.content,
         messageId: userMessage.id,
       });
@@ -333,9 +333,9 @@ export const Chat: React.FC = () => {
       setMessages((prev) => [...prev, assistantMessage]);
 
       // Save assistant message to database
-      await window.database.saveMessage({
+      await window.db.saveMessage({
         id: assistantMessage.id,
-        threadId: threadIdRef.current,
+        threadId: currentThreadId,
         role: assistantMessage.role,
         content: assistantMessage.content,
         timestamp: assistantMessage.timestamp.getTime(),
@@ -359,8 +359,9 @@ export const Chat: React.FC = () => {
   };
 
   const handleClearChat = async () => {
+    if (!activeThreadId) return;
     if (confirm("Are you sure you want to clear the chat?")) {
-      await window.database.clearMessages(threadIdRef.current);
+      await window.db.clearMessages(activeThreadId);
       setMessages([
         {
           id: "welcome",
@@ -380,15 +381,30 @@ export const Chat: React.FC = () => {
   };
 
   const handleFileUpload = async () => {
-    setUploading(true);
-    setUploadStatus(null);
-    setUploadProgress(null);
+    if (uploading) return;
+
+    let currentThreadId = activeThreadId;
+    if (!currentThreadId) {
+      if (!user) {
+        alert("Please log in to upload documents.");
+        return;
+      }
+      // Create new thread if none active
+      currentThreadId = crypto.randomUUID();
+      await window.db.createThread(
+        currentThreadId,
+        "New Conversation",
+        user.id
+      );
+      setActiveThreadId(currentThreadId);
+    }
 
     try {
-      // Stage 1: File Selection
+      setUploading(true);
+      setUploadStatus(null);
       setUploadProgress({
         stage: "selecting",
-        message: "Opening file dialog...",
+        message: "Selecting document...",
       });
 
       const dialogResult = await window.studyAgent.openFileDialog();
@@ -469,9 +485,9 @@ export const Chat: React.FC = () => {
         setMessages((prev) => [...prev, successMsg]);
 
         // Save success message to database
-        await window.database.saveMessage({
+        await window.db.saveMessage({
           id: successMsg.id,
-          threadId: threadIdRef.current,
+          threadId: currentThreadId,
           role: successMsg.role,
           content: successMsg.content,
           timestamp: successMsg.timestamp.getTime(),
@@ -485,9 +501,9 @@ export const Chat: React.FC = () => {
             timestamp: new Date(),
           };
           setMessages((prev) => [...prev, warningMsg]);
-          await window.database.saveMessage({
+          await window.db.saveMessage({
             id: warningMsg.id,
-            threadId: threadIdRef.current,
+            threadId: currentThreadId,
             role: warningMsg.role,
             content: warningMsg.content,
             timestamp: warningMsg.timestamp.getTime(),
@@ -512,13 +528,15 @@ export const Chat: React.FC = () => {
       setMessages((prev) => [...prev, errorMessage]);
 
       // Save error message to database
-      await window.database.saveMessage({
-        id: errorMessage.id,
-        threadId: threadIdRef.current,
-        role: errorMessage.role,
-        content: errorMessage.content,
-        timestamp: errorMessage.timestamp.getTime(),
-      });
+      if (currentThreadId) {
+        await window.db.saveMessage({
+          id: errorMessage.id,
+          threadId: currentThreadId,
+          role: errorMessage.role,
+          content: errorMessage.content,
+          timestamp: errorMessage.timestamp.getTime(),
+        });
+      }
     } finally {
       setUploading(false);
       // Clear progress after brief delay
