@@ -3,7 +3,12 @@ import path from "path";
 import { app } from "electron";
 import fs from "fs";
 import crypto from "crypto";
-import { User, ChatMessage, UploadedDocument, Thread } from "./types";
+import {
+  User,
+  ChatMessage,
+  UploadedDocument,
+  ConversationThread,
+} from "./types";
 
 interface UserRow {
   id: string;
@@ -20,6 +25,14 @@ interface MessageRow {
   timestamp: number;
   thread_id: string;
   metadata: string;
+}
+
+interface ThreadRow {
+  id: string;
+  title: string;
+  created_at: number;
+  updated_at: number;
+  user_id: string;
 }
 
 interface DocumentRow {
@@ -180,18 +193,27 @@ export class DatabaseManager {
     stmt.run(id, title, now, now, userId || null);
   }
 
-  getAllThreads(userId?: string): Thread[] {
+  getAllThreads(userId?: string): ConversationThread[] {
     if (!this.db) throw new Error("Database not initialized");
     let stmt;
+    let rows: ThreadRow[];
     if (userId) {
       stmt = this.db.prepare(
         "SELECT * FROM threads WHERE user_id = ? ORDER BY updated_at DESC"
       );
-      return stmt.all(userId) as Thread[];
+      rows = stmt.all(userId) as ThreadRow[];
     } else {
       stmt = this.db.prepare("SELECT * FROM threads ORDER BY updated_at DESC");
-      return stmt.all() as Thread[];
+      rows = stmt.all() as ThreadRow[];
     }
+
+    return rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      userId: row.user_id,
+    }));
   }
 
   deleteThread(id: string) {
