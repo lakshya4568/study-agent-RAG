@@ -9,5 +9,4 @@ export { MessageBubble } from "./MessageBubble";
 export { LoadingSpinner } from "./LoadingSpinner";
 export { ToolCallApproval } from "./ToolCallApproval";
 export { MarkdownRenderer } from "./MarkdownRenderer";
-export { DocumentViewer } from "./DocumentViewer";
 export type { PendingToolCall } from "./ToolCallApproval";

@@ -9,6 +9,12 @@
       "command": "npx",
       "args": ["-y", "@theo.foobar/mcp-time"],
       "env": {}
+    },
+    "google-forms": {
+      "command": "node",
+      "args": [
+        "/Users/proximus/Downloads/Github Repositories/googleForm-MCP/src/gform-mcp-server.js"
+      ]
     }
   }
 }

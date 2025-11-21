@@ -13,6 +13,7 @@ import {
   Upload,
   CheckCircle,
   AlertCircle,
+  X,
 } from "lucide-react";
 import { ContentContainer } from "../components/layout";
 import {
@@ -24,7 +25,6 @@ import {
   Badge,
   ToolCallApproval,
   PendingToolCall,
-  DocumentViewer,
 } from "../components/ui";
 import { useChatStore, useAuthStore } from "../client/store";
 
@@ -711,6 +711,33 @@ export const Chat: React.FC = () => {
               </motion.div>
             )}
 
+            {/* Selected Document Indicator */}
+            {selectedDocument && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="mb-3 inline-flex items-center gap-2 px-3 py-2 bg-white border border-emerald-200 rounded-lg shadow-sm"
+              >
+                <div className="p-1.5 bg-emerald-100 rounded-md">
+                  <FileText className="w-4 h-4 text-emerald-600" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Attached
+                  </span>
+                  <span className="text-sm font-medium text-gray-900 truncate max-w-[200px]">
+                    {selectedDocument.split("/").pop()}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setSelectedDocument(null)}
+                  className="ml-2 p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </motion.div>
+            )}
+
             <div className="flex items-center gap-3 mb-3">
               <Badge
                 variant="info"
@@ -760,16 +787,6 @@ export const Chat: React.FC = () => {
           </div>
         </div>
       </ContentContainer>
-
-      {selectedDocument && (
-        <div className="w-1/2 border-l border-gray-200 h-full">
-          <DocumentViewer
-            url={selectedDocument}
-            type={selectedDocument.endsWith(".pdf") ? "pdf" : "markdown"}
-            onClose={() => setSelectedDocument(null)}
-          />
-        </div>
-      )}
     </div>
   );
 };
