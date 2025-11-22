@@ -36,6 +36,7 @@ import {
   Badge,
   ToolCallApproval,
   PendingToolCall,
+  FlashcardViewer,
 } from "../components/ui";
 import { useChatStore, useAuthStore } from "../client/store";
 import { ThemeSelector } from "../components/ui/ThemeSelector";
@@ -113,7 +114,14 @@ const quickActions = [
   },
 ];
 
-export const Chat: React.FC = () => {
+interface ChatProps {
+  onRegisterActions?: (actions: {
+    createNewThread: () => void;
+    openHistory: () => void;
+  }) => void;
+}
+
+export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
   const {
     activeThreadId,
     setActiveThreadId,
@@ -167,6 +175,16 @@ export const Chat: React.FC = () => {
       setThreads(result.threads);
     }
   };
+
+  // Register functions with parent
+  React.useEffect(() => {
+    if (onRegisterActions) {
+      onRegisterActions({
+        createNewThread,
+        openHistory: () => setShowHistory(true),
+      });
+    }
+  }, [onRegisterActions]);
 
   const loadMessages = async (threadId: string) => {
     const result = await window.db.getMessages(threadId);
@@ -538,28 +556,6 @@ export const Chat: React.FC = () => {
   return (
     <div className="flex h-full w-full overflow-hidden bg-background/50">
       <ContentContainer className="flex flex-col h-full p-0 flex-1 min-w-0 relative">
-        {/* Header Actions */}
-        <div className="absolute top-4 right-4 z-10 flex gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={<Plus className="w-4 h-4" />}
-            onClick={createNewThread}
-            className="rounded-full bg-brown-800/60 backdrop-blur-sm border border-brown-700/50 shadow-md hover:bg-brown-800/70 text-brown-100"
-          >
-            New Chat
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={<History className="w-4 h-4" />}
-            onClick={() => setShowHistory(true)}
-            className="rounded-full bg-brown-800/40 backdrop-blur-sm border border-brown-700/40 shadow-md hover:bg-brown-800/50 text-brown-100"
-          >
-            History
-          </Button>
-        </div>
-
         <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 custom-scrollbar pb-32">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center space-y-8 mt-10">
@@ -615,7 +611,7 @@ export const Chat: React.FC = () => {
                 >
                   <div
                     className={cn(
-                      "w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm mt-auto mb-2",
+                      "w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm mt-1",
                       msg.role === "user"
                         ? "bg-primary text-primary-foreground"
                         : "bg-white dark:bg-zinc-800 border border-border text-primary"
@@ -629,28 +625,43 @@ export const Chat: React.FC = () => {
                   </div>
                   <div
                     className={cn(
-                      "p-4 max-w-[85%] shadow-sm text-sm leading-relaxed relative group",
+                      "max-w-[85%] shadow-sm text-sm leading-relaxed relative group",
                       msg.role === "user"
-                        ? "bg-primary text-primary-foreground rounded-2xl rounded-tr-sm"
+                        ? "p-4 bg-primary text-primary-foreground rounded-2xl rounded-tr-sm"
                         : "bg-card/70 backdrop-blur-md border border-border/50 text-foreground rounded-2xl rounded-tl-sm"
                     )}
                   >
-                    <div className="prose prose-sm dark:prose-invert max-w-none break-words">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
-                          ul: ({ node, ...props }) => <ul className="list-disc pl-4 mb-2" {...props} />,
-                          ol: ({ node, ...props }) => <ol className="list-decimal pl-4 mb-2" {...props} />,
-                          li: ({ node, ...props }) => <li className="mb-1" {...props} />,
-                          a: ({ node, ...props }) => <a className="text-primary hover:underline" {...props} />,
-                          code: ({ node, ...props }) => <code className="bg-muted px-1 py-0.5 rounded text-xs font-mono" {...props} />,
-                          pre: ({ node, ...props }) => <pre className="bg-muted p-2 rounded-lg overflow-x-auto my-2 text-xs" {...props} />,
-                        }}
-                      >
-                        {msg.content}
-                      </ReactMarkdown>
-                    </div>
+                    {(() => {
+                      // Check if content is flashcard JSON
+                      try {
+                        const parsed = JSON.parse(msg.content);
+                        if (parsed.flashcards && Array.isArray(parsed.flashcards)) {
+                          return <FlashcardViewer flashcards={parsed.flashcards} messageId={msg.id} />;
+                        }
+                      } catch (e) {
+                        // Not JSON, render as markdown
+                      }
+                      return (
+                        <div className="p-4">
+                          <div className="prose prose-sm dark:prose-invert max-w-none break-words">
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
+                                ul: ({ node, ...props }) => <ul className="list-disc pl-4 mb-2" {...props} />,
+                                ol: ({ node, ...props }) => <ol className="list-decimal pl-4 mb-2" {...props} />,
+                                li: ({ node, ...props }) => <li className="mb-1" {...props} />,
+                                a: ({ node, ...props }) => <a className="text-primary hover:underline" {...props} />,
+                                code: ({ node, ...props }) => <code className="bg-muted px-1 py-0.5 rounded text-xs font-mono" {...props} />,
+                                pre: ({ node, ...props }) => <pre className="bg-muted p-2 rounded-lg overflow-x-auto my-2 text-xs" {...props} />,
+                              }}
+                            >
+                              {msg.content}
+                            </ReactMarkdown>
+                          </div>
+                        </div>
+                      );
+                    })()}
                     <div
                       className={cn(
                         "text-[10px] mt-1 opacity-0 group-hover:opacity-50 transition-opacity absolute -bottom-5",
@@ -669,7 +680,7 @@ export const Chat: React.FC = () => {
                   animate={{ opacity: 1 }}
                   className="flex gap-3"
                 >
-                  <div className="w-8 h-8 rounded-full bg-white dark:bg-zinc-800 border border-border flex items-center justify-center shrink-0 mt-auto mb-2">
+                  <div className="w-8 h-8 rounded-full bg-white dark:bg-zinc-800 border border-border flex items-center justify-center shrink-0 mt-1">
                     <Bot className="w-5 h-5 text-primary" />
                   </div>
                   <div className="bg-card border border-border px-4 py-3 rounded-2xl rounded-tl-sm shadow-sm flex items-center gap-2">

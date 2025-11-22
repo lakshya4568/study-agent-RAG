@@ -1,13 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   MessageSquare,
   Blocks,
   Sparkles,
   LogOut,
   Zap,
+  Plus,
+  History as HistoryIcon,
 } from "lucide-react";
 import { MainLayout, Sidebar, TopBar } from "./components/layout";
-import { Badge } from "./components/ui";
+import { Badge, Button } from "./components/ui";
 import { Chat } from "./views/Chat";
 import { ServerManager } from "./views/ServerManager";
 import { AgentConsole } from "./views/AgentConsole";
@@ -21,6 +23,14 @@ export const App: React.FC = () => {
   );
   const [authView, setAuthView] = useState<"login" | "signup">("login");
   const { isAuthenticated, logout } = useAuthStore();
+
+  const chatActionsRef = useRef<{
+    createNewThread: () => void;
+    openHistory: () => void;
+  }>({
+    createNewThread: () => { },
+    openHistory: () => { },
+  });
 
   if (!isAuthenticated) {
     return authView === "login" ? (
@@ -59,6 +69,24 @@ export const App: React.FC = () => {
 
   const topBarActions = (
     <>
+      <Button
+        variant="ghost"
+        size="sm"
+        icon={<Plus className="w-4 h-4" />}
+        onClick={() => chatActionsRef.current.createNewThread()}
+        className="rounded-full bg-background/50 backdrop-blur-sm border border-border/50 shadow-sm hover:bg-background hover:shadow-md transition-all duration-200"
+      >
+        New Chat
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        icon={<HistoryIcon className="w-4 h-4" />}
+        onClick={() => chatActionsRef.current.openHistory()}
+        className="rounded-full bg-background/50 backdrop-blur-sm border border-border/50 shadow-sm hover:bg-background hover:shadow-md transition-all duration-200"
+      >
+        History
+      </Button>
       <Badge variant="outline" size="sm" className="gap-1.5 bg-background/50 backdrop-blur-sm rounded-full">
         <Zap className="w-3 h-3 text-yellow-500" />
         Pro Plan
@@ -81,7 +109,13 @@ export const App: React.FC = () => {
         />
       }
     >
-      {activeView === "chat" && <Chat />}
+      {activeView === "chat" && (
+        <Chat
+          onRegisterActions={(actions) => {
+            chatActionsRef.current = actions;
+          }}
+        />
+      )}
       {activeView === "servers" && <ServerManager />}
       {activeView === "agent" && <AgentConsole />}
     </MainLayout>

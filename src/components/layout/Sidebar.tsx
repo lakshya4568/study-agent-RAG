@@ -30,7 +30,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       animate={{ width: isCollapsed ? 80 : 260 }}
       transition={{ duration: 0.3, ease: "easeInOut" }}
       className={cn(
-        'flex flex-col h-full bg-card/80 backdrop-blur-md border-r border-border/50 shadow-sm z-50 relative transition-all',
+        'flex flex-col h-full backdrop-blur-md border-r border-border/50 shadow-sm z-50 relative transition-all',
+        'bg-gradient-to-b from-emerald-50/40 via-orange-50/30 to-rose-100/50 dark:from-emerald-950/20 dark:via-orange-950/10 dark:to-rose-950/20',
         className
       )}
     >
@@ -51,7 +52,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="w-10 h-10 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
           <GraduationCap className="w-6 h-6" />
         </div>
-        
+
         <AnimatePresence mode="wait">
           {!isCollapsed && (
             <motion.div
@@ -87,7 +88,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 title={isCollapsed ? item.label : undefined}
               >
                 <Icon className={cn("w-5 h-5 flex-shrink-0 transition-colors", item.active ? "text-primary-foreground" : "text-muted-foreground group-hover:text-primary")} />
-                
+
                 {!isCollapsed && (
                   <motion.div
                     initial={{ opacity: 0, width: 0 }}
@@ -107,7 +108,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Footer / Theme Switcher */}
       <div className="mt-auto p-4 border-t border-border/50 space-y-2">
         <ThemeSelector isCollapsed={isCollapsed} />
-        
+
         {onLogout && (
           <button
             onClick={onLogout}
