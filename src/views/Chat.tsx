@@ -350,38 +350,38 @@ export const Chat: React.FC = () => {
         try {
           const parsed = JSON.parse(potentialJson);
           if (parsed.flashcards && Array.isArray(parsed.flashcards)) {
-             // Assign new UUIDs and ensure structure matches Flashcard type
-             const enrichedFlashcards = parsed.flashcards.map((card: any) => ({
-                ...card,
-                id: `fc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                set_id: `set-${Date.now()}`,
-                is_mastered: false,
-                created_at: Date.now(),
-                message_id: assistantMessage.id
-             }));
+            // Assign new UUIDs and ensure structure matches Flashcard type
+            const enrichedFlashcards = parsed.flashcards.map((card: any) => ({
+              ...card,
+              id: `fc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              set_id: `set-${Date.now()}`,
+              is_mastered: false,
+              created_at: Date.now(),
+              message_id: assistantMessage.id,
+            }));
 
-             // Update content with enriched flashcards so UI uses the correct IDs immediately
-             // We need to reconstruct the JSON with the new IDs
-             parsed.flashcards = enrichedFlashcards;
-             assistantMessage.content = JSON.stringify(parsed);
+            // Update content with enriched flashcards so UI uses the correct IDs immediately
+            // We need to reconstruct the JSON with the new IDs
+            parsed.flashcards = enrichedFlashcards;
+            assistantMessage.content = JSON.stringify(parsed);
 
-             // Save assistant message to database FIRST (to satisfy FK constraints)
-             await window.db.saveMessage({
-               id: assistantMessage.id,
-               threadId: currentThreadId,
-               role: assistantMessage.role,
-               content: assistantMessage.content,
-               timestamp: assistantMessage.timestamp.getTime(),
-             });
+            // Save assistant message to database FIRST (to satisfy FK constraints)
+            await window.db.saveMessage({
+              id: assistantMessage.id,
+              threadId: currentThreadId,
+              role: assistantMessage.role,
+              content: assistantMessage.content,
+              timestamp: assistantMessage.timestamp.getTime(),
+            });
 
-             // Save each flashcard
-             for (const card of enrichedFlashcards) {
-                await window.db.saveFlashcard(card);
-             }
+            // Save each flashcard
+            for (const card of enrichedFlashcards) {
+              await window.db.saveFlashcard(card);
+            }
 
-             // Update UI state
-             setMessages((prev) => [...prev, assistantMessage]);
-             return; // Exit after successful flashcard processing
+            // Update UI state
+            setMessages((prev) => [...prev, assistantMessage]);
+            return; // Exit after successful flashcard processing
           }
         } catch (e) {
           console.error("Failed to parse/save flashcards:", e);
@@ -650,6 +650,7 @@ export const Chat: React.FC = () => {
             {messages.map((message, index) => (
               <MessageBubble
                 key={message.id}
+                id={message.id}
                 role={message.role}
                 content={message.content}
                 timestamp={message.timestamp}
@@ -803,7 +804,11 @@ export const Chat: React.FC = () => {
                 variant="ghost"
                 size="sm"
                 icon={<Brain className="w-4 h-4" />}
-                onClick={() => handleQuickAction("Can you help me create flashcards for studying?")}
+                onClick={() =>
+                  handleQuickAction(
+                    "Can you help me create flashcards for studying?"
+                  )
+                }
                 title="Create Flashcards"
               >
                 Flashcards
