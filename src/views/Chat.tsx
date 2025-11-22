@@ -19,8 +19,11 @@ import {
   MessageSquare,
   Smile,
   Paperclip,
-  Sparkles
+  Sparkles,
+  Plus
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Drawer } from "../components/ui/Drawer";
 import { cn } from "../lib/utils";
 import { ContentContainer } from "../components/layout";
@@ -136,18 +139,17 @@ export const Chat: React.FC = () => {
     message: string;
   } | null>(null);
   const [showHistory, setShowHistory] = useState(false);
-
-  // Mock history data
-  const historyItems = [
-    { id: "1", title: "React Components Study", date: "2 hours ago" },
-    { id: "2", title: "Vector Database Explanation", date: "Yesterday" },
-    { id: "3", title: "System Architecture Review", date: "2 days ago" },
-  ];
+  const [threads, setThreads] = useState<Array<{
+    id: string;
+    title: string;
+    created_at: number;
+  }>>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     loadTools();
+    loadThreads();
     if (activeThreadId) {
       loadMessages(activeThreadId);
     } else {
@@ -157,6 +159,14 @@ export const Chat: React.FC = () => {
     const pollInterval = setInterval(loadPendingToolCalls, 2000);
     return () => clearInterval(pollInterval);
   }, [activeThreadId]);
+
+  const loadThreads = async () => {
+    if (!user) return;
+    const result = await window.db.getThreads(user.id);
+    if (result.success && result.threads) {
+      setThreads(result.threads);
+    }
+  };
 
   const loadMessages = async (threadId: string) => {
     const result = await window.db.getMessages(threadId);
@@ -195,7 +205,7 @@ export const Chat: React.FC = () => {
     try {
       await window.mcpClient.approveToolExecution(toolCallId);
       setPendingToolCalls((prev) => prev.filter((t) => t.id !== toolCallId));
-      
+
       const systemMsg: Message = {
         id: `msg-${Date.now()}`,
         role: "system",
@@ -203,7 +213,7 @@ export const Chat: React.FC = () => {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, systemMsg]);
-      
+
       await window.db.saveMessage({
         id: systemMsg.id,
         threadId: activeThreadId,
@@ -221,7 +231,7 @@ export const Chat: React.FC = () => {
     try {
       await window.mcpClient.denyToolExecution(toolCallId);
       setPendingToolCalls((prev) => prev.filter((t) => t.id !== toolCallId));
-      
+
       const systemMsg: Message = {
         id: `msg-${Date.now()}`,
         role: "system",
@@ -229,7 +239,7 @@ export const Chat: React.FC = () => {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, systemMsg]);
-      
+
       await window.db.saveMessage({
         id: systemMsg.id,
         threadId: activeThreadId,
@@ -400,6 +410,15 @@ export const Chat: React.FC = () => {
     inputRef.current?.focus();
   };
 
+  const createNewThread = async () => {
+    if (!user) return;
+    const id = crypto.randomUUID();
+    const title = "New Chat";
+    await window.db.createThread(id, title, user.id);
+    setActiveThreadId(id);
+    loadThreads();
+  };
+
   const handleClearChat = async () => {
     if (!activeThreadId) return;
     if (confirm("Start a fresh conversation?")) {
@@ -492,7 +511,7 @@ export const Chat: React.FC = () => {
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, successMsg]);
-        
+
         await window.db.saveMessage({
           id: successMsg.id,
           threadId: currentThreadId,
@@ -521,12 +540,21 @@ export const Chat: React.FC = () => {
       <ContentContainer className="flex flex-col h-full p-0 flex-1 min-w-0 relative">
         {/* Header Actions */}
         <div className="absolute top-4 right-4 z-10 flex gap-2">
-           <Button
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={<Plus className="w-4 h-4" />}
+            onClick={createNewThread}
+            className="rounded-full bg-brown-800/60 backdrop-blur-sm border border-brown-700/50 shadow-md hover:bg-brown-800/70 text-brown-100"
+          >
+            New Chat
+          </Button>
+          <Button
             variant="ghost"
             size="sm"
             icon={<History className="w-4 h-4" />}
             onClick={() => setShowHistory(true)}
-            className="rounded-full bg-background/50 backdrop-blur-sm border border-border/50 shadow-sm hover:bg-background"
+            className="rounded-full bg-brown-800/40 backdrop-blur-sm border border-brown-700/40 shadow-md hover:bg-brown-800/50 text-brown-100"
           >
             History
           </Button>
@@ -560,7 +588,7 @@ export const Chat: React.FC = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 + 0.2 }}
                     onClick={() => handleQuickAction(action.prompt)}
-                    className="flex flex-col items-center p-4 rounded-2xl bg-card border border-border hover:border-primary/50 hover:shadow-md transition-all duration-200 text-center group"
+                    className="flex flex-col items-center p-4 rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50 hover:border-primary/50 hover:shadow-md transition-all duration-200 text-center group"
                   >
                     <div className={`p-3 rounded-xl bg-gradient-to-br ${action.gradient} text-white mb-3 shadow-sm group-hover:scale-110 transition-transform`}>
                       <action.Icon className="w-6 h-6" />
@@ -604,10 +632,25 @@ export const Chat: React.FC = () => {
                       "p-4 max-w-[85%] shadow-sm text-sm leading-relaxed relative group",
                       msg.role === "user"
                         ? "bg-primary text-primary-foreground rounded-2xl rounded-tr-sm"
-                        : "bg-card border border-border text-foreground rounded-2xl rounded-tl-sm"
+                        : "bg-card/70 backdrop-blur-md border border-border/50 text-foreground rounded-2xl rounded-tl-sm"
                     )}
                   >
-                    <div className="whitespace-pre-wrap">{msg.content}</div>
+                    <div className="prose prose-sm dark:prose-invert max-w-none break-words">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
+                          ul: ({ node, ...props }) => <ul className="list-disc pl-4 mb-2" {...props} />,
+                          ol: ({ node, ...props }) => <ol className="list-decimal pl-4 mb-2" {...props} />,
+                          li: ({ node, ...props }) => <li className="mb-1" {...props} />,
+                          a: ({ node, ...props }) => <a className="text-primary hover:underline" {...props} />,
+                          code: ({ node, ...props }) => <code className="bg-muted px-1 py-0.5 rounded text-xs font-mono" {...props} />,
+                          pre: ({ node, ...props }) => <pre className="bg-muted p-2 rounded-lg overflow-x-auto my-2 text-xs" {...props} />,
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    </div>
                     <div
                       className={cn(
                         "text-[10px] mt-1 opacity-0 group-hover:opacity-50 transition-opacity absolute -bottom-5",
@@ -619,7 +662,7 @@ export const Chat: React.FC = () => {
                   </div>
                 </motion.div>
               ))}
-              
+
               {loading && (
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -657,8 +700,8 @@ export const Chat: React.FC = () => {
         </div>
 
         {/* Input Area */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background via-background/95 to-transparent pt-10 z-20">
-          <div className="max-w-3xl mx-auto">
+        <div className="absolute bottom-6 left-0 right-0 px-4 z-20 flex justify-center pointer-events-none">
+          <div className="w-full max-w-3xl pointer-events-auto">
             {/* Upload Progress & Status */}
             <AnimatePresence>
               {(uploadProgress || uploadStatus) && (
@@ -668,31 +711,31 @@ export const Chat: React.FC = () => {
                   exit={{ opacity: 0, y: 10 }}
                   className="mb-3 mx-2"
                 >
-                   {uploadProgress && (
-                     <div className="bg-card border border-border p-3 rounded-xl shadow-lg flex items-center gap-3">
-                       <LoadingSpinner size="sm" />
-                       <div className="flex-1">
-                         <p className="text-sm font-medium">{uploadProgress.message}</p>
-                         <div className="h-1 bg-muted rounded-full mt-1.5 overflow-hidden">
-                           <motion.div 
-                             className="h-full bg-primary"
-                             initial={{ width: "0%" }}
-                             animate={{ width: "100%" }} // Simplified for demo
-                             transition={{ duration: 2 }}
-                           />
-                         </div>
-                       </div>
-                     </div>
-                   )}
-                   {uploadStatus && !uploadProgress && (
-                     <div className={cn(
-                       "p-3 rounded-xl flex items-center gap-2 text-sm font-medium shadow-lg",
-                       uploadStatus.type === "success" ? "bg-emerald-50 text-emerald-600 border border-emerald-200" : "bg-red-50 text-red-600 border border-red-200"
-                     )}>
-                       {uploadStatus.type === "success" ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                       {uploadStatus.message}
-                     </div>
-                   )}
+                  {uploadProgress && (
+                    <div className="bg-card border border-border p-3 rounded-xl shadow-lg flex items-center gap-3">
+                      <LoadingSpinner size="sm" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{uploadProgress.message}</p>
+                        <div className="h-1 bg-muted rounded-full mt-1.5 overflow-hidden">
+                          <motion.div
+                            className="h-full bg-primary"
+                            initial={{ width: "0%" }}
+                            animate={{ width: "100%" }} // Simplified for demo
+                            transition={{ duration: 2 }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {uploadStatus && !uploadProgress && (
+                    <div className={cn(
+                      "p-3 rounded-xl flex items-center gap-2 text-sm font-medium shadow-lg",
+                      uploadStatus.type === "success" ? "bg-emerald-50 text-emerald-600 border border-emerald-200" : "bg-red-50 text-red-600 border border-red-200"
+                    )}>
+                      {uploadStatus.type === "success" ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                      {uploadStatus.message}
+                    </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -702,7 +745,7 @@ export const Chat: React.FC = () => {
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="mx-2 mb-2 inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-full text-xs font-medium border border-primary/20"
+                className="mx-2 mb-2 inline-flex items-center gap-2 px-3 py-1.5 bg-card/80 backdrop-blur-sm text-primary rounded-full text-xs font-medium border border-primary/20 shadow-sm"
               >
                 <Paperclip className="w-3 h-3" />
                 <span className="max-w-[150px] truncate">{selectedDocument.split('/').pop()}</span>
@@ -712,11 +755,11 @@ export const Chat: React.FC = () => {
               </motion.div>
             )}
 
-            <div className="relative flex items-end gap-2 bg-card border border-border shadow-xl rounded-[2rem] p-2 pl-4 transition-shadow hover:shadow-2xl">
+            <div className="relative flex items-center gap-2 bg-brown-200/40 backdrop-blur-2xl border-2 border-brown-300/30 shadow-[0_8px_32px_0_rgba(139,69,19,0.15)] rounded-[2rem] p-2 pl-4 transition-all hover:bg-brown-200/50 hover:shadow-[0_8px_40px_0_rgba(139,69,19,0.2)] hover:border-brown-300/40">
               <button
                 onClick={handleFileUpload}
                 disabled={uploading}
-                className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full transition-colors mb-0.5"
+                className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full transition-colors"
                 title="Upload file"
               >
                 <Paperclip className="w-5 h-5" />
@@ -728,26 +771,38 @@ export const Chat: React.FC = () => {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyPress}
                 placeholder="Type a message..."
-                className="flex-1 min-h-[44px] max-h-[120px] bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground/50 resize-none py-3 px-2 font-medium text-base"
+                className="flex-1 min-h-[44px] max-h-[120px] bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground/60 resize-none py-3 px-2 font-medium text-base"
                 disabled={loading}
               />
 
-              <Button
-                onClick={handleSend}
-                disabled={!input.trim() || loading}
-                size="icon"
-                className={cn(
-                  "rounded-full h-10 w-10 mb-0.5 transition-all duration-200",
-                  input.trim() ? "bg-primary text-primary-foreground shadow-md hover:scale-105" : "bg-muted text-muted-foreground"
-                )}
-              >
-                {loading ? <LoadingSpinner size="sm" className="text-current" /> : <Send className="w-5 h-5 ml-0.5" />}
-              </Button>
+              <div className="flex items-center gap-1 pr-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full w-9 h-9"
+                >
+                  <Sparkles className="w-5 h-5" />
+                </Button>
+
+                <Button
+                  onClick={handleSend}
+                  disabled={!input.trim() || loading}
+                  size="icon"
+                  className={cn(
+                    "rounded-full h-10 w-10 transition-all duration-200 shadow-sm",
+                    input.trim()
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105"
+                      : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {loading ? <LoadingSpinner size="sm" className="text-current" /> : <Send className="w-5 h-5 ml-0.5" />}
+                </Button>
+              </div>
             </div>
-            
+
             <div className="mt-2 text-center">
-              <p className="text-[10px] text-muted-foreground opacity-60">
-                AI can make mistakes. Check important info.
+              <p className="text-[10px] text-muted-foreground/60 font-medium">
+                AI make mistakes. Check important info.
               </p>
             </div>
           </div>
@@ -762,35 +817,57 @@ export const Chat: React.FC = () => {
         width="300px"
       >
         <div className="space-y-4 p-2">
-          <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10">
-            <h3 className="text-xs font-bold text-primary uppercase tracking-wider mb-2">Active Session</h3>
-            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-              <MessageSquare className="w-4 h-4 text-primary" />
-              <span>Current Chat</span>
+          {activeThreadId && (
+            <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10">
+              <h3 className="text-xs font-bold text-primary uppercase tracking-wider mb-2">Active Session</h3>
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <MessageSquare className="w-4 h-4 text-primary" />
+                <span>Current Chat</span>
+              </div>
             </div>
-          </div>
+          )}
 
           <div>
-            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 px-2">Recent</h3>
+            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 px-2">Recent Chats</h3>
             <div className="space-y-1">
-              {historyItems.map((item) => (
-                <button
-                  key={item.id}
-                  className="w-full text-left p-3 rounded-xl hover:bg-muted transition-colors group"
-                >
-                  <div className="flex items-start gap-3">
-                    <History className="w-4 h-4 text-muted-foreground mt-0.5 group-hover:text-primary transition-colors" />
-                    <div>
-                      <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
-                        {item.title}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {item.date}
-                      </p>
+              {threads.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  <History className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                  <p>No chat history yet</p>
+                </div>
+              ) : (
+                threads.map((thread) => (
+                  <button
+                    key={thread.id}
+                    onClick={() => {
+                      setActiveThreadId(thread.id);
+                      setShowHistory(false);
+                    }}
+                    className={cn(
+                      "w-full text-left p-3 rounded-xl hover:bg-muted transition-colors group",
+                      activeThreadId === thread.id ? "bg-primary/10 border border-primary/20" : ""
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <MessageSquare className={cn(
+                        "w-4 h-4 mt-0.5 transition-colors",
+                        activeThreadId === thread.id ? "text-primary" : "text-muted-foreground group-hover:text-primary"
+                      )} />
+                      <div className="flex-1 min-w-0">
+                        <p className={cn(
+                          "text-sm font-medium transition-colors truncate",
+                          activeThreadId === thread.id ? "text-primary" : "text-foreground group-hover:text-primary"
+                        )}>
+                          {thread.title}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {new Date(thread.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                ))
+              )}
             </div>
           </div>
         </div>

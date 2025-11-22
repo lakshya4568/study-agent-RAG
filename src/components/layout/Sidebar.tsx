@@ -30,7 +30,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       animate={{ width: isCollapsed ? 80 : 260 }}
       transition={{ duration: 0.3, ease: "easeInOut" }}
       className={cn(
-        'flex flex-col h-full bg-card border-r border-border shadow-sm z-50 relative transition-all',
+        'flex flex-col h-full bg-card/80 backdrop-blur-md border-r border-border/50 shadow-sm z-50 relative transition-all',
         className
       )}
     >

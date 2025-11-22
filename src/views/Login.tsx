@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import { Lock, Mail, ArrowRight, Loader2, GraduationCap } from "lucide-react";
 import { Card, Button, Input } from "../components/ui";
 
+import studyBackground from "../assets/study_background.png";
+
 interface LoginProps {
   onNavigateToSignup: () => void;
 }
@@ -35,10 +37,16 @@ export const Login: React.FC<LoginProps> = ({ onNavigateToSignup }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
-      {/* Background Blobs */}
-      <div className="absolute top-[-10%] right-[-5%] w-96 h-96 bg-primary/20 rounded-full blur-3xl opacity-50 pointer-events-none" />
-      <div className="absolute bottom-[-10%] left-[-5%] w-96 h-96 bg-secondary/20 rounded-full blur-3xl opacity-50 pointer-events-none" />
+    <div className="min-h-screen flex items-center justify-center bg-background/80 p-4 relative overflow-hidden">
+      {/* Background Image */}
+      <div className="absolute inset-0 z-[-1]">
+        <img
+          src={studyBackground}
+          alt=""
+          className="w-full h-full object-cover object-center opacity-90"
+        />
+        <div className="absolute inset-0 bg-white/30 backdrop-blur-[1px]" />
+      </div>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}

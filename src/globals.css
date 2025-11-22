@@ -6,9 +6,35 @@
   }
 
   /* =========================================
-     THEME: OCEAN (Default) - Calming Blues
+     THEME: VIBRANT (Default) - Warm & Friendly
      ========================================= */
-  :root, .theme-ocean {
+  :root, .theme-vibrant {
+    --background: 30 50% 98%; /* Warm Cream/Peach */
+    --foreground: 260 20% 20%; /* Soft Dark Purple */
+    --card: 0 0% 100%;
+    --card-foreground: 260 20% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 260 20% 20%;
+    --primary: 340 85% 65%; /* Vibrant Pink */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 280 30% 96%; /* Light Lavender */
+    --secondary-foreground: 260 20% 20%;
+    --muted: 30 30% 96%;
+    --muted-foreground: 260 10% 55%;
+    --accent: 340 85% 97%;
+    --accent-foreground: 340 85% 40%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 260 15% 90%;
+    --input: 260 15% 90%;
+    --ring: 340 85% 65%;
+    --radius: 1.5rem; /* Extra rounded for friendly vibe */
+  }
+
+  /* =========================================
+     THEME: OCEAN - Calming Blues
+     ========================================= */
+  .theme-ocean {
     --background: 210 40% 98%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;

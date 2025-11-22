@@ -13,7 +13,6 @@ import { ServerManager } from "./views/ServerManager";
 import { AgentConsole } from "./views/AgentConsole";
 import { Login } from "./views/Login";
 import { Signup } from "./views/Signup";
-import { ChatSidebar } from "./views/ChatSidebar";
 import { useAuthStore } from "./client/store";
 
 export const App: React.FC = () => {
@@ -70,23 +69,14 @@ export const App: React.FC = () => {
   return (
     <MainLayout
       sidebar={
-        <div className="flex h-full">
-          <Sidebar
-            items={sidebarItems}
-            onLogout={logout}
-          />
-          {activeView === "chat" && <ChatSidebar />}
-        </div>
+        <Sidebar
+          items={sidebarItems}
+          onLogout={logout}
+        />
       }
       topBar={
         <TopBar
-          title={
-            activeView === "chat"
-              ? "Study Chat"
-              : activeView === "servers"
-                ? "Tools & Integrations"
-                : "My Study Buddy"
-          }
+          title="StudyBuddy"
           actions={topBarActions}
         />
       }
