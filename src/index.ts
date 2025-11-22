@@ -856,6 +856,39 @@ function registerDatabaseHandlers() {
     }
   });
 
+  ipcMain.handle("db:save-flashcard", async (_, { flashcard }) => {
+    try {
+      dbManager.saveFlashcard(flashcard);
+      return { success: true };
+    } catch (error) {
+      const err = error as Error;
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle("db:get-flashcards-by-message", async (_, { messageId }) => {
+    try {
+      const flashcards = dbManager.getFlashcardsByMessageId(messageId);
+      return { success: true, flashcards };
+    } catch (error) {
+      const err = error as Error;
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle(
+    "db:update-flashcard-status",
+    async (_, { id, isMastered }) => {
+      try {
+        dbManager.updateFlashcardStatus(id, isMastered);
+        return { success: true };
+      } catch (error) {
+        const err = error as Error;
+        return { success: false, error: err.message };
+      }
+    }
+  );
+
   logger.info("Database IPC handlers registered");
 }
 

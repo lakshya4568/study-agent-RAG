@@ -336,6 +336,38 @@ export const Chat: React.FC = () => {
           "I could not formulate a response. Please provide more context.",
         timestamp: new Date(),
       };
+
+      // Check for flashcards content and save them BEFORE updating state
+      if (assistantMessage.content.trim().startsWith("{")) {
+        try {
+          const parsed = JSON.parse(assistantMessage.content);
+          if (parsed.flashcards && Array.isArray(parsed.flashcards)) {
+             // Assign new UUIDs and ensure structure matches Flashcard type
+             const enrichedFlashcards = parsed.flashcards.map((card: any) => ({
+                ...card,
+                id: `fc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                set_id: `set-${Date.now()}`,
+                is_mastered: false,
+                created_at: Date.now(),
+                message_id: assistantMessage.id
+             }));
+
+             // Save each flashcard
+             for (const card of enrichedFlashcards) {
+                await window.db.saveFlashcard(card);
+             }
+
+             // Update content with enriched flashcards so UI uses the correct IDs immediately
+             // We need to reconstruct the JSON with the new IDs
+             parsed.flashcards = enrichedFlashcards;
+             assistantMessage.content = JSON.stringify(parsed);
+          }
+        } catch (e) {
+          console.error("Failed to parse/save flashcards:", e);
+        }
+      }
+
+      // Now update UI state
       setMessages((prev) => [...prev, assistantMessage]);
 
       // Save assistant message to database
@@ -746,6 +778,15 @@ export const Chat: React.FC = () => {
               >
                 {tools.length} tools available
               </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<Brain className="w-4 h-4" />}
+                onClick={() => handleQuickAction("Can you help me create flashcards for studying?")}
+                title="Create Flashcards"
+              >
+                Flashcards
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"

@@ -84,19 +84,21 @@ export async function routeNode(
     const prompt = `You are a router for a study assistant. Decide the best strategy for the user query.
     
     Options:
+    - "flashcard": Use this when the user EXPLICITLY asks to create or generate flashcards, study cards, or quiz cards.
     - "rag": Use this when the user asks about specific documents, study materials, or information that would be found in the knowledge base. ALSO use this for requests to "list", "extract", "summarize", or "find" information from the documents.
     - "tool": Use this ONLY when the user asks to perform a specific SYSTEM action (e.g., read a local file path, list directory, search github, calculate something) that requires using external tools. Do NOT use this for questions about uploaded documents.
     - "general": Use this for general conversation, greetings, or questions that don't need external tools or specific document context.
     
     Query: ${query}
     
-    Return ONLY the option name (rag, tool, or general).`;
+    Return ONLY the option name (flashcard, rag, tool, or general).`;
 
     const response = await model.invoke([{ role: "user", content: prompt }]);
     const route = response.toLowerCase().trim();
 
     logger.info(`Router decision: ${route}`);
 
+    if (route.includes("flashcard")) return { route: "flashcard" };
     if (route.includes("rag")) return { route: "rag" };
     if (route.includes("tool")) return { route: "tool" };
     return { route: "general" };
@@ -305,6 +307,99 @@ export async function retrieveNode(
         new SystemMessage({
           content:
             "Failed to retrieve context. Provide answer based on general knowledge.",
+        }),
+      ],
+    };
+  }
+}
+
+export async function flashcardNode(
+  state: StudyAgentStateType
+): Promise<Partial<StudyAgentStateType>> {
+  try {
+    const model = createNVIDIAOpenAIChat();
+
+    // Extract context from retrieved documents if any
+    const context = (state.documents ?? [])
+      .map((doc, idx) => {
+        const source = formatSourceLabel(doc);
+        return `[Source ${idx + 1}: ${source}]\n${doc.pageContent}`;
+      })
+      .join("\n\n---\n\n");
+
+    // Get the original user question to understand topic
+    const userMessages = state.messages.filter(
+      (msg) =>
+        msg._getType?.() === "human" || msg.constructor.name === "HumanMessage"
+    );
+    const question = userMessages[userMessages.length - 1]?.content || "";
+
+    const systemPrompt = `You are a flashcard generator that creates educational study materials.
+
+    Your goal is to create a set of 10 high-quality flashcards based on the user's request and the provided context (if available).
+
+    OUTPUT FORMAT:
+    You must return a STRICT valid JSON object. Do not include any text outside the JSON object.
+
+    Structure:
+    {
+      "flashcards": [
+        {
+          "id": 1,
+          "question": "Question text",
+          "answer": "Answer text",
+          "difficulty": "easy|medium|hard",
+          "tags": ["topic1", "topic2"]
+        }
+      ],
+      "metadata": {
+        "topic": "Main topic derived from request",
+        "source": "Document names or 'General Knowledge'",
+        "count": 10
+      }
+    }
+
+    Guidelines:
+    - Create exactly 10 cards unless there isn't enough information.
+    - Questions should be clear and specific.
+    - Answers should be concise but complete.
+    - Vary the difficulty.
+    - If context is provided, base the cards primarily on that content.
+    - If no context is provided, generate cards based on general knowledge about the topic requested.
+    `;
+
+    const userPrompt = `Request: ${question}
+
+    Context:
+    ${context || "No specific document context provided. Use general knowledge."}`;
+
+    const response = await model.invoke([
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ]);
+
+    let content = response;
+    if (typeof content !== "string") {
+        content = JSON.stringify(content);
+    }
+
+    // Ensure we have just the JSON part if the model chats a bit
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    const jsonContent = jsonMatch ? jsonMatch[0] : content;
+
+    return {
+      messages: [new AIMessage({ content: jsonContent })],
+    };
+  } catch (error) {
+    logger.error("Flashcard node failed", error);
+    return {
+      messages: [
+        new AIMessage({
+          content: JSON.stringify({
+             flashcards: [],
+             metadata: { topic: "Error", source: "System", count: 0 },
+             error: "Failed to generate flashcards. Please try again."
+          })
         }),
       ],
     };

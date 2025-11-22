@@ -10,6 +10,7 @@ import type {
   ChatMessage,
   ConversationThread,
   User,
+  Flashcard,
 } from "./client/types";
 import type {
   AgentInvocationResult,
@@ -109,6 +110,18 @@ declare global {
       ) => Promise<{ success: boolean; error?: string }>;
       clearMessages: (
         threadId: string
+      ) => Promise<{ success: boolean; error?: string }>;
+      saveFlashcard: (
+        flashcard: Flashcard
+      ) => Promise<{ success: boolean; error?: string }>;
+      getFlashcardsByMessageId: (messageId: string) => Promise<{
+        success: boolean;
+        flashcards?: Flashcard[];
+        error?: string;
+      }>;
+      updateFlashcardStatus: (
+        id: string,
+        isMastered: boolean
       ) => Promise<{ success: boolean; error?: string }>;
     };
     fs: {

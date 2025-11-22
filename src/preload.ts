@@ -173,4 +173,10 @@ contextBridge.exposeInMainWorld("db", {
   getAllDocuments: () => ipcRenderer.invoke("db:getAllDocuments"),
   deleteDocument: (id: string) => ipcRenderer.invoke("db:deleteDocument", id),
   getStats: () => ipcRenderer.invoke("db:getStats"),
+  saveFlashcard: (flashcard: unknown) =>
+    ipcRenderer.invoke("db:save-flashcard", { flashcard }),
+  getFlashcardsByMessageId: (messageId: string) =>
+    ipcRenderer.invoke("db:get-flashcards-by-message", { messageId }),
+  updateFlashcardStatus: (id: string, isMastered: boolean) =>
+    ipcRenderer.invoke("db:update-flashcard-status", { id, isMastered }),
 });

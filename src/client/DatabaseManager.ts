@@ -8,6 +8,7 @@ import {
   ChatMessage,
   UploadedDocument,
   ConversationThread,
+  Flashcard,
 } from "./types";
 
 interface UserRow {
@@ -45,6 +46,18 @@ interface DocumentRow {
   status?: string;
   chunk_count?: number;
   error?: string;
+}
+
+interface FlashcardRow {
+  id: string;
+  set_id: string;
+  question: string;
+  answer: string;
+  difficulty: string;
+  tags: string;
+  is_mastered: number;
+  created_at: number;
+  message_id: string;
 }
 
 export class DatabaseManager {
@@ -135,6 +148,22 @@ export class DatabaseManager {
         total_chunks INTEGER DEFAULT 0,
         last_updated INTEGER NOT NULL,
         metadata TEXT
+      )
+    `);
+
+    // Flashcards table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS flashcards (
+        id TEXT PRIMARY KEY,
+        set_id TEXT NOT NULL,
+        question TEXT NOT NULL,
+        answer TEXT NOT NULL,
+        difficulty TEXT NOT NULL,
+        tags TEXT NOT NULL,
+        is_mastered INTEGER DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        message_id TEXT NOT NULL,
+        FOREIGN KEY(message_id) REFERENCES messages(id) ON DELETE CASCADE
       )
     `);
   }
@@ -430,6 +459,53 @@ export class DatabaseManager {
       this.db.close();
       this.db = null;
     }
+  }
+
+  // Flashcard methods
+  saveFlashcard(flashcard: Flashcard) {
+    if (!this.db) throw new Error("Database not initialized");
+    const stmt = this.db.prepare(
+      "INSERT INTO flashcards (id, set_id, question, answer, difficulty, tags, is_mastered, created_at, message_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    );
+    stmt.run(
+      flashcard.id,
+      flashcard.set_id,
+      flashcard.question,
+      flashcard.answer,
+      flashcard.difficulty,
+      JSON.stringify(flashcard.tags),
+      flashcard.is_mastered ? 1 : 0,
+      flashcard.created_at,
+      flashcard.message_id
+    );
+  }
+
+  getFlashcardsByMessageId(messageId: string): Flashcard[] {
+    if (!this.db) throw new Error("Database not initialized");
+    const stmt = this.db.prepare(
+      "SELECT * FROM flashcards WHERE message_id = ? ORDER BY created_at ASC"
+    );
+    const rows = stmt.all(messageId) as FlashcardRow[];
+
+    return rows.map((row) => ({
+      id: row.id,
+      set_id: row.set_id,
+      question: row.question,
+      answer: row.answer,
+      difficulty: row.difficulty as "easy" | "medium" | "hard",
+      tags: JSON.parse(row.tags),
+      is_mastered: row.is_mastered === 1,
+      created_at: row.created_at,
+      message_id: row.message_id,
+    }));
+  }
+
+  updateFlashcardStatus(id: string, isMastered: boolean) {
+    if (!this.db) throw new Error("Database not initialized");
+    const stmt = this.db.prepare(
+      "UPDATE flashcards SET is_mastered = ? WHERE id = ?"
+    );
+    stmt.run(isMastered ? 1 : 0, id);
   }
 }
 
