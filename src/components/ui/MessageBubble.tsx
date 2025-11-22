@@ -34,14 +34,25 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
   // Try to detect flashcard JSON content
   let flashcards: Flashcard[] | null = null;
-  if (!isUser && content.trim().startsWith("{")) {
-    try {
-      const parsed = JSON.parse(content);
-      if (parsed.flashcards && Array.isArray(parsed.flashcards)) {
-        flashcards = parsed.flashcards;
+  if (!isUser) {
+    let jsonContent = content.trim();
+
+    // Remove markdown code blocks if present
+    const codeBlockRegex = /^```(?:json)?\s*([\s\S]*?)\s*```$/;
+    const match = jsonContent.match(codeBlockRegex);
+    if (match) {
+      jsonContent = match[1].trim();
+    }
+
+    if (jsonContent.startsWith("{")) {
+      try {
+        const parsed = JSON.parse(jsonContent);
+        if (parsed.flashcards && Array.isArray(parsed.flashcards)) {
+          flashcards = parsed.flashcards;
+        }
+      } catch (e) {
+        // Not valid JSON or not flashcards, ignore
       }
-    } catch (e) {
-      // Not valid JSON or not flashcards, ignore
     }
   }
 

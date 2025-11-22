@@ -338,9 +338,17 @@ export const Chat: React.FC = () => {
       };
 
       // Check for flashcards content and save them BEFORE updating state
-      if (assistantMessage.content.trim().startsWith("{")) {
+      let potentialJson = assistantMessage.content.trim();
+      // Remove markdown code blocks if present
+      const codeBlockRegex = /^```(?:json)?\s*([\s\S]*?)\s*```$/;
+      const match = potentialJson.match(codeBlockRegex);
+      if (match) {
+        potentialJson = match[1].trim();
+      }
+
+      if (potentialJson.startsWith("{")) {
         try {
-          const parsed = JSON.parse(assistantMessage.content);
+          const parsed = JSON.parse(potentialJson);
           if (parsed.flashcards && Array.isArray(parsed.flashcards)) {
              // Assign new UUIDs and ensure structure matches Flashcard type
              const enrichedFlashcards = parsed.flashcards.map((card: any) => ({
@@ -352,25 +360,38 @@ export const Chat: React.FC = () => {
                 message_id: assistantMessage.id
              }));
 
+             // Update content with enriched flashcards so UI uses the correct IDs immediately
+             // We need to reconstruct the JSON with the new IDs
+             parsed.flashcards = enrichedFlashcards;
+             assistantMessage.content = JSON.stringify(parsed);
+
+             // Save assistant message to database FIRST (to satisfy FK constraints)
+             await window.db.saveMessage({
+               id: assistantMessage.id,
+               threadId: currentThreadId,
+               role: assistantMessage.role,
+               content: assistantMessage.content,
+               timestamp: assistantMessage.timestamp.getTime(),
+             });
+
              // Save each flashcard
              for (const card of enrichedFlashcards) {
                 await window.db.saveFlashcard(card);
              }
 
-             // Update content with enriched flashcards so UI uses the correct IDs immediately
-             // We need to reconstruct the JSON with the new IDs
-             parsed.flashcards = enrichedFlashcards;
-             assistantMessage.content = JSON.stringify(parsed);
+             // Update UI state
+             setMessages((prev) => [...prev, assistantMessage]);
+             return; // Exit after successful flashcard processing
           }
         } catch (e) {
           console.error("Failed to parse/save flashcards:", e);
+          // Continue to standard message saving if flashcard processing fails
         }
       }
 
-      // Now update UI state
+      // Standard message saving (if not a flashcard message or if parsing failed)
       setMessages((prev) => [...prev, assistantMessage]);
 
-      // Save assistant message to database
       await window.db.saveMessage({
         id: assistantMessage.id,
         threadId: currentThreadId,

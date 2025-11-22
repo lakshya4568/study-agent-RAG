@@ -37,29 +37,34 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
       try {
         const savedCards = await window.db.getFlashcardsByMessageId(messageId);
         if (savedCards.success && savedCards.flashcards && savedCards.flashcards.length > 0) {
-           // Merge saved state (mastery) with initial props if needed, or just use saved
-           // Since initialFlashcards comes from the message content (static), we should use the DB version for mastery status.
-           // However, if it's the first time, DB might be empty until we save them.
-           // The Chat integration step handles saving them initially.
-           // So we can rely on DB fetch, but fallback to props if DB returns fewer (race condition?) or none.
+           // If DB has records, use them as they contain the mastery status
            setCards(savedCards.flashcards);
+        } else {
+           // Fallback: If DB is empty (e.g., delay in saving), use props
+           // This ensures the component isn't empty
+           setCards(initialFlashcards);
         }
       } catch (error) {
         console.error("Failed to load flashcard states:", error);
+        setCards(initialFlashcards);
       }
     };
+
+    // Load immediately
     loadCardStates();
-  }, [messageId]);
+  }, [messageId, initialFlashcards]); // Depend on initialFlashcards too in case it updates
 
   const currentCard = cards[currentIndex];
 
   const handleNext = () => {
+    if (!cards.length) return;
     setDirection(1);
     setIsFlipped(false);
     setCurrentIndex((prev) => (prev + 1) % cards.length);
   };
 
   const handlePrev = () => {
+    if (!cards.length) return;
     setDirection(-1);
     setIsFlipped(false);
     setCurrentIndex((prev) => (prev - 1 + cards.length) % cards.length);
@@ -90,8 +95,7 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
       await window.db.updateFlashcardStatus(currentCard.id, newStatus);
     } catch (error) {
       console.error("Failed to update flashcard status:", error);
-      // Revert on error
-      setCards(cards);
+      // Revert on error (optional, maybe too jarring for user?)
     }
   };
 
@@ -108,8 +112,8 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  const masteredCount = cards.filter((c) => c.is_mastered).length;
-  const progress = ((currentIndex + 1) / cards.length) * 100;
+  const masteredCount = cards.length > 0 ? cards.filter((c) => c.is_mastered).length : 0;
+  const progress = cards.length > 0 ? ((currentIndex + 1) / cards.length) * 100 : 0;
 
   // Keyboard navigation
   useEffect(() => {
@@ -117,13 +121,14 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
       if (e.key === "ArrowRight") handleNext();
       if (e.key === "ArrowLeft") handlePrev();
       if (e.key === " " || e.key === "Enter") {
-         e.preventDefault(); // Prevent scrolling
+         // Only flip if not typing in an input (though there aren't any inputs here)
+         e.preventDefault();
          handleFlip();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [cards.length]);
+  }, [cards.length, currentIndex]); // Add currentIndex to dependency if handlers depended on it, but they use setState callback so it's fine.
 
   if (!currentCard) return null;
 
@@ -166,7 +171,7 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
       </div>
 
       {/* Card Area */}
-      <div className="flex-1 relative p-8 flex items-center justify-center perspective-1000">
+      <div className="flex-1 relative p-8 flex items-center justify-center perspective-1000 overflow-y-auto">
         <div
           className="relative w-full h-full cursor-pointer group perspective-1000"
           onClick={handleFlip}
@@ -178,7 +183,7 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
             style={{ transformStyle: "preserve-3d" }}
           >
             {/* Front (Question) */}
-            <div className="absolute inset-0 backface-hidden bg-white dark:bg-gray-800 rounded-2xl shadow-sm border-2 border-emerald-100 dark:border-emerald-800 flex flex-col items-center justify-center p-6 text-center hover:border-emerald-300 transition-colors">
+            <div className="absolute inset-0 backface-hidden bg-white dark:bg-gray-800 rounded-2xl shadow-sm border-2 border-emerald-100 dark:border-emerald-800 flex flex-col items-center justify-center p-6 text-center hover:border-emerald-300 transition-colors overflow-y-auto custom-scrollbar">
               <div className="mb-4">
                 <Badge variant={currentCard.difficulty === 'hard' ? 'error' : currentCard.difficulty === 'medium' ? 'warning' : 'success'}>
                   {currentCard.difficulty}
@@ -199,16 +204,16 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
 
             {/* Back (Answer) */}
             <div
-              className="absolute inset-0 backface-hidden bg-linear-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-2xl shadow-sm border-2 border-emerald-200 dark:border-emerald-700 flex flex-col items-center justify-center p-6 text-center rotate-y-180"
+              className="absolute inset-0 backface-hidden bg-linear-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-2xl shadow-sm border-2 border-emerald-200 dark:border-emerald-700 flex flex-col items-center justify-center p-6 text-center rotate-y-180 overflow-y-auto custom-scrollbar"
               style={{ transform: "rotateY(180deg)" }}
             >
-              <div className="prose dark:prose-invert max-w-none">
+              <div className="prose dark:prose-invert max-w-none w-full">
                 <p className="text-lg text-gray-800 dark:text-gray-100 leading-relaxed">
                   {currentCard.answer}
                 </p>
               </div>
 
-              <div className="mt-8 flex gap-2">
+              <div className="mt-8 flex gap-2 flex-wrap justify-center">
                   {currentCard.tags.map(tag => (
                       <span key={tag} className="text-xs bg-white/50 dark:bg-black/20 px-2 py-1 rounded-full text-emerald-700 dark:text-emerald-300">
                           #{tag}
@@ -224,7 +229,7 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
       <div className="p-6 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
         <Button
           variant="outline"
-          onClick={handlePrev}
+          onClick={(e) => { e.stopPropagation(); handlePrev(); }}
           icon={<ChevronLeft className="w-4 h-4" />}
         >
           Prev
@@ -249,7 +254,7 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
 
         <Button
           variant="outline"
-          onClick={handleNext}
+          onClick={(e) => { e.stopPropagation(); handleNext(); }}
           icon={<ChevronRight className="w-4 h-4" />}
           iconPosition="right"
         >
