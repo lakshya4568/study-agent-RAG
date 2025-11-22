@@ -17,20 +17,22 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   return (
     <div
       className={cn(
-        "h-screen w-screen overflow-hidden flex flex-col bg-linear-to-br from-purple-50 via-blue-50 to-pink-50",
+        "h-screen w-screen overflow-hidden flex flex-col bg-background text-foreground selection:bg-primary/20",
         className
       )}
     >
       {/* Top Bar */}
-      {topBar && <div className="shrink-0">{topBar}</div>}
+      {topBar && <div className="shrink-0 z-20">{topBar}</div>}
 
       {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
         {/* Sidebar */}
-        {sidebar && <div className="shrink-0">{sidebar}</div>}
+        {sidebar && <div className="shrink-0 z-10">{sidebar}</div>}
 
         {/* Content */}
-        <main className="flex-1 overflow-hidden">{children}</main>
+        <main className="flex-1 overflow-hidden relative z-0">
+          {children}
+        </main>
       </div>
     </div>
   );

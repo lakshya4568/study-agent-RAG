@@ -2,13 +2,20 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --radius: 1rem; /* Rounder corners for friendly vibe */
+  }
+
+  /* =========================================
+     THEME: OCEAN (Default) - Calming Blues
+     ========================================= */
+  :root, .theme-ocean {
+    --background: 210 40% 98%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 262 83% 58%;
+    --primary: 217 91% 60%; /* Bright Blue */
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -20,18 +27,17 @@
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 262 83% 58%;
-    --radius: 0.5rem;
+    --ring: 217 91% 60%;
   }
 
-  .dark {
+  .dark .theme-ocean, .theme-ocean.dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-    --primary: 262 83% 58%;
+    --primary: 217 91% 60%;
     --primary-foreground: 222.2 47.4% 11.2%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -43,7 +49,148 @@
     --destructive-foreground: 210 40% 98%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 262 83% 58%;
+    --ring: 217 91% 60%;
+  }
+
+  /* =========================================
+     THEME: FOREST - Fresh Greens
+     ========================================= */
+  .theme-forest {
+    --background: 150 30% 98%;
+    --foreground: 160 50% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 160 50% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 160 50% 10%;
+    --primary: 142 76% 36%; /* Emerald Green */
+    --primary-foreground: 355 100% 97%;
+    --secondary: 150 30% 96%;
+    --secondary-foreground: 160 50% 10%;
+    --muted: 150 30% 96%;
+    --muted-foreground: 160 20% 45%;
+    --accent: 150 30% 96%;
+    --accent-foreground: 160 50% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 150 20% 90%;
+    --input: 150 20% 90%;
+    --ring: 142 76% 36%;
+  }
+
+  .dark .theme-forest, .theme-forest.dark {
+    --background: 160 50% 5%;
+    --foreground: 150 30% 98%;
+    --card: 160 50% 5%;
+    --card-foreground: 150 30% 98%;
+    --popover: 160 50% 5%;
+    --popover-foreground: 150 30% 98%;
+    --primary: 142 70% 50%;
+    --primary-foreground: 160 50% 5%;
+    --secondary: 160 30% 15%;
+    --secondary-foreground: 150 30% 98%;
+    --muted: 160 30% 15%;
+    --muted-foreground: 160 20% 65%;
+    --accent: 160 30% 15%;
+    --accent-foreground: 150 30% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 160 30% 15%;
+    --input: 160 30% 15%;
+    --ring: 142 70% 50%;
+  }
+
+  /* =========================================
+     THEME: SUNSET - Warm Orange/Rose
+     ========================================= */
+  .theme-sunset {
+    --background: 20 50% 98%;
+    --foreground: 20 50% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 20 50% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 50% 10%;
+    --primary: 10 80% 60%; /* Rose/Orange */
+    --primary-foreground: 20 50% 98%;
+    --secondary: 20 50% 96%;
+    --secondary-foreground: 20 50% 10%;
+    --muted: 20 50% 96%;
+    --muted-foreground: 20 20% 45%;
+    --accent: 20 50% 96%;
+    --accent-foreground: 20 50% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 20 30% 90%;
+    --input: 20 30% 90%;
+    --ring: 10 80% 60%;
+  }
+
+  .dark .theme-sunset, .theme-sunset.dark {
+    --background: 20 50% 5%;
+    --foreground: 20 50% 98%;
+    --card: 20 50% 5%;
+    --card-foreground: 20 50% 98%;
+    --popover: 20 50% 5%;
+    --popover-foreground: 20 50% 98%;
+    --primary: 10 80% 65%;
+    --primary-foreground: 20 50% 5%;
+    --secondary: 20 30% 15%;
+    --secondary-foreground: 20 50% 98%;
+    --muted: 20 30% 15%;
+    --muted-foreground: 20 20% 65%;
+    --accent: 20 30% 15%;
+    --accent-foreground: 20 50% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 20 30% 15%;
+    --input: 20 30% 15%;
+    --ring: 10 80% 65%;
+  }
+
+  /* =========================================
+     THEME: LAVENDER - Creative Purple
+     ========================================= */
+  .theme-lavender {
+    --background: 270 50% 99%;
+    --foreground: 270 50% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 270 50% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 270 50% 10%;
+    --primary: 270 80% 60%; /* Purple */
+    --primary-foreground: 270 50% 98%;
+    --secondary: 270 50% 96%;
+    --secondary-foreground: 270 50% 10%;
+    --muted: 270 50% 96%;
+    --muted-foreground: 270 20% 45%;
+    --accent: 270 50% 96%;
+    --accent-foreground: 270 50% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 270 30% 90%;
+    --input: 270 30% 90%;
+    --ring: 270 80% 60%;
+  }
+
+  .dark .theme-lavender, .theme-lavender.dark {
+    --background: 270 50% 5%;
+    --foreground: 270 50% 98%;
+    --card: 270 50% 5%;
+    --card-foreground: 270 50% 98%;
+    --popover: 270 50% 5%;
+    --popover-foreground: 270 50% 98%;
+    --primary: 270 80% 70%;
+    --primary-foreground: 270 50% 5%;
+    --secondary: 270 30% 15%;
+    --secondary-foreground: 270 50% 98%;
+    --muted: 270 30% 15%;
+    --muted-foreground: 270 20% 65%;
+    --accent: 270 30% 15%;
+    --accent-foreground: 270 50% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 270 30% 15%;
+    --input: 270 30% 15%;
+    --ring: 270 80% 70%;
   }
 }
 
@@ -60,11 +207,14 @@
     margin: 0;
     padding: 0;
     overflow: hidden;
+    font-family: 'Outfit', 'Inter', sans-serif; /* Friendlier font stack */
   }
   
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
@@ -80,10 +230,38 @@
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
     background: hsl(var(--muted-foreground) / 0.3);
-    border-radius: 3px;
+    border-radius: 9999px; /* Fully rounded */
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--muted-foreground) / 0.5);
+  }
+  
+  /* Friendly Glass Utilities */
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+  }
+  
+  .dark .glass-panel {
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  /* Bubbly Card */
+  .bubbly-card {
+    background: hsl(var(--card));
+    border-radius: 1.5rem;
+    border: 1px solid hsl(var(--border));
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  
+  .bubbly-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px -2px rgba(0, 0, 0, 0.1);
   }
 }

@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Send,
-  Sparkles,
+  Bot,
+  User,
   FileText,
   Brain,
   BookOpen,
@@ -14,7 +15,14 @@ import {
   CheckCircle,
   AlertCircle,
   X,
+  History,
+  MessageSquare,
+  Smile,
+  Paperclip,
+  Sparkles
 } from "lucide-react";
+import { Drawer } from "../components/ui/Drawer";
+import { cn } from "../lib/utils";
 import { ContentContainer } from "../components/layout";
 import {
   Button,
@@ -27,6 +35,7 @@ import {
   PendingToolCall,
 } from "../components/ui";
 import { useChatStore, useAuthStore } from "../client/store";
+import { ThemeSelector } from "../components/ui/ThemeSelector";
 
 interface Message {
   id: string;
@@ -57,7 +66,7 @@ const quickActions = [
     title: "Summarize",
     description: "Create a summary of your document",
     prompt: "I need help summarizing a document. What should I do?",
-    gradient: "from-emerald-400 to-green-500",
+    gradient: "from-blue-400 to-blue-600",
   },
   {
     id: "flashcards",
@@ -65,7 +74,7 @@ const quickActions = [
     title: "Flashcards",
     description: "Generate study flashcards",
     prompt: "Can you help me create flashcards for studying?",
-    gradient: "from-green-500 to-teal-500",
+    gradient: "from-purple-400 to-purple-600",
   },
   {
     id: "quiz",
@@ -73,7 +82,7 @@ const quickActions = [
     title: "Create Quiz",
     description: "Generate a quiz to test knowledge",
     prompt: "I want to create a quiz to test my knowledge.",
-    gradient: "from-teal-500 to-cyan-500",
+    gradient: "from-pink-400 to-pink-600",
   },
   {
     id: "explain",
@@ -81,7 +90,7 @@ const quickActions = [
     title: "Explain",
     description: "Get explanations for complex topics",
     prompt: "Can you explain a concept to me in simple terms?",
-    gradient: "from-lime-500 to-green-500",
+    gradient: "from-yellow-400 to-orange-500",
   },
   {
     id: "schedule",
@@ -89,7 +98,7 @@ const quickActions = [
     title: "Study Plan",
     description: "Create a study schedule",
     prompt: "Help me create an effective study schedule.",
-    gradient: "from-green-600 to-emerald-600",
+    gradient: "from-green-400 to-emerald-600",
   },
   {
     id: "practice",
@@ -97,7 +106,7 @@ const quickActions = [
     title: "Practice",
     description: "Practice with exercises",
     prompt: "I want to practice with some exercises.",
-    gradient: "from-emerald-500 to-green-600",
+    gradient: "from-indigo-400 to-violet-600",
   },
 ];
 
@@ -118,13 +127,7 @@ export const Chat: React.FC = () => {
   );
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{
-    stage:
-      | "selecting"
-      | "loading"
-      | "chunking"
-      | "embedding"
-      | "storing"
-      | "complete";
+    stage: string;
     message: string;
     fileName?: string;
   } | null>(null);
@@ -132,6 +135,14 @@ export const Chat: React.FC = () => {
     type: "success" | "error";
     message: string;
   } | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+
+  // Mock history data
+  const historyItems = [
+    { id: "1", title: "React Components Study", date: "2 hours ago" },
+    { id: "2", title: "Vector Database Explanation", date: "Yesterday" },
+    { id: "3", title: "System Architecture Review", date: "2 days ago" },
+  ];
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -143,7 +154,6 @@ export const Chat: React.FC = () => {
       setMessages([]);
     }
 
-    // Poll for pending tool calls every 2 seconds
     const pollInterval = setInterval(loadPendingToolCalls, 2000);
     return () => clearInterval(pollInterval);
   }, [activeThreadId]);
@@ -184,19 +194,16 @@ export const Chat: React.FC = () => {
     if (!activeThreadId) return;
     try {
       await window.mcpClient.approveToolExecution(toolCallId);
-
-      // Remove from pending list
       setPendingToolCalls((prev) => prev.filter((t) => t.id !== toolCallId));
-
-      // Add system message
+      
       const systemMsg: Message = {
         id: `msg-${Date.now()}`,
         role: "system",
-        content: `✅ Tool execution approved and completed`,
+        content: `✅ Tool approved`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, systemMsg]);
-
+      
       await window.db.saveMessage({
         id: systemMsg.id,
         threadId: activeThreadId,
@@ -206,13 +213,6 @@ export const Chat: React.FC = () => {
       });
     } catch (err) {
       console.error("Failed to approve tool:", err);
-      const errorMsg: Message = {
-        id: `msg-${Date.now()}`,
-        role: "system",
-        content: `❌ Tool execution failed: ${err instanceof Error ? err.message : "Unknown error"}`,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMsg]);
     }
   };
 
@@ -220,19 +220,16 @@ export const Chat: React.FC = () => {
     if (!activeThreadId) return;
     try {
       await window.mcpClient.denyToolExecution(toolCallId);
-
-      // Remove from pending list
       setPendingToolCalls((prev) => prev.filter((t) => t.id !== toolCallId));
-
-      // Add system message
+      
       const systemMsg: Message = {
         id: `msg-${Date.now()}`,
         role: "system",
-        content: `🚫 Tool execution denied by user`,
+        content: `🚫 Tool denied`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, systemMsg]);
-
+      
       await window.db.saveMessage({
         id: systemMsg.id,
         threadId: activeThreadId,
@@ -262,7 +259,6 @@ export const Chat: React.FC = () => {
         alert("Please log in to start a chat.");
         return;
       }
-      // Create new thread if none active
       currentThreadId = crypto.randomUUID();
       await window.db.createThread(
         currentThreadId,
@@ -283,7 +279,6 @@ export const Chat: React.FC = () => {
     setInput("");
     setLoading(true);
 
-    // Save user message to database
     await window.db.saveMessage({
       id: userMessage.id,
       threadId: currentThreadId,
@@ -293,9 +288,7 @@ export const Chat: React.FC = () => {
     });
 
     try {
-      if (!window.studyAgent) {
-        throw new Error("Study agent runtime is unavailable.");
-      }
+      if (!window.studyAgent) throw new Error("Study agent runtime is unavailable.");
 
       const result = await window.studyAgent.sendMessage({
         threadId: currentThreadId,
@@ -304,14 +297,7 @@ export const Chat: React.FC = () => {
       });
 
       if (!result.success) {
-        const errorMessage: Message = {
-          id: `msg-${Date.now()}`,
-          role: "system",
-          content: `❌ Agent error: ${result.error ?? "Unknown issue"}`,
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, errorMessage]);
-        return;
+        throw new Error(result.error ?? "Unknown issue");
       }
 
       if (result.messages) {
@@ -331,9 +317,7 @@ export const Chat: React.FC = () => {
       const assistantMessage: Message = {
         id: `msg-${Date.now()}`,
         role: "assistant",
-        content:
-          result.finalMessage ??
-          "I could not formulate a response. Please provide more context.",
+        content: result.finalMessage ?? "I'm not sure how to respond to that.",
         timestamp: new Date(),
       };
 
@@ -389,7 +373,6 @@ export const Chat: React.FC = () => {
         }
       }
 
-      // Standard message saving (if not a flashcard message or if parsing failed)
       setMessages((prev) => [...prev, assistantMessage]);
 
       await window.db.saveMessage({
@@ -403,7 +386,7 @@ export const Chat: React.FC = () => {
       const errorMessage: Message = {
         id: `msg-${Date.now()}`,
         role: "system",
-        content: `❌ Error: ${err instanceof Error ? err.message : "Unknown error"}`,
+        content: `Oops! Something went wrong: ${err instanceof Error ? err.message : "Unknown error"}`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -419,13 +402,13 @@ export const Chat: React.FC = () => {
 
   const handleClearChat = async () => {
     if (!activeThreadId) return;
-    if (confirm("Are you sure you want to clear the chat?")) {
+    if (confirm("Start a fresh conversation?")) {
       await window.db.clearMessages(activeThreadId);
       setMessages([
         {
           id: "welcome",
           role: "system",
-          content: "👋 Chat cleared! How can I help you today?",
+          content: "👋 Chat cleared! Ready for a fresh start.",
           timestamp: new Date(),
         },
       ]);
@@ -448,7 +431,6 @@ export const Chat: React.FC = () => {
         alert("Please log in to upload documents.");
         return;
       }
-      // Create new thread if none active
       currentThreadId = crypto.randomUUID();
       await window.db.createThread(
         currentThreadId,
@@ -463,7 +445,7 @@ export const Chat: React.FC = () => {
       setUploadStatus(null);
       setUploadProgress({
         stage: "selecting",
-        message: "Selecting document...",
+        message: "Picking a file...",
       });
 
       const dialogResult = await window.studyAgent.openFileDialog();
@@ -477,77 +459,40 @@ export const Chat: React.FC = () => {
       const filePaths = dialogResult.filePaths;
       const fileName = filePaths[0].split("/").pop() || "document";
 
-      if (!window.studyAgent) {
-        throw new Error("Study agent runtime is unavailable.");
-      }
-
-      // Stage 2: Loading
       setUploadProgress({
         stage: "loading",
-        message: `Loading ${fileName}...`,
+        message: `Reading ${fileName}...`,
         fileName,
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 300)); // Brief delay for UX
-
-      // Stage 3: Chunking
-      setUploadProgress({
-        stage: "chunking",
-        message: "Splitting document into chunks...",
-        fileName,
-      });
-
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      // Stage 4: Embedding
-      setUploadProgress({
-        stage: "embedding",
-        message: "Creating embeddings with NVIDIA API...",
-        fileName,
-      });
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       const result = await window.studyAgent.addDocuments(filePaths);
 
-      // Stage 5: Storing
-      setUploadProgress({
-        stage: "storing",
-        message: "Storing in vector database...",
-        fileName,
-      });
-
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
       if (result.success) {
-        // Stage 6: Complete
         setUploadProgress({
           stage: "complete",
-          message: "✅ Document ready!",
+          message: "✅ Done!",
           fileName,
         });
 
         setUploadStatus({
           type: "success",
-          message: `✅ Successfully uploaded ${result.addedCount} document${result.addedCount > 1 ? "s" : ""}!`,
+          message: `Added ${fileName} to your library!`,
         });
 
         if (filePaths.length > 0) {
           setSelectedDocument(filePaths[0]);
         }
 
-        // Add success message to chat
-        const chunkInfo = result.documentStats
-          ? Object.values(result.documentStats)[0]?.chunkCount || 0
-          : 0;
-
         const successMsg: Message = {
           id: `msg-${Date.now()}`,
           role: "system",
-          content: `📄 Documents uploaded successfully! I've added ${result.addedCount} new document${result.addedCount > 1 ? "s" : ""} to my knowledge base (${chunkInfo} chunks indexed). Feel free to ask me questions about the content!`,
+          content: `📄 I've read **${fileName}**. Ask me anything about it!`,
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, successMsg]);
-
-        // Save success message to database
+        
         await window.db.saveMessage({
           id: successMsg.id,
           threadId: currentThreadId,
@@ -555,23 +500,6 @@ export const Chat: React.FC = () => {
           content: successMsg.content,
           timestamp: successMsg.timestamp.getTime(),
         });
-
-        if (result.errors.length) {
-          const warningMsg: Message = {
-            id: `msg-${Date.now()}-warn`,
-            role: "system",
-            content: `⚠️ Some files could not be indexed: ${result.errors.join(" ")}`,
-            timestamp: new Date(),
-          };
-          setMessages((prev) => [...prev, warningMsg]);
-          await window.db.saveMessage({
-            id: warningMsg.id,
-            threadId: currentThreadId,
-            role: warningMsg.role,
-            content: warningMsg.content,
-            timestamp: warningMsg.timestamp.getTime(),
-          });
-        }
       } else {
         throw new Error(result.errors.join(", ") || "Upload failed");
       }
@@ -579,281 +507,294 @@ export const Chat: React.FC = () => {
       const errorMsg = err instanceof Error ? err.message : "Unknown error";
       setUploadStatus({
         type: "error",
-        message: `❌ Upload failed: ${errorMsg}`,
+        message: `Couldn't upload: ${errorMsg}`,
       });
-
-      const errorMessage: Message = {
-        id: `msg-${Date.now()}`,
-        role: "system",
-        content: `❌ Failed to upload documents: ${errorMsg}`,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-
-      // Save error message to database
-      if (currentThreadId) {
-        await window.db.saveMessage({
-          id: errorMessage.id,
-          threadId: currentThreadId,
-          role: errorMessage.role,
-          content: errorMessage.content,
-          timestamp: errorMessage.timestamp.getTime(),
-        });
-      }
     } finally {
       setUploading(false);
-      // Clear progress after brief delay
       setTimeout(() => setUploadProgress(null), 2000);
-      // Clear status after 5 seconds
       setTimeout(() => setUploadStatus(null), 5000);
     }
   };
 
   return (
-    <div className="flex h-full w-full overflow-hidden">
-      <ContentContainer className="flex flex-col h-full p-0 flex-1 min-w-0">
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {/* Quick Actions - Show only when no messages (except welcome) */}
-          {messages.length <= 1 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-8"
-            >
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2 mb-2">
-                  <Sparkles className="w-6 h-6 text-emerald-500" />
-                  Quick Actions
+    <div className="flex h-full w-full overflow-hidden bg-background/50">
+      <ContentContainer className="flex flex-col h-full p-0 flex-1 min-w-0 relative">
+        {/* Header Actions */}
+        <div className="absolute top-4 right-4 z-10 flex gap-2">
+           <Button
+            variant="ghost"
+            size="sm"
+            icon={<History className="w-4 h-4" />}
+            onClick={() => setShowHistory(true)}
+            className="rounded-full bg-background/50 backdrop-blur-sm border border-border/50 shadow-sm hover:bg-background"
+          >
+            History
+          </Button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 custom-scrollbar pb-32">
+          {messages.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-center space-y-8 mt-10">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.5 }}
+                className="relative"
+              >
+                <div className="w-24 h-24 rounded-3xl bg-primary/10 flex items-center justify-center mb-4 mx-auto shadow-xl rotate-3">
+                  <Bot className="w-12 h-12 text-primary" />
+                </div>
+                <h2 className="text-3xl font-bold text-foreground mb-2">
+                  Hello there! 👋
                 </h2>
-                <p className="text-gray-600">
-                  Choose an action to get started with AI-powered learning
+                <p className="text-muted-foreground max-w-md text-lg">
+                  I'm your study buddy. What are we learning today?
                 </p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              </motion.div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 w-full max-w-4xl px-4">
                 {quickActions.map((action, index) => (
-                  <QuickActionCard
-                    key={action.id}
-                    icon={action.Icon}
-                    title={action.title}
-                    description={action.description}
+                  <motion.button
+                    key={index}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 + 0.2 }}
                     onClick={() => handleQuickAction(action.prompt)}
-                    gradient={action.gradient}
-                    delay={index * 0.05}
-                  />
+                    className="flex flex-col items-center p-4 rounded-2xl bg-card border border-border hover:border-primary/50 hover:shadow-md transition-all duration-200 text-center group"
+                  >
+                    <div className={`p-3 rounded-xl bg-gradient-to-br ${action.gradient} text-white mb-3 shadow-sm group-hover:scale-110 transition-transform`}>
+                      <action.Icon className="w-6 h-6" />
+                    </div>
+                    <h3 className="font-semibold text-foreground">{action.title}</h3>
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                      {action.description}
+                    </p>
+                  </motion.button>
                 ))}
               </div>
-            </motion.div>
+            </div>
+          ) : (
+            <div className="space-y-6 max-w-3xl mx-auto">
+              {messages.map((msg, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={cn(
+                    "flex gap-3",
+                    msg.role === "user" ? "flex-row-reverse" : "flex-row"
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm mt-auto mb-2",
+                      msg.role === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-white dark:bg-zinc-800 border border-border text-primary"
+                    )}
+                  >
+                    {msg.role === "user" ? (
+                      <User className="w-4 h-4" />
+                    ) : (
+                      <Bot className="w-5 h-5" />
+                    )}
+                  </div>
+                  <div
+                    className={cn(
+                      "p-4 max-w-[85%] shadow-sm text-sm leading-relaxed relative group",
+                      msg.role === "user"
+                        ? "bg-primary text-primary-foreground rounded-2xl rounded-tr-sm"
+                        : "bg-card border border-border text-foreground rounded-2xl rounded-tl-sm"
+                    )}
+                  >
+                    <div className="whitespace-pre-wrap">{msg.content}</div>
+                    <div
+                      className={cn(
+                        "text-[10px] mt-1 opacity-0 group-hover:opacity-50 transition-opacity absolute -bottom-5",
+                        msg.role === "user" ? "right-0" : "left-0"
+                      )}
+                    >
+                      {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+              
+              {loading && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex gap-3"
+                >
+                  <div className="w-8 h-8 rounded-full bg-white dark:bg-zinc-800 border border-border flex items-center justify-center shrink-0 mt-auto mb-2">
+                    <Bot className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="bg-card border border-border px-4 py-3 rounded-2xl rounded-tl-sm shadow-sm flex items-center gap-2">
+                    <div className="flex gap-1">
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ repeat: Infinity, duration: 1, delay: 0 }}
+                        className="w-2 h-2 bg-primary/40 rounded-full"
+                      />
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ repeat: Infinity, duration: 1, delay: 0.2 }}
+                        className="w-2 h-2 bg-primary/40 rounded-full"
+                      />
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ repeat: Infinity, duration: 1, delay: 0.4 }}
+                        className="w-2 h-2 bg-primary/40 rounded-full"
+                      />
+                    </div>
+                    <span className="text-xs text-muted-foreground font-medium ml-2">Thinking...</span>
+                  </div>
+                </motion.div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
           )}
-
-          {/* Messages */}
-          <AnimatePresence>
-            {messages.map((message, index) => (
-              <MessageBubble
-                key={message.id}
-                id={message.id}
-                role={message.role}
-                content={message.content}
-                timestamp={message.timestamp}
-                delay={index * 0.02}
-              />
-            ))}
-          </AnimatePresence>
-
-          {/* Pending Tool Call Approvals */}
-          <AnimatePresence>
-            {pendingToolCalls.map((toolCall) => (
-              <ToolCallApproval
-                key={toolCall.id}
-                toolCall={toolCall}
-                onApprove={handleToolApprove}
-                onDeny={handleToolDeny}
-              />
-            ))}
-          </AnimatePresence>
-
-          {/* Loading indicator */}
-          {loading && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex items-center gap-3"
-            >
-              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
-                <Sparkles className="w-5 h-5 text-white" />
-              </div>
-              <LoadingSpinner size="sm" />
-              <span className="text-gray-600 text-sm">Alex is thinking...</span>
-            </motion.div>
-          )}
-
-          <div ref={messagesEndRef} />
         </div>
 
         {/* Input Area */}
-        <div className="shrink-0 p-6 bg-linear-to-r from-emerald-50/50 to-green-50/50 backdrop-blur-xl border-t border-emerald-200">
-          <div className="max-w-4xl mx-auto">
-            {/* Upload Progress */}
-            {uploadProgress && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mb-3 px-4 py-3 rounded-lg bg-linear-to-r from-emerald-50 to-green-50 border border-emerald-300"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="shrink-0">
-                    {uploadProgress.stage === "complete" ? (
-                      <CheckCircle className="w-5 h-5 text-emerald-600" />
-                    ) : (
-                      <LoadingSpinner size="sm" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-emerald-900">
-                      {uploadProgress.message}
-                    </div>
-                    {uploadProgress.fileName && (
-                      <div className="text-xs text-emerald-600 mt-0.5">
-                        {uploadProgress.fileName}
-                      </div>
-                    )}
-                    {/* Progress bar */}
-                    <div className="mt-2 h-1.5 bg-emerald-200 rounded-full overflow-hidden">
-                      <motion.div
-                        initial={{ width: "0%" }}
-                        animate={{
-                          width:
-                            uploadProgress.stage === "selecting"
-                              ? "10%"
-                              : uploadProgress.stage === "loading"
-                                ? "25%"
-                                : uploadProgress.stage === "chunking"
-                                  ? "45%"
-                                  : uploadProgress.stage === "embedding"
-                                    ? "70%"
-                                    : uploadProgress.stage === "storing"
-                                      ? "90%"
-                                      : "100%",
-                        }}
-                        transition={{ duration: 0.5 }}
-                        className="h-full bg-linear-to-r from-emerald-500 to-green-600"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
+        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background via-background/95 to-transparent pt-10 z-20">
+          <div className="max-w-3xl mx-auto">
+            {/* Upload Progress & Status */}
+            <AnimatePresence>
+              {(uploadProgress || uploadStatus) && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="mb-3 mx-2"
+                >
+                   {uploadProgress && (
+                     <div className="bg-card border border-border p-3 rounded-xl shadow-lg flex items-center gap-3">
+                       <LoadingSpinner size="sm" />
+                       <div className="flex-1">
+                         <p className="text-sm font-medium">{uploadProgress.message}</p>
+                         <div className="h-1 bg-muted rounded-full mt-1.5 overflow-hidden">
+                           <motion.div 
+                             className="h-full bg-primary"
+                             initial={{ width: "0%" }}
+                             animate={{ width: "100%" }} // Simplified for demo
+                             transition={{ duration: 2 }}
+                           />
+                         </div>
+                       </div>
+                     </div>
+                   )}
+                   {uploadStatus && !uploadProgress && (
+                     <div className={cn(
+                       "p-3 rounded-xl flex items-center gap-2 text-sm font-medium shadow-lg",
+                       uploadStatus.type === "success" ? "bg-emerald-50 text-emerald-600 border border-emerald-200" : "bg-red-50 text-red-600 border border-red-200"
+                     )}>
+                       {uploadStatus.type === "success" ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                       {uploadStatus.message}
+                     </div>
+                   )}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            {/* Upload Status */}
-            {uploadStatus && !uploadProgress && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`mb-3 px-4 py-2 rounded-lg flex items-center gap-2 ${
-                  uploadStatus.type === "success"
-                    ? "bg-emerald-100 text-emerald-700 border border-emerald-300"
-                    : "bg-red-100 text-red-700 border border-red-300"
-                }`}
-              >
-                {uploadStatus.type === "success" ? (
-                  <CheckCircle className="w-4 h-4" />
-                ) : (
-                  <AlertCircle className="w-4 h-4" />
-                )}
-                <span className="text-sm font-medium">
-                  {uploadStatus.message}
-                </span>
-              </motion.div>
-            )}
-
-            {/* Selected Document Indicator */}
+            {/* Selected File Chip */}
             {selectedDocument && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
+                initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="mb-3 inline-flex items-center gap-2 px-3 py-2 bg-white border border-emerald-200 rounded-lg shadow-sm"
+                className="mx-2 mb-2 inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-full text-xs font-medium border border-primary/20"
               >
-                <div className="p-1.5 bg-emerald-100 rounded-md">
-                  <FileText className="w-4 h-4 text-emerald-600" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Attached
-                  </span>
-                  <span className="text-sm font-medium text-gray-900 truncate max-w-[200px]">
-                    {selectedDocument.split("/").pop()}
-                  </span>
-                </div>
-                <button
-                  onClick={() => setSelectedDocument(null)}
-                  className="ml-2 p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X className="w-4 h-4" />
+                <Paperclip className="w-3 h-3" />
+                <span className="max-w-[150px] truncate">{selectedDocument.split('/').pop()}</span>
+                <button onClick={() => setSelectedDocument(null)} className="hover:bg-primary/20 rounded-full p-0.5 ml-1">
+                  <X className="w-3 h-3" />
                 </button>
               </motion.div>
             )}
 
-            <div className="flex items-center gap-3 mb-3">
-              <Badge
-                variant="info"
-                size="sm"
-                className="bg-emerald-100 text-emerald-700 border-emerald-300"
-              >
-                {tools.length} tools available
-              </Badge>
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={<Brain className="w-4 h-4" />}
-                onClick={() =>
-                  handleQuickAction(
-                    "Can you help me create flashcards for studying?"
-                  )
-                }
-                title="Create Flashcards"
-              >
-                Flashcards
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={<Upload className="w-4 h-4" />}
+            <div className="relative flex items-end gap-2 bg-card border border-border shadow-xl rounded-[2rem] p-2 pl-4 transition-shadow hover:shadow-2xl">
+              <button
                 onClick={handleFileUpload}
                 disabled={uploading}
+                className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full transition-colors mb-0.5"
+                title="Upload file"
               >
-                {uploading ? "Uploading..." : "Upload Docs"}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={<Trash2 className="w-4 h-4" />}
-                onClick={handleClearChat}
-              >
-                Clear Chat
-              </Button>
-            </div>
-            <div className="flex gap-3">
+                <Paperclip className="w-5 h-5" />
+              </button>
+
               <TextArea
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyPress}
-                placeholder="Ask me anything... (Press Enter to send, Shift+Enter for new line)"
-                className="flex-1 min-h-[60px] max-h-[200px] border-emerald-200 focus:border-emerald-400 focus:ring-emerald-400"
-                rows={2}
+                placeholder="Type a message..."
+                className="flex-1 min-h-[44px] max-h-[120px] bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground/50 resize-none py-3 px-2 font-medium text-base"
+                disabled={loading}
               />
+
               <Button
                 onClick={handleSend}
                 disabled={!input.trim() || loading}
-                icon={<Send className="w-5 h-5" />}
-                size="lg"
-                className="self-end bg-linear-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 shadow-lg shadow-emerald-500/30"
+                size="icon"
+                className={cn(
+                  "rounded-full h-10 w-10 mb-0.5 transition-all duration-200",
+                  input.trim() ? "bg-primary text-primary-foreground shadow-md hover:scale-105" : "bg-muted text-muted-foreground"
+                )}
               >
-                Send
+                {loading ? <LoadingSpinner size="sm" className="text-current" /> : <Send className="w-5 h-5 ml-0.5" />}
               </Button>
+            </div>
+            
+            <div className="mt-2 text-center">
+              <p className="text-[10px] text-muted-foreground opacity-60">
+                AI can make mistakes. Check important info.
+              </p>
             </div>
           </div>
         </div>
       </ContentContainer>
+
+      <Drawer
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
+        title="Your History"
+        position="left"
+        width="300px"
+      >
+        <div className="space-y-4 p-2">
+          <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10">
+            <h3 className="text-xs font-bold text-primary uppercase tracking-wider mb-2">Active Session</h3>
+            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <MessageSquare className="w-4 h-4 text-primary" />
+              <span>Current Chat</span>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 px-2">Recent</h3>
+            <div className="space-y-1">
+              {historyItems.map((item) => (
+                <button
+                  key={item.id}
+                  className="w-full text-left p-3 rounded-xl hover:bg-muted transition-colors group"
+                >
+                  <div className="flex items-start gap-3">
+                    <History className="w-4 h-4 text-muted-foreground mt-0.5 group-hover:text-primary transition-colors" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                        {item.title}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {item.date}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Drawer>
     </div>
   );
 };

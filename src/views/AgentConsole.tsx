@@ -6,6 +6,12 @@ import {
   ServerCog,
   Activity,
   Settings2,
+  Cpu,
+  Database,
+  Zap,
+  Book,
+  Brain,
+  Sparkles
 } from "lucide-react";
 import { ContentContainer } from "../components/layout";
 import {
@@ -85,7 +91,7 @@ export const AgentConsole: React.FC = () => {
         .filter(Boolean);
       const updatedStatus = await window.studyAgent.reloadDocuments(docPaths);
       setStatus(updatedStatus);
-      setSuccessMessage("Agent reloaded with updated document set.");
+      setSuccessMessage("Library updated successfully!");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Unable to reload study documents"
@@ -105,7 +111,7 @@ export const AgentConsole: React.FC = () => {
         MCP_SERVER_COMMAND: configForm.MCP_SERVER_COMMAND || undefined,
       });
       setConfigSummary(summary);
-      setSuccessMessage("Configuration saved to .env");
+      setSuccessMessage("Settings saved!");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Unable to update configuration"
@@ -119,7 +125,7 @@ export const AgentConsole: React.FC = () => {
     if (!status) return [];
     return [
       {
-        label: "NVIDIA API",
+        label: "NVIDIA AI",
         ready: status.environment.nvidiaApiKey,
       },
       {
@@ -136,168 +142,154 @@ export const AgentConsole: React.FC = () => {
   const toolNames = status?.mcpTools?.toolNames ?? [];
 
   return (
-    <ContentContainer className="space-y-8">
-      <div className="flex items-center justify-between gap-4">
+    <ContentContainer className="space-y-8 max-w-5xl mx-auto p-6 md:p-8">
+      <div className="flex items-center justify-between gap-4 pb-6">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <ServerCog className="w-8 h-8 text-purple-500" />
-            Agent Console
+          <h2 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
+            <Sparkles className="w-8 h-8 text-primary" />
+            My Study Buddy
           </h2>
-          <p className="text-gray-600">
-            Monitor Study Agent health, reload documents, and manage
-            configuration
+          <p className="text-muted-foreground mt-2 text-lg">
+            Manage your AI's brain and skills.
           </p>
         </div>
         <Button
-          icon={<RefreshCcw className="w-5 h-5" />}
+          icon={<RefreshCcw className="w-4 h-4" />}
           variant="ghost"
           onClick={refreshAll}
+          className="rounded-full hover:bg-muted"
         >
           Refresh
         </Button>
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+        <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-2xl text-destructive text-sm font-medium flex items-center gap-2">
+          <Activity className="w-4 h-4" />
           {error}
         </div>
       )}
 
       {successMessage && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm">
+        <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-600 text-sm font-medium flex items-center gap-2">
+          <Sparkles className="w-4 h-4" />
           {successMessage}
         </div>
       )}
 
       {loadingStatus ? (
-        <Card className="flex items-center justify-center h-64">
-          <LoadingSpinner size="lg" />
-        </Card>
+        <div className="flex items-center justify-center h-64 rounded-3xl bg-muted/30">
+          <div className="flex flex-col items-center gap-3">
+            <LoadingSpinner size="lg" />
+            <span className="text-sm font-medium text-muted-foreground">Waking up...</span>
+          </div>
+        </div>
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
+            <Card className="bubbly-card p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <p className="text-sm text-gray-500">Documents Loaded</p>
-                  <p className="text-3xl font-bold text-gray-900">
+                  <p className="text-sm font-medium text-muted-foreground">My Library</p>
+                  <p className="text-3xl font-bold text-foreground mt-1">
                     {status?.documents.loadedCount ?? 0}
                   </p>
                 </div>
-                <div className="w-12 h-12 rounded-2xl bg-purple-100 flex items-center justify-center">
-                  <FileText className="w-6 h-6 text-purple-600" />
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+                  <Book className="w-6 h-6 text-primary" />
                 </div>
               </div>
-              <p className="text-sm text-gray-600">
-                {status?.documents.requested.length ?? 0} configured sources
+              <p className="text-sm text-muted-foreground">
+                {status?.documents.requested.length ?? 0} books & docs
               </p>
-              {status?.documents.fallbackUsed && (
-                <Badge variant="warning" size="sm" className="mt-2">
-                  Fallback context in use
-                </Badge>
-              )}
             </Card>
 
-            <Card>
+            <Card className="bubbly-card p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <p className="text-sm text-gray-500">Vector Store</p>
-                  <p className="text-3xl font-bold text-gray-900">
-                    {status?.vectorStoreReady ? "Ready" : "Init"}
+                  <p className="text-sm font-medium text-muted-foreground">Brain Power</p>
+                  <p className="text-3xl font-bold text-foreground mt-1">
+                    {status?.vectorStoreReady ? "Active" : "Sleepy"}
                   </p>
                 </div>
-                <div className="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center">
-                  <ShieldCheck className="w-6 h-6 text-emerald-600" />
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
+                  <Brain className="w-6 h-6 text-emerald-600" />
                 </div>
               </div>
               <Badge
                 variant={status?.graphReady ? "success" : "warning"}
                 size="sm"
+                className="rounded-full px-3"
               >
-                {status?.graphReady ? "Graph compiled" : "Graph pending"}
+                {status?.graphReady ? "Ready to Learn" : "Indexing..."}
               </Badge>
-              {status?.lastInvocationLatencyMs && (
-                <p className="text-xs text-gray-500 mt-2">
-                  Last response: {Math.round(status.lastInvocationLatencyMs)}ms
-                </p>
-              )}
             </Card>
 
-            <Card>
+            <Card className="bubbly-card p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <p className="text-sm text-gray-500">MCP Tools</p>
-                  <p className="text-3xl font-bold text-gray-900">
+                  <p className="text-sm font-medium text-muted-foreground">Skills</p>
+                  <p className="text-3xl font-bold text-foreground mt-1">
                     {status?.mcpTools.toolCount ?? 0}
                   </p>
                 </div>
-                <div className="w-12 h-12 rounded-2xl bg-blue-100 flex items-center justify-center">
-                  <Activity className="w-6 h-6 text-blue-600" />
+                <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center">
+                  <Zap className="w-6 h-6 text-blue-600" />
                 </div>
               </div>
               <Badge
                 variant={status?.mcpTools.enabled ? "success" : "error"}
                 size="sm"
+                className="rounded-full px-3"
               >
-                {status?.mcpTools.enabled ? "Connected" : "Not Connected"}
+                {status?.mcpTools.enabled ? "Connected" : "Offline"}
               </Badge>
-              {toolNames.length ? (
-                <p className="text-xs text-gray-500 mt-2">
-                  {toolNames.slice(0, 3).join(", ")}
-                  {toolNames.length > 3 && " …"}
-                </p>
-              ) : (
-                <p className="text-xs text-gray-500 mt-2">
-                  Add an MCP server to unlock extra tools
-                </p>
-              )}
             </Card>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <div className="flex items-center justify-between mb-4">
+            <Card className="bubbly-card p-6">
+              <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900">
-                    Document Sources
+                  <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                    <Book className="w-5 h-5 text-primary" />
+                    Knowledge Base
                   </h3>
-                  <p className="text-sm text-gray-600">
-                    Provide absolute or relative paths (one per line)
+                  <p className="text-sm text-muted-foreground mt-1">
+                    What should I read?
                   </p>
                 </div>
-                <Badge variant="info" size="sm">
-                  {status?.documents.requested.length ?? 0} tracked
-                </Badge>
               </div>
               <form className="space-y-4" onSubmit={handleDocumentReload}>
                 <TextArea
-                  label="Study Documents"
+                  label="File Paths"
                   rows={6}
                   value={documentsInput}
                   onChange={(event) => setDocumentsInput(event.target.value)}
-                  placeholder={"README.md"}
+                  placeholder={"/path/to/book.pdf\n/path/to/notes.md"}
+                  className="rounded-xl bg-muted/30 border-transparent focus:bg-background transition-colors"
                 />
-                <Button type="submit" loading={updatingDocs}>
-                  Reload Documents
+                <Button type="submit" loading={updatingDocs} className="w-full rounded-xl">
+                  Update Library
                 </Button>
               </form>
             </Card>
 
-            <Card>
-              <div className="flex items-center justify-between mb-4">
+            <Card className="bubbly-card p-6">
+              <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900">
-                    MCP Defaults
+                  <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                    <Settings2 className="w-5 h-5 text-primary" />
+                    Settings
                   </h3>
-                  <p className="text-sm text-gray-600">
-                    Update defaults stored in .env (used by quick-add forms)
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Tweak how I work
                   </p>
                 </div>
-                <Settings2 className="w-6 h-6 text-purple-500" />
               </div>
               <form className="space-y-4" onSubmit={handleConfigSave}>
                 <Input
-                  label="MCP Server Command"
+                  label="Server Command"
                   value={configForm.MCP_SERVER_COMMAND}
                   onChange={(event) =>
                     setConfigForm((prev) => ({
@@ -306,9 +298,10 @@ export const AgentConsole: React.FC = () => {
                     }))
                   }
                   placeholder="node"
+                  className="rounded-xl bg-muted/30 border-transparent focus:bg-background transition-colors"
                 />
                 <Input
-                  label="MCP Server Path"
+                  label="Server Path"
                   value={configForm.MCP_SERVER_PATH}
                   onChange={(event) =>
                     setConfigForm((prev) => ({
@@ -316,52 +309,55 @@ export const AgentConsole: React.FC = () => {
                       MCP_SERVER_PATH: event.target.value,
                     }))
                   }
-                  placeholder="/absolute/path/to/server.js"
+                  placeholder="/path/to/server.js"
+                  className="rounded-xl bg-muted/30 border-transparent focus:bg-background transition-colors"
                 />
-                <Button type="submit" loading={updatingConfig}>
-                  Save Configuration
+                <Button type="submit" loading={updatingConfig} className="w-full rounded-xl">
+                  Save Changes
                 </Button>
               </form>
             </Card>
           </div>
 
-          <Card>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-semibold text-gray-900">
-                Environment Overview
+          <Card className="bubbly-card p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                <Activity className="w-5 h-5 text-primary" />
+                Health Check
               </h3>
               <div className="flex gap-2 flex-wrap">
                 {envBadges.map((item) => (
                   <Badge
                     key={item.label}
-                    variant={item.ready ? "success" : "error"}
+                    variant={item.ready ? "success" : "default"}
                     size="sm"
+                    className="rounded-full px-3"
                   >
-                    {item.label}: {item.ready ? "Ready" : "Missing"}
+                    {item.label}: {item.ready ? "Good" : "Missing"}
                   </Badge>
                 ))}
               </div>
             </div>
-            <div className="divide-y divide-gray-200">
+            <div className="divide-y divide-border/50 border-t border-border/50">
               {configSummary.map((entry) => (
                 <div
                   key={entry.key}
-                  className="py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2"
+                  className="py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2 hover:bg-muted/30 px-2 rounded-lg transition-colors"
                 >
                   <div>
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className="text-sm font-medium text-foreground">
                       {entry.key}
                     </p>
                     {entry.description && (
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-muted-foreground">
                         {entry.description}
                       </p>
                     )}
                   </div>
-                  <div className="text-sm font-mono text-gray-700 break-all">
+                  <div className="text-xs font-medium text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full">
                     {entry.isSecret
-                      ? (entry.maskedValue ?? "Not set")
-                      : (entry.value ?? "Not set")}
+                      ? (entry.maskedValue ?? "Not Set")
+                      : (entry.value ?? "Not Set")}
                   </div>
                 </div>
               ))}
