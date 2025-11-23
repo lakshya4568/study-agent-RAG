@@ -26,7 +26,6 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Drawer } from "../components/ui/Drawer";
 import { cn } from "../lib/utils";
-import { ContentContainer } from "../components/layout";
 import {
   Button,
   TextArea,
@@ -555,7 +554,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-background/50">
-      <ContentContainer className="flex flex-col h-full p-0 flex-1 min-w-0 relative">
+      <div className="flex flex-col h-full p-0 flex-1 min-w-0 relative">
         <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 custom-scrollbar">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center space-y-8 mt-10">
@@ -598,7 +597,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
               </div>
             </div>
           ) : (
-            <div className="space-y-6 max-w-3xl mx-auto">
+            <div className="space-y-6">
               {messages.map((msg, idx) => (
                 <motion.div
                   key={idx}
@@ -625,10 +624,10 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                   </div>
                   <div
                     className={cn(
-                      "max-w-[85%] shadow-sm text-sm leading-relaxed relative group",
+                      "max-w-[75%] shadow-sm text-sm leading-relaxed relative group",
                       msg.role === "user"
                         ? "p-4 bg-primary text-primary-foreground rounded-2xl rounded-tr-sm"
-                        : "bg-card/70 backdrop-blur-md border border-border/50 text-foreground rounded-2xl rounded-tl-sm"
+                        : "bg-card/70 backdrop-blur-md border border-green-100/40 dark:border-green-900/30 text-foreground rounded-2xl rounded-tl-sm"
                     )}
                   >
                     {(() => {
@@ -712,7 +711,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
 
         {/* Input Area */}
         <div className="shrink-0 px-4 py-4 z-20 flex justify-center bg-gradient-to-t from-background via-background/80 to-transparent">
-          <div className="w-full max-w-5xl">
+          <div className="w-full max-w-full">
             {/* Upload Progress & Status */}
             <AnimatePresence>
               {(uploadProgress || uploadStatus) && (
@@ -782,7 +781,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyPress}
                 placeholder="Type a message..."
-                className="flex-1 min-h-[44px] max-h-[120px] bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground/60 resize-none py-3 px-2 font-medium text-base"
+                className="flex-1 min-h-[36px] max-h-[120px] bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground/60 resize-none py-2 px-2 font-medium text-base"
                 disabled={loading}
               />
 
@@ -818,7 +817,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
             </div>
           </div>
         </div>
-      </ContentContainer>
+      </div>
 
       <Drawer
         isOpen={showHistory}
@@ -883,6 +882,6 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
           </div>
         </div>
       </Drawer>
-    </div>
+    </div >
   );
 };
