@@ -3,8 +3,12 @@ import { motion } from "framer-motion";
 import { cn } from "../../lib/utils";
 import { User, Sparkles, Info } from "lucide-react";
 import { MarkdownRenderer } from "./MarkdownRenderer";
+import { FlashcardViewer } from "./FlashcardViewer";
+import { Flashcard } from "../../client/types";
+import { parseFlashcardsFromContent } from "../../lib/flashcards";
 
 interface MessageBubbleProps {
+  id?: string;
   role: "user" | "assistant" | "system";
   content: string;
   timestamp?: Date;
@@ -12,6 +16,7 @@ interface MessageBubbleProps {
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
+  id,
   role,
   content,
   timestamp,
@@ -27,6 +32,12 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   };
 
   const Icon = icons[role];
+
+  // Try to detect flashcard JSON content
+  let flashcards: Flashcard[] | null = null;
+  if (!isUser) {
+    flashcards = parseFlashcardsFromContent(content);
+  }
 
   return (
     <motion.div
@@ -53,7 +64,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       </motion.div>
 
       {/* Message content */}
-      <div className={cn("flex flex-col max-w-[70%]", isUser && "items-end")}>
+      <div className={cn("flex flex-col max-w-[85%]", isUser && "items-end")}>
         <motion.div
           initial={{ scale: 0.9 }}
           animate={{ scale: 1 }}
@@ -71,6 +82,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             <p className="text-sm whitespace-pre-wrap leading-relaxed">
               {content}
             </p>
+          ) : flashcards && id ? (
+            <FlashcardViewer flashcards={flashcards} messageId={id} />
           ) : (
             <MarkdownRenderer content={content} className="text-sm" />
           )}

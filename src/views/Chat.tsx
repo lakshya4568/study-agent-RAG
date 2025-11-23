@@ -27,6 +27,7 @@ import {
   PendingToolCall,
 } from "../components/ui";
 import { useChatStore, useAuthStore } from "../client/store";
+import { parseFlashcardsFromContent } from "../lib/flashcards";
 
 interface Message {
   id: string;
@@ -336,9 +337,55 @@ export const Chat: React.FC = () => {
           "I could not formulate a response. Please provide more context.",
         timestamp: new Date(),
       };
+
+      // Check for flashcards content and save them BEFORE updating state
+      const flashcards = parseFlashcardsFromContent(assistantMessage.content);
+
+      if (flashcards) {
+        try {
+           // Assign new UUIDs and ensure structure matches Flashcard type
+           const enrichedFlashcards = flashcards.map((card: any) => ({
+              ...card,
+              id: `fc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              set_id: `set-${Date.now()}`,
+              is_mastered: false,
+              created_at: Date.now(),
+              message_id: assistantMessage.id
+           }));
+
+           // Update content with enriched flashcards so UI uses the correct IDs immediately
+           // We need to reconstruct the JSON with the new IDs
+           const parsed = { flashcards: enrichedFlashcards };
+           assistantMessage.content = JSON.stringify(parsed);
+
+           // Save assistant message to database FIRST (to satisfy FK constraints)
+           await window.db.saveMessage({
+             id: assistantMessage.id,
+             threadId: currentThreadId,
+             role: assistantMessage.role,
+             content: assistantMessage.content,
+             timestamp: assistantMessage.timestamp.getTime(),
+           });
+
+           // Save each flashcard
+           for (const card of enrichedFlashcards) {
+              await window.db.saveFlashcard(card);
+           }
+
+           // Update UI state
+           setMessages((prev) => [...prev, assistantMessage]);
+           return; // Exit after successful flashcard processing
+        } catch (e) {
+          console.error("Failed to parse/save flashcards:", e);
+          // Continue to standard message saving if flashcard processing fails
+          // Revert content modification if any (though we modify local 'parsed' first)
+          // assistantMessage.content is only modified if we succeed in creating 'parsed' with IDs.
+        }
+      }
+
+      // Standard message saving (if not a flashcard message or if parsing failed)
       setMessages((prev) => [...prev, assistantMessage]);
 
-      // Save assistant message to database
       await window.db.saveMessage({
         id: assistantMessage.id,
         threadId: currentThreadId,
@@ -746,6 +793,15 @@ export const Chat: React.FC = () => {
               >
                 {tools.length} tools available
               </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<Brain className="w-4 h-4" />}
+                onClick={() => handleQuickAction("Can you help me create flashcards for studying?")}
+                title="Create Flashcards"
+              >
+                Flashcards
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"

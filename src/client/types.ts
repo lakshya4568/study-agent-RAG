@@ -110,3 +110,15 @@ export interface Thread {
 }
 
 export type ConversationThread = Thread;
+
+export interface Flashcard {
+  id: string;
+  set_id: string;
+  question: string;
+  answer: string;
+  difficulty: "easy" | "medium" | "hard";
+  tags: string[];
+  is_mastered: boolean;
+  created_at: number;
+  message_id: string;
+}

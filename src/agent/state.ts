@@ -12,7 +12,7 @@ export const StudyAgentState = Annotation.Root({
   currentTopic: Annotation<string>({
     reducer: (_state, update) => update ?? "",
   }),
-  route: Annotation<string>({
+  route: Annotation<"general" | "retrieve" | "tool" | "flashcard" | string>({
     reducer: (_state, update) => update ?? "general",
   }),
 });

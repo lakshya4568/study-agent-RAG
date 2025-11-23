@@ -1,17 +1,14 @@
 import React from "react";
-import { motion } from "framer-motion";
+import { motion, HTMLMotionProps } from "framer-motion";
 import { cn } from "../../lib/utils";
 
-interface ButtonProps {
+interface ButtonProps extends HTMLMotionProps<"button"> {
   variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
   size?: "sm" | "md" | "lg";
   children?: React.ReactNode;
   icon?: React.ReactNode;
+  iconPosition?: "left" | "right";
   loading?: boolean;
-  className?: string;
-  disabled?: boolean;
-  onClick?: () => void;
-  type?: "button" | "submit" | "reset";
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -19,11 +16,13 @@ export const Button: React.FC<ButtonProps> = ({
   size = "md",
   children,
   icon,
+  iconPosition = "left",
   loading = false,
   className,
   disabled,
   onClick,
   type = "button",
+  ...props
 }) => {
   const baseStyles =
     "inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -52,13 +51,17 @@ export const Button: React.FC<ButtonProps> = ({
       disabled={disabled || loading}
       onClick={onClick}
       type={type}
+      {...props}
     >
       {loading ? (
         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-      ) : icon ? (
+      ) : icon && iconPosition === "left" ? (
         <span className="w-5 h-5">{icon}</span>
       ) : null}
       {children}
+      {!loading && icon && iconPosition === "right" ? (
+        <span className="w-5 h-5 ml-1">{icon}</span>
+      ) : null}
     </motion.button>
   );
 };
