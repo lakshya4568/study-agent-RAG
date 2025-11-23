@@ -94,31 +94,48 @@ function getBaseUrlForPort(port: number): string {
 }
 
 function getPythonExecutable(): string {
-  // Try to find Python in project's virtual environment first
-  const venvPaths = [
-    path.join(process.cwd(), ".venv", "bin", "python"),
-    path.join(process.cwd(), ".venv", "Scripts", "python.exe"), // Windows
-    path.join(process.cwd(), "python", ".venv", "bin", "python"),
-    path.join(process.cwd(), "python", ".venv", "Scripts", "python.exe"),
-  ];
+  // 1. Check for bundled Python in resources (Production/Packaged)
+  // In packaged app, resources are in process.resourcesPath
+  const bundledVenvPath = path.join(process.resourcesPath, ".venv");
+  const bundledPython =
+    process.platform === "win32"
+      ? path.join(bundledVenvPath, "Scripts", "python.exe")
+      : path.join(bundledVenvPath, "bin", "python");
 
-  for (const venvPath of venvPaths) {
-    try {
-      if (existsSync(venvPath)) {
-        logger.info(`Found Python venv: ${venvPath}`);
-        return venvPath;
-      }
-    } catch {
-      // Continue to next path
-    }
+  if (existsSync(bundledPython)) {
+    logger.info(`Found bundled Python: ${bundledPython}`);
+    return bundledPython;
   }
 
-  // Fallback to system Python
+  // 2. Check for local development venv
+  const devVenvPath = path.join(process.cwd(), ".venv");
+  const devPython =
+    process.platform === "win32"
+      ? path.join(devVenvPath, "Scripts", "python.exe")
+      : path.join(devVenvPath, "bin", "python");
+
+  if (existsSync(devPython)) {
+    logger.info(`Found local development Python: ${devPython}`);
+    return devPython;
+  }
+
+  // 3. Fallback to system Python
   logger.warn("No venv found, using system Python");
   return process.platform === "win32" ? "python" : "python3";
 }
 
 function getRagServicePath(): string {
+  // 1. Check in resources (Production/Packaged)
+  const bundledPath = path.join(
+    process.resourcesPath,
+    "python",
+    "nvidia_rag_service.py"
+  );
+  if (existsSync(bundledPath)) {
+    return bundledPath;
+  }
+
+  // 2. Check in current working directory (Development)
   return path.join(process.cwd(), "python", "nvidia_rag_service.py");
 }
 

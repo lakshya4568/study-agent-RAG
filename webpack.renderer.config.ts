@@ -6,7 +6,14 @@ import { plugins } from "./webpack.plugins";
 
 export const rendererConfig: Configuration = {
   module: {
-    rules,
+    rules: rules.filter((rule) => {
+      // @ts-ignore - rule.use might be a string or object
+      const use = rule.use;
+      if (typeof use === "object" && use !== null && "loader" in use) {
+        return use.loader !== "@vercel/webpack-asset-relocator-loader";
+      }
+      return true;
+    }),
   },
   plugins,
   resolve: {
@@ -18,9 +25,5 @@ export const rendererConfig: Configuration = {
         "node_modules/pdfjs-dist/build/pdf.worker.min.mjs"
       ),
     },
-  },
-  node: {
-    __dirname: true,
-    __filename: true,
   },
 };
