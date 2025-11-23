@@ -556,7 +556,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
   return (
     <div className="flex h-full w-full overflow-hidden bg-background/50">
       <ContentContainer className="flex flex-col h-full p-0 flex-1 min-w-0 relative">
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 custom-scrollbar pb-32">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 custom-scrollbar">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center space-y-8 mt-10">
               <motion.div
@@ -711,8 +711,8 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
         </div>
 
         {/* Input Area */}
-        <div className="absolute bottom-6 left-0 right-0 px-4 z-20 flex justify-center pointer-events-none">
-          <div className="w-full max-w-3xl pointer-events-auto">
+        <div className="shrink-0 px-4 py-4 z-20 flex justify-center bg-gradient-to-t from-background via-background/80 to-transparent">
+          <div className="w-full max-w-5xl">
             {/* Upload Progress & Status */}
             <AnimatePresence>
               {(uploadProgress || uploadStatus) && (
