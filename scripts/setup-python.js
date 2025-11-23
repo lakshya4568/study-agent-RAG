@@ -75,7 +75,7 @@ function main() {
   console.log(`✓ Using Python: ${pythonCmd}`);
 
   try {
-    const version = execSync(`${pythonCmd} --version`, {
+    const version = execSync(`"${pythonCmd}" --version`, {
       encoding: "utf-8",
     }).trim();
     console.log(`  Version: ${version}`);
@@ -99,7 +99,7 @@ function main() {
     // Remove PYTHONHOME if set, as it can conflict with venv
     delete env.PYTHONHOME;
 
-    execSync(`${pythonCmd} "${setupScript}"`, {
+    execSync(`"${pythonCmd}" "${setupScript}"`, {
       stdio: "inherit",
       cwd: projectRoot,
       env: env,
