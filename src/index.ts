@@ -31,8 +31,11 @@ import { startRAGService, stopRAGService } from "./rag/rag-service-manager";
 declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
 declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 
-// Disable Autofill to prevent DevTools errors
-app.commandLine.appendSwitch("disable-features", "Autofill");
+// Disable Autofill and related features to prevent DevTools errors
+app.commandLine.appendSwitch(
+  "disable-features",
+  "Autofill,AutofillServer,PasswordManager,CreditCardSave"
+);
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require("electron-squirrel-startup")) {

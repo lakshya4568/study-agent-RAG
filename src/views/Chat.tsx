@@ -673,6 +673,15 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                 </motion.div>
               ))}
 
+              {pendingToolCalls.map((toolCall) => (
+                <ToolCallApproval
+                  key={toolCall.id}
+                  toolCall={toolCall}
+                  onApprove={handleToolApprove}
+                  onDeny={handleToolDeny}
+                />
+              ))}
+
               {loading && (
                 <motion.div
                   initial={{ opacity: 0 }}
