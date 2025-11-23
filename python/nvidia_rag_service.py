@@ -24,6 +24,11 @@ from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 import asyncio
 import tiktoken
+import warnings
+
+# Suppress LangChain deprecation warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
 
 # MCP imports for tool integration
 try:
@@ -151,6 +156,7 @@ async def load_mcp_tools() -> List[Any]:
     try:
         print("🔧 Loading MCP tools from servers...", file=sys.stderr)
         mcp_client = MultiServerMCPClient(MCP_SERVERS)  # type: ignore
+        print("  - Connecting to MCP servers...", file=sys.stderr)
         tools = await mcp_client.get_tools()
         mcp_tools = tools
         tools_loaded = True
@@ -176,19 +182,22 @@ async def initialize_nvidia_clients():
         embeddings = NVIDIAEmbeddings(
             model=EMBEDDING_MODEL, nvidia_api_key=NVIDIA_API_KEY, truncate="NONE"
         )
+        print("  - Embeddings initialized", file=sys.stderr)
 
         llm = ChatNVIDIA(
             model=LLM_MODEL,
             nvidia_api_key=NVIDIA_API_KEY,
             temperature=0.6,
             top_p=0.9,
-            max_tokens=4096,
+            top_p=0.9,
+            max_completion_tokens=4096,
         )
 
         # Load MCP tools if available
         loaded_tools = []
         if MCP_AVAILABLE and MCP_SERVERS:
             try:
+                print("  - Loading MCP tools...", file=sys.stderr)
                 loaded_tools = await load_mcp_tools()
             except Exception as e:
                 print(f"⚠️ MCP tool loading failed: {e}", file=sys.stderr)

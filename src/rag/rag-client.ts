@@ -126,7 +126,7 @@ export class RAGClient {
   /**
    * Check if the RAG service is healthy and ready
    */
-  async healthCheck(): Promise<HealthResponse> {
+  async healthCheck(silent = false): Promise<HealthResponse> {
     try {
       const response = await fetch(`${this.baseURL}/health`, {
         method: "GET",
@@ -147,7 +147,9 @@ export class RAGClient {
       }
 
       const message = error instanceof Error ? error.message : String(error);
-      logger.error(`RAG health check failed: ${message}`);
+      if (!silent) {
+        logger.error(`RAG health check failed: ${message}`);
+      }
       throw new RAGClientError(`Failed to connect to RAG service: ${message}`);
     }
   }
@@ -323,7 +325,7 @@ export class RAGClient {
    */
   async testConnection(): Promise<boolean> {
     try {
-      await this.healthCheck();
+      await this.healthCheck(true);
       return true;
     } catch {
       return false;

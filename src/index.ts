@@ -146,6 +146,8 @@ const createWindow = (): void => {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
+      devTools: true,
+      spellcheck: false,
     },
   });
 
