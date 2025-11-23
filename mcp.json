@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ],
+      "env": {}
+    },
+    "date & time": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@theo.foobar/mcp-time"
+      ],
+      "env": {}
+    },
+    "google-forms": {
+      "command": "node",
+      "args": [
+        "/Users/proximus/Desktop/AI STUDY AGENT/scripts/google-forms-wrapper.js"
+      ]
+    }
+  }
+}

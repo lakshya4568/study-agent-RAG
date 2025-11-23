@@ -1,58 +1,95 @@
-import React, { useState } from 'react';
-import { MessageSquare, Server, Activity } from 'lucide-react';
-import { MainLayout, Sidebar, TopBar } from './components/layout';
-import { Badge } from './components/ui';
-import { Chat } from './views/Chat';
-import { ServerManager } from './views/ServerManager';
+import React, { useState, useRef } from "react";
+import {
+  MessageSquare,
+  Blocks,
+  Sparkles,
+  LogOut,
+  Zap,
+  Plus,
+  History as HistoryIcon,
+} from "lucide-react";
+import { MainLayout, Sidebar, TopBar } from "./components/layout";
+import { Badge, Button } from "./components/ui";
+import { Chat } from "./views/Chat";
+import { ServerManager } from "./views/ServerManager";
+import { AgentConsole } from "./views/AgentConsole";
+import { Login } from "./views/Login";
+import { Signup } from "./views/Signup";
+import { useAuthStore } from "./client/store";
 
 export const App: React.FC = () => {
-  const [activeView, setActiveView] = useState<'chat' | 'servers'>('chat');
-
-  const sidebarHeader = (
-    <div className="flex items-center gap-3">
-      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-2xl shadow-lg">
-        🎓
-      </div>
-      <div>
-        <h1 className="text-xl font-bold text-gray-900">Study Agent</h1>
-        <p className="text-xs text-purple-600">AI-Powered Learning</p>
-      </div>
-    </div>
+  const [activeView, setActiveView] = useState<"chat" | "servers" | "agent">(
+    "chat"
   );
+  const [authView, setAuthView] = useState<"login" | "signup">("login");
+  const { isAuthenticated, logout } = useAuthStore();
 
-  const sidebarFooter = (
-    <div className="px-4 py-3 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200">
-      <div className="flex items-center gap-2 text-sm">
-        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-lg shadow-green-500/50" />
-        <span className="text-green-700 font-medium">System Online</span>
-      </div>
-    </div>
-  );
+  const chatActionsRef = useRef<{
+    createNewThread: () => void;
+    openHistory: () => void;
+  }>({
+    createNewThread: () => { },
+    openHistory: () => { },
+  });
+
+  if (!isAuthenticated) {
+    return authView === "login" ? (
+      <Login onNavigateToSignup={() => setAuthView("signup")} />
+    ) : (
+      <Signup onNavigateToLogin={() => setAuthView("login")} />
+    );
+  }
 
   const sidebarItems = [
     {
-      id: 'chat',
+      id: "chat",
       icon: MessageSquare,
-      label: 'Chat',
-      description: 'AI Study Assistant',
-      onClick: () => setActiveView('chat'),
-      active: activeView === 'chat',
+      label: "Study Chat",
+      description: "AI Assistant",
+      onClick: () => setActiveView("chat"),
+      active: activeView === "chat",
     },
     {
-      id: 'servers',
-      icon: Server,
-      label: 'Servers',
-      description: 'Manage MCP Servers',
-      onClick: () => setActiveView('servers'),
-      active: activeView === 'servers',
+      id: "servers",
+      icon: Blocks,
+      label: "Tools",
+      description: "Integrations",
+      onClick: () => setActiveView("servers"),
+      active: activeView === "servers",
+    },
+    {
+      id: "agent",
+      icon: Sparkles,
+      label: "My Buddy",
+      description: "Settings",
+      onClick: () => setActiveView("agent"),
+      active: activeView === "agent",
     },
   ];
 
   const topBarActions = (
     <>
-      <Badge variant="info" size="md" animate>
-        <Activity className="w-3 h-3 mr-1" />
-        Active
+      <Button
+        variant="ghost"
+        size="sm"
+        icon={<Plus className="w-4 h-4" />}
+        onClick={() => chatActionsRef.current.createNewThread()}
+        className="rounded-full bg-background/50 backdrop-blur-sm border border-border/50 shadow-sm hover:bg-background hover:shadow-md transition-all duration-200"
+      >
+        New Chat
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        icon={<HistoryIcon className="w-4 h-4" />}
+        onClick={() => chatActionsRef.current.openHistory()}
+        className="rounded-full bg-background/50 backdrop-blur-sm border border-border/50 shadow-sm hover:bg-background hover:shadow-md transition-all duration-200"
+      >
+        History
+      </Button>
+      <Badge variant="outline" size="sm" className="gap-1.5 bg-background/50 backdrop-blur-sm rounded-full">
+        <Zap className="w-3 h-3 text-yellow-500" />
+        Pro Plan
       </Badge>
     </>
   );
@@ -62,18 +99,25 @@ export const App: React.FC = () => {
       sidebar={
         <Sidebar
           items={sidebarItems}
-          header={sidebarHeader}
-          footer={sidebarFooter}
+          onLogout={logout}
         />
       }
       topBar={
         <TopBar
-          title={activeView === 'chat' ? 'Study Assistant' : 'MCP Servers'}
+          title="StudyBuddy"
           actions={topBarActions}
         />
       }
     >
-      {activeView === 'chat' ? <Chat /> : <ServerManager />}
+      {activeView === "chat" && (
+        <Chat
+          onRegisterActions={(actions) => {
+            chatActionsRef.current = actions;
+          }}
+        />
+      )}
+      {activeView === "servers" && <ServerManager />}
+      {activeView === "agent" && <AgentConsole />}
     </MainLayout>
   );
 };

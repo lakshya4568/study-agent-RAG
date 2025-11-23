@@ -3,12 +3,30 @@
  * MCPClientManager - Manages multiple MCP server connections
  */
 
-import { MCPSession } from './MCPSession';
-import { MCPServerConfig, ServerInfo, ServerStatus, ToolExecutionResult } from './types';
-import { Tool } from '@modelcontextprotocol/sdk/types';
+import { MCPSession } from "./MCPSession";
+import {
+  MCPServerConfig,
+  ServerInfo,
+  ServerStatus,
+  ToolExecutionResult,
+} from "./types";
+import { Tool } from "@modelcontextprotocol/sdk/types.js";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 
 export class MCPClientManager {
   private sessions = new Map<string, MCPSession>();
+  private toolChangeListeners: (() => void)[] = [];
+
+  /**
+   * Subscribe to tool changes across all servers
+   */
+  onToolsChanged(callback: () => void): void {
+    this.toolChangeListeners.push(callback);
+  }
+
+  private notifyToolChange() {
+    this.toolChangeListeners.forEach((cb) => cb());
+  }
 
   /**
    * Add and connect to a new MCP server
@@ -19,10 +37,19 @@ export class MCPClientManager {
     }
 
     const session = new MCPSession(config);
+
+    // Register callback for tool changes
+    session.onToolsChanged(() => {
+      console.log(`[MCPClientManager] Tools changed for server ${config.id}`);
+      this.notifyToolChange();
+    });
+
     this.sessions.set(config.id, session);
 
     try {
       await session.connect();
+      // Notify listeners that a new server (and its tools) are available
+      this.notifyToolChange();
     } catch (error) {
       this.sessions.delete(config.id);
       throw error;
@@ -40,6 +67,7 @@ export class MCPClientManager {
 
     await session.disconnect();
     this.sessions.delete(serverId);
+    this.notifyToolChange();
   }
 
   /**
@@ -131,8 +159,8 @@ export class MCPClientManager {
    * Disconnect from all servers
    */
   async disconnectAll(): Promise<void> {
-    const disconnectPromises = Array.from(this.sessions.values()).map((session) =>
-      session.disconnect()
+    const disconnectPromises = Array.from(this.sessions.values()).map(
+      (session) => session.disconnect()
     );
     await Promise.all(disconnectPromises);
     this.sessions.clear();
@@ -149,5 +177,18 @@ export class MCPClientManager {
       }
     });
     return count;
+  }
+
+  /**
+   * Get all connected MCP clients
+   */
+  getAllClients(): Array<{ client: Client; serverId: string }> {
+    const clients: Array<{ client: Client; serverId: string }> = [];
+    this.sessions.forEach((session, serverId) => {
+      if (session.isConnected()) {
+        clients.push({ client: session.mcpClient, serverId });
+      }
+    });
+    return clients;
   }
 }

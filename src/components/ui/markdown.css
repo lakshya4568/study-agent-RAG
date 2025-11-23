@@ -1,0 +1,636 @@
+/* ===================================
+   MARKDOWN RENDERER STYLES
+   Beautiful, professional markdown rendering
+   =================================== */
+
+/* Self-Hosted Fonts */
+
+/* Inter Font Family */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  src: url("../../assets/fonts/inter/inter-400.woff2") format("woff2");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 500;
+  src: url("../../assets/fonts/inter/inter-500.woff2") format("woff2");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 600;
+  src: url("../../assets/fonts/inter/inter-600.woff2") format("woff2");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 700;
+  src: url("../../assets/fonts/inter/inter-700.woff2") format("woff2");
+  font-display: swap;
+}
+
+/* Work Sans Font Family */
+@font-face {
+  font-family: "Work Sans";
+  font-style: normal;
+  font-weight: 500;
+  src: url("../../assets/fonts/work-sans/work-sans-500.woff2") format("woff2");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Work Sans";
+  font-style: normal;
+  font-weight: 600;
+  src: url("../../assets/fonts/work-sans/work-sans-600.woff2") format("woff2");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Work Sans";
+  font-style: normal;
+  font-weight: 700;
+  src: url("../../assets/fonts/work-sans/work-sans-700.woff2") format("woff2");
+  font-display: swap;
+}
+
+/* JetBrains Mono Font Family */
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400;
+  src: url("../../assets/fonts/jetbrains-mono/jetbrains-mono-400.woff2")
+    format("woff2");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 500;
+  src: url("../../assets/fonts/jetbrains-mono/jetbrains-mono-500.woff2")
+    format("woff2");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 600;
+  src: url("../../assets/fonts/jetbrains-mono/jetbrains-mono-600.woff2")
+    format("woff2");
+  font-display: swap;
+}
+
+/* ===================================
+   CONTAINER & BASE STYLES
+   =================================== */
+
+.markdown-content {
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "Roboto",
+    "Oxygen",
+    "Ubuntu",
+    "Cantarell",
+    "Fira Sans",
+    "Droid Sans",
+    "Helvetica Neue",
+    sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: inherit; /* Inherit color from parent container */
+  padding: 0; /* Remove padding to work better in message bubbles */
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+/* Standalone markdown (not in bubbles) */
+.markdown-content.standalone {
+  color: #2d3748;
+  padding: 1rem;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .markdown-content.standalone {
+    color: #e2e8f0;
+  }
+}
+
+/* ===================================
+   HEADERS
+   =================================== */
+
+.markdown-h1,
+.markdown-h2,
+.markdown-h3,
+.markdown-h4 {
+  font-family: "Work Sans", sans-serif;
+  font-weight: 600;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  color: inherit; /* Inherit from parent */
+  line-height: 1.3;
+  opacity: 0.95; /* Slightly dimmed for hierarchy */
+}
+
+.markdown-content.standalone .markdown-h1,
+.markdown-content.standalone .markdown-h2,
+.markdown-content.standalone .markdown-h3,
+.markdown-content.standalone .markdown-h4 {
+  color: #1a202c;
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown-content.standalone .markdown-h1,
+  .markdown-content.standalone .markdown-h2,
+  .markdown-content.standalone .markdown-h3,
+  .markdown-content.standalone .markdown-h4 {
+    color: #f7fafc;
+  }
+}
+
+.markdown-h1 {
+  font-size: 2em;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 0.3em;
+  margin-top: 0;
+}
+
+.markdown-h2 {
+  font-size: 1.5em;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.3em;
+}
+
+.markdown-h3 {
+  font-size: 1.25em;
+}
+
+.markdown-h4 {
+  font-size: 1.1em;
+}
+
+/* ===================================
+   PARAGRAPHS & TEXT
+   =================================== */
+
+.markdown-content p {
+  margin: 1em 0;
+  line-height: 1.7;
+}
+
+.markdown-content strong {
+  font-weight: 600;
+  color: inherit;
+  opacity: 1;
+}
+
+.markdown-content em {
+  font-style: italic;
+  color: inherit;
+  opacity: 0.9;
+}
+
+/* ===================================
+   LINKS
+   =================================== */
+
+.markdown-link {
+  color: #667eea;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.markdown-link:hover {
+  color: #764ba2;
+  border-bottom-color: #764ba2;
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown-link {
+    color: #9f7aea;
+  }
+
+  .markdown-link:hover {
+    color: #b794f4;
+    border-bottom-color: #b794f4;
+  }
+}
+
+/* ===================================
+   TABLES
+   =================================== */
+
+.markdown-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown-table {
+    background: #2d3748;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.markdown-th {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  font-family: "Work Sans", sans-serif;
+}
+
+.markdown-td {
+  padding: 10px 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown-td {
+    border-bottom-color: #4a5568;
+  }
+}
+
+.markdown-table tr:hover {
+  background-color: #f7fafc;
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown-table tr:hover {
+    background-color: #374151;
+  }
+}
+
+.markdown-table tr:last-child .markdown-td {
+  border-bottom: none;
+}
+
+/* Alternating row colors for better readability */
+.markdown-table tbody tr:nth-child(even) {
+  background-color: #f8fafc;
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown-table tbody tr:nth-child(even) {
+    background-color: #374151;
+  }
+}
+
+/* ===================================
+   CODE BLOCKS
+   =================================== */
+
+.code-block-wrapper {
+  margin: 1rem 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #1e1e1e;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.code-block-header {
+  background: #2d2d2d;
+  padding: 8px 16px;
+  border-bottom: 1px solid #404040;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.code-language {
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.75em;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+.code-block {
+  background: #1e1e1e;
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 0;
+  font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace;
+  font-size: 0.9em;
+  line-height: 1.5;
+  color: #d4d4d4;
+}
+
+.code-block code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-family: inherit;
+}
+
+/* Inline code */
+.inline-code {
+  background: rgba(0, 0, 0, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.9em;
+  color: inherit;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  font-weight: 500;
+}
+
+/* ===================================
+   MATH EQUATIONS (KaTeX)
+   =================================== */
+
+.katex-display {
+  margin: 1.5rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .katex-display {
+    background: #2d3748;
+    border-color: #4a5568;
+  }
+}
+
+.katex {
+  font-size: 1.1em;
+}
+
+/* ===================================
+   LISTS
+   =================================== */
+
+.markdown-ul,
+.markdown-ol {
+  margin: 1em 0;
+  padding-left: 2em;
+}
+
+.markdown-ul li,
+.markdown-ol li {
+  margin: 0.5em 0;
+  line-height: 1.6;
+}
+
+.markdown-ul {
+  list-style-type: disc;
+}
+
+.markdown-ol {
+  list-style-type: decimal;
+}
+
+/* Nested lists */
+.markdown-ul ul,
+.markdown-ol ul {
+  list-style-type: circle;
+  margin-top: 0.5em;
+}
+
+.markdown-ul ul ul,
+.markdown-ol ul ul {
+  list-style-type: square;
+}
+
+/* Task lists (GitHub style) */
+.markdown-checkbox {
+  margin-right: 0.5em;
+  cursor: pointer;
+}
+
+.markdown-content li:has(input[type="checkbox"]) {
+  list-style-type: none;
+  margin-left: -1.5em;
+}
+
+/* ===================================
+   BLOCKQUOTES
+   =================================== */
+
+.markdown-blockquote {
+  margin: 1.5em 0;
+  padding: 1em 1em 1em 1.5em;
+  border-left: 4px solid rgba(102, 126, 234, 0.6);
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 0 8px 8px 0;
+  color: inherit;
+  opacity: 0.9;
+  font-style: italic;
+}
+
+.markdown-blockquote p:first-child {
+  margin-top: 0;
+}
+
+.markdown-blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* ===================================
+   HORIZONTAL RULES
+   =================================== */
+
+.markdown-hr {
+  border: none;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #667eea,
+    #764ba2,
+    transparent
+  );
+  margin: 2em 0;
+  border-radius: 2px;
+}
+
+/* ===================================
+   IMAGES
+   =================================== */
+
+.markdown-img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 1.5em 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.markdown-img:hover {
+  transform: scale(1.02);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* ===================================
+   EMOJI
+   =================================== */
+
+.emoji {
+  font-size: 1.2em;
+  vertical-align: middle;
+  margin: 0 0.1em;
+}
+
+/* ===================================
+   STRIKETHROUGH
+   =================================== */
+
+.markdown-content del {
+  text-decoration: line-through;
+  color: #718096;
+  opacity: 0.7;
+}
+
+/* ===================================
+   RESPONSIVE DESIGN
+   =================================== */
+
+@media (max-width: 768px) {
+  .markdown-content {
+    font-size: 15px;
+    padding: 0.75rem;
+  }
+
+  .markdown-h1 {
+    font-size: 1.75em;
+  }
+
+  .markdown-h2 {
+    font-size: 1.4em;
+  }
+
+  .markdown-h3 {
+    font-size: 1.2em;
+  }
+
+  .markdown-table {
+    font-size: 0.9em;
+  }
+
+  .markdown-th,
+  .markdown-td {
+    padding: 8px 12px;
+  }
+
+  .code-block {
+    font-size: 0.85em;
+    padding: 0.75rem;
+  }
+}
+
+/* ===================================
+   SCROLLBAR STYLING (for code blocks)
+   =================================== */
+
+.code-block::-webkit-scrollbar {
+  height: 8px;
+}
+
+.code-block::-webkit-scrollbar-track {
+  background: #2d2d2d;
+  border-radius: 4px;
+}
+
+.code-block::-webkit-scrollbar-thumb {
+  background: #4a5568;
+  border-radius: 4px;
+}
+
+.code-block::-webkit-scrollbar-thumb:hover {
+  background: #667eea;
+}
+
+/* ===================================
+   PRINT STYLES
+   =================================== */
+
+@media print {
+  .markdown-content {
+    font-size: 12pt;
+    color: #000;
+  }
+
+  .markdown-h1,
+  .markdown-h2,
+  .markdown-h3 {
+    page-break-after: avoid;
+    color: #000;
+  }
+
+  .markdown-table {
+    box-shadow: none;
+    border: 1px solid #000;
+  }
+
+  .code-block-wrapper {
+    box-shadow: none;
+    border: 1px solid #ccc;
+  }
+
+  .markdown-link {
+    color: #667eea;
+    text-decoration: underline;
+  }
+}
+
+/* ===================================
+   ACCESSIBILITY
+   =================================== */
+
+.markdown-content:focus-visible {
+  outline: 2px solid #667eea;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.markdown-link:focus-visible {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .markdown-content {
+    color: #000;
+  }
+
+  .markdown-link {
+    text-decoration: underline;
+  }
+
+  .markdown-table {
+    border: 2px solid #000;
+  }
+}

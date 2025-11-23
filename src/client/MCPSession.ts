@@ -3,10 +3,10 @@
  * MCPSession - Manages a connection to a single MCP server
  */
 
-import { Client } from '@modelcontextprotocol/sdk/client/index';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio';
-import { Tool } from '@modelcontextprotocol/sdk/types';
-import { MCPServerConfig, ServerStatus, ToolExecutionResult } from './types';
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { Tool } from "@modelcontextprotocol/sdk/types.js";
+import { MCPServerConfig, ServerStatus, ToolExecutionResult } from "./types";
 
 export class MCPSession {
   private client: Client;
@@ -14,13 +14,14 @@ export class MCPSession {
   private _status: ServerStatus = ServerStatus.DISCONNECTED;
   private _tools: Tool[] = [];
   private _config: MCPServerConfig;
+  private toolChangeCallback?: () => void;
 
   constructor(config: MCPServerConfig) {
     this._config = config;
     this.client = new Client(
       {
-        name: 'study-agent-mcp-client',
-        version: '1.0.0',
+        name: "study-agent-mcp-client",
+        version: "1.0.0",
       },
       {
         capabilities: {
@@ -31,6 +32,17 @@ export class MCPSession {
         },
       }
     );
+  }
+
+  /**
+   * Register a callback for when tools change
+   * Note: MCP SDK doesn't support setNotificationHandler on Client.
+   * Servers send notifications automatically, but clients receive them
+   * through the transport layer. For dynamic tool updates, the UI should
+   * periodically call refreshTools() or implement a polling mechanism.
+   */
+  onToolsChanged(callback: () => void): void {
+    this.toolChangeCallback = callback;
   }
 
   /**
@@ -52,6 +64,13 @@ export class MCPSession {
    */
   get config(): MCPServerConfig {
     return this._config;
+  }
+
+  /**
+   * Get the MCP client instance
+   */
+  get mcpClient(): Client {
+    return this.client;
   }
 
   /**
@@ -78,7 +97,10 @@ export class MCPSession {
       console.log(`[MCPSession] Connected to ${this._config.name}`);
     } catch (error) {
       this._status = ServerStatus.ERROR;
-      console.error(`[MCPSession] Failed to connect to ${this._config.name}:`, error);
+      console.error(
+        `[MCPSession] Failed to connect to ${this._config.name}:`,
+        error
+      );
       throw error;
     }
   }
@@ -92,7 +114,7 @@ export class MCPSession {
       this._tools = response.tools;
       console.log(
         `[MCPSession] Discovered ${this._tools.length} tools:`,
-        this._tools.map((t) => t.name).join(', ')
+        this._tools.map((t) => t.name).join(", ")
       );
     } catch (error) {
       console.error(`[MCPSession] Failed to discover tools:`, error);
@@ -101,13 +123,37 @@ export class MCPSession {
   }
 
   /**
+   * Refresh tools from the server (called when list changes)
+   */
+  async refreshTools(): Promise<void> {
+    if (this._status !== ServerStatus.CONNECTED) {
+      console.warn("[MCPSession] Cannot refresh tools: not connected");
+      return;
+    }
+
+    try {
+      const response = await this.client.listTools();
+      this._tools = response.tools;
+      console.log(
+        `[MCPSession] Refreshed ${this._tools.length} tools:`,
+        this._tools.map((t) => t.name).join(", ")
+      );
+    } catch (error) {
+      console.error(`[MCPSession] Failed to refresh tools:`, error);
+    }
+  }
+
+  /**
    * Execute a tool on the server
    */
-  async executeTool(toolName: string, args?: Record<string, unknown>): Promise<ToolExecutionResult> {
+  async executeTool(
+    toolName: string,
+    args?: Record<string, unknown>
+  ): Promise<ToolExecutionResult> {
     if (this._status !== ServerStatus.CONNECTED) {
       return {
         success: false,
-        error: 'Server not connected',
+        error: "Server not connected",
       };
     }
 

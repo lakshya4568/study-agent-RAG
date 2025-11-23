@@ -106,9 +106,23 @@ dev-debug.log
 .github
 .taskmaster
 
+.chromadb
+
+.chromadb/*
+
+chroma_db
 
 .env.example
 
 # Task files
 tasks.json
 tasks/ 
+
+# Python virtual environment
+.venv/
+venv/
+ENV/
+env/
+__pycache__/
+*.py[cod]
+*$py.class 

@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "jsx": "preserve",
+    "skipLibCheck": true
+  },
+  "include": [
+    "webpack.main.config.ts",
+    "webpack.renderer.config.ts",
+    "webpack.rules.ts",
+    "webpack.plugins.ts",
+    "forge.config.ts"
+  ]
+}
