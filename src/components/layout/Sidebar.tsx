@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
 import { LucideIcon, ChevronLeft, ChevronRight, GraduationCap, LogOut } from 'lucide-react';
-import { ThemeSelector } from '../ui/ThemeSelector';
+
 
 interface SidebarProps {
   items: Array<{
@@ -107,7 +107,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Footer / Theme Switcher */}
       <div className="mt-auto p-4 border-t border-border/50 space-y-2">
-        <ThemeSelector isCollapsed={isCollapsed} />
+
 
         {onLogout && (
           <button
