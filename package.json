@@ -17,7 +17,7 @@
     "clean": "rm -rf out .webpack",
     "rebuild:natives": "npm rebuild better-sqlite3 && npm rebuild chromadb",
     "build:release": "npm run clean && npm run build:mcp && npm run rebuild:natives && npm run make",
-    "postinstall": "patch-package"
+    "postinstall": "if [ \"$SKIP_POSTINSTALL\" != \"true\" ]; then patch-package; fi"
   },
   "keywords": [],
   "author": "Lakshya Sharma <lakshya4568@gmail.com>",
