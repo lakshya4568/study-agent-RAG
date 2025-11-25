@@ -14,8 +14,9 @@
     "lint": "eslint --ext .ts --ext .tsx ./src ./forge.config.ts ./webpack.main.config.ts ./webpack.renderer.config.ts ./webpack.rules.ts ./webpack.plugins.ts",
     "build:mcp": "tsc -p tsconfig.mcp.json",
     "setup:python": "node scripts/setup-python.js",
-    "rebuild:natives": "npm rebuild better-sqlite3 --build-from-source && npm rebuild chromadb --build-from-source",
-    "build:release": "npm run build:mcp && npm run rebuild:natives && npm run make",
+    "clean": "rm -rf out .webpack",
+    "rebuild:natives": "npm rebuild better-sqlite3 && npm rebuild chromadb",
+    "build:release": "npm run clean && npm run build:mcp && npm run rebuild:natives && npm run make",
     "postinstall": "patch-package"
   },
   "keywords": [],
