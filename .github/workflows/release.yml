@@ -3,11 +3,12 @@ name: Build and Release macOS
 on:
   push:
     tags:
-      - "v*.*.*" # Trigger on version tags like v1.0.0
-  workflow_dispatch: # Allow manual trigger
+      - "v*.*.*"
+  workflow_dispatch:
 
 permissions:
-  contents: write  # Required for creating releases
+  contents: write
+  actions: read
 
 jobs:
   build-macos:
@@ -16,6 +17,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -98,8 +101,6 @@ jobs:
             ### Requirements
             - macOS 11.0 (Big Sur) or later
             - No additional dependencies needed!
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
