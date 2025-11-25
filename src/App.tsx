@@ -2,8 +2,7 @@ import React, { useState, useRef } from "react";
 import {
   MessageSquare,
   Blocks,
-  Sparkles,
-  LogOut,
+  Settings2,
   Zap,
   Plus,
   History as HistoryIcon,
@@ -12,13 +11,13 @@ import { MainLayout, Sidebar, TopBar } from "./components/layout";
 import { Badge, Button } from "./components/ui";
 import { Chat } from "./views/Chat";
 import { ServerManager } from "./views/ServerManager";
-import { AgentConsole } from "./views/AgentConsole";
+import { Settings } from "./views/Settings";
 import { Login } from "./views/Login";
 import { Signup } from "./views/Signup";
 import { useAuthStore } from "./client/store";
 
 export const App: React.FC = () => {
-  const [activeView, setActiveView] = useState<"chat" | "servers" | "agent">(
+  const [activeView, setActiveView] = useState<"chat" | "servers" | "settings">(
     "chat"
   );
   const [authView, setAuthView] = useState<"login" | "signup">("login");
@@ -58,12 +57,12 @@ export const App: React.FC = () => {
       active: activeView === "servers",
     },
     {
-      id: "agent",
-      icon: Sparkles,
-      label: "My Buddy",
-      description: "Settings",
-      onClick: () => setActiveView("agent"),
-      active: activeView === "agent",
+      id: "settings",
+      icon: Settings2,
+      label: "Settings",
+      description: "Configuration",
+      onClick: () => setActiveView("settings"),
+      active: activeView === "settings",
     },
   ];
 
@@ -117,7 +116,7 @@ export const App: React.FC = () => {
         />
       )}
       {activeView === "servers" && <ServerManager />}
-      {activeView === "agent" && <AgentConsole />}
+      {activeView === "settings" && <Settings />}
     </MainLayout>
   );
 };
