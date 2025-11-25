@@ -31,7 +31,9 @@ jobs:
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install Node dependencies
-        run: npm ci --legacy-peer-deps
+        run: |
+          npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+          npx patch-package || true
 
       - name: Setup Python environment with uv
         run: |
