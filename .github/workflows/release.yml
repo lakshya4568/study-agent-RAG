@@ -3,12 +3,13 @@ name: Build and Release macOS
 on:
   push:
     tags:
-      - 'v*.*.*'  # Trigger on version tags like v1.0.0
+      - "v*.*.*" # Trigger on version tags like v1.0.0
+  workflow_dispatch: # Allow manual trigger
 
 jobs:
   build-macos:
     runs-on: macos-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -16,33 +17,47 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.12"
 
-      - name: Install dependencies
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install Node dependencies
         run: npm ci
 
-      - name: Setup Python environment
+      - name: Setup Python environment with uv
         run: |
-          python3 -m venv .venv
-          source .venv/bin/activate
-          pip install --upgrade pip
-          pip install -r python/requirements.txt
+          echo "🐍 Creating virtual environment with uv..."
+          uv venv .venv --python 3.12
+          echo "📚 Installing Python dependencies..."
+          uv pip install -r python/requirements.txt --python .venv/bin/python
+          echo "🧪 Verifying installation..."
+          .venv/bin/python -c "import chromadb; print(f'✅ ChromaDB installed')"
+          .venv/bin/python -c "import langchain_nvidia_ai_endpoints; print('✅ NVIDIA AI Endpoints installed')"
 
-      - name: Build MCP
+      - name: Rebuild native modules for Electron
+        run: |
+          npm rebuild better-sqlite3 --build-from-source
+          npm rebuild chromadb --build-from-source
+
+      - name: Build MCP server
         run: npm run build:mcp
 
       - name: Package application
         run: npm run make
-        env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: List built files
+        run: |
+          echo "📦 Built files:"
+          find out/make -type f -name "*.dmg" -o -name "*.zip"
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -53,6 +68,23 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: true
+          body: |
+            ## 🎉 macOS Release
+
+            ### Installation
+            1. Download the `.dmg` file
+            2. Open it and drag the app to Applications
+            3. First launch: Right-click → Open (to bypass Gatekeeper if not signed)
+
+            ### Features
+            - ✅ Python virtual environment included
+            - ✅ All native modules compiled for macOS
+            - ✅ RAG service with NVIDIA API support
+            - ✅ ChromaDB vector storage
+
+            ### Requirements
+            - macOS 11.0 (Big Sur) or later
+            - No additional dependencies needed!
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

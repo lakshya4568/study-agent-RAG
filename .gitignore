@@ -103,7 +103,6 @@ dev-debug.log
 *.sw?
 # OS specific
 
-.github
 .taskmaster
 
 .chromadb

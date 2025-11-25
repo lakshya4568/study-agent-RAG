@@ -7,13 +7,15 @@
   "scripts": {
     "prestart": "npm run build:mcp && node scripts/setup-python.js",
     "start": "electron-forge start",
-    "prepackage": "npm run build:mcp",
+    "prepackage": "npm run build:mcp && npm run rebuild:natives",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
     "lint": "eslint --ext .ts --ext .tsx ./src ./forge.config.ts ./webpack.main.config.ts ./webpack.renderer.config.ts ./webpack.rules.ts ./webpack.plugins.ts",
     "build:mcp": "tsc -p tsconfig.mcp.json",
     "setup:python": "node scripts/setup-python.js",
+    "rebuild:natives": "npm rebuild better-sqlite3 --build-from-source && npm rebuild chromadb --build-from-source",
+    "build:release": "npm run build:mcp && npm run rebuild:natives && npm run make",
     "postinstall": "patch-package"
   },
   "keywords": [],
@@ -22,6 +24,7 @@
   "devDependencies": {
     "@electron-forge/cli": "^7.8.3",
     "@electron-forge/maker-deb": "^7.9.0",
+    "@electron-forge/maker-dmg": "^7.10.2",
     "@electron-forge/maker-rpm": "^7.9.0",
     "@electron-forge/maker-squirrel": "^7.9.0",
     "@electron-forge/maker-zip": "^7.9.0",
