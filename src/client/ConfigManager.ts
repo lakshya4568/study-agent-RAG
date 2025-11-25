@@ -42,7 +42,20 @@ export class ConfigManager implements IConfigManager {
   private readonly envPath: string;
 
   constructor(envPath?: string) {
-    this.envPath = envPath ?? path.resolve(process.cwd(), ".env");
+    // Try multiple locations for .env file
+    let resolvedEnvPath = envPath;
+
+    if (!resolvedEnvPath) {
+      // 1. Try bundled .env in resources (packaged app)
+      const bundledEnv = path.join(process.resourcesPath || "", ".env");
+
+      // 2. Try current working directory (development)
+      const cwdEnv = path.resolve(process.cwd(), ".env");
+
+      resolvedEnvPath = fs.existsSync(bundledEnv) ? bundledEnv : cwdEnv;
+    }
+
+    this.envPath = resolvedEnvPath;
 
     if (fs.existsSync(this.envPath)) {
       const parsed = dotenv.parse(fs.readFileSync(this.envPath));

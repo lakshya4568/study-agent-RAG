@@ -13,7 +13,7 @@ import { rendererConfig } from "./webpack.renderer.config";
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
-    extraResource: ["./python", "./.venv", "./mcp.json", "./scripts"],
+    extraResource: ["./python", "./.venv", "./mcp.json", "./scripts", "./.env"],
     appBundleId: "com.lakshya.ai-study-agent",
     appCategoryType: "public.app-category.education",
     icon: "./src/assets/icon", // Add your icon here (icon.icns for macOS)

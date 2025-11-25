@@ -111,8 +111,6 @@ dev-debug.log
 
 chroma_db
 
-.env.example
-
 # Task files
 tasks.json
 tasks/ 
