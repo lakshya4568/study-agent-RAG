@@ -6,14 +6,21 @@ import { MakerRpm } from "@electron-forge/maker-rpm";
 import { MakerDMG } from "@electron-forge/maker-dmg";
 import { WebpackPlugin } from "@electron-forge/plugin-webpack";
 import { AutoUnpackNativesPlugin } from "@electron-forge/plugin-auto-unpack-natives";
+import { existsSync } from "fs";
 
 import { mainConfig } from "./webpack.main.config";
 import { rendererConfig } from "./webpack.renderer.config";
 
+// Include .env only if it exists
+const extraResources = ["./python", "./.venv", "./mcp.json", "./scripts"];
+if (existsSync("./.env")) {
+  extraResources.push("./.env");
+}
+
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
-    extraResource: ["./python", "./.venv", "./mcp.json", "./scripts", "./.env"],
+    extraResource: extraResources,
     appBundleId: "com.lakshya.ai-study-agent",
     appCategoryType: "public.app-category.education",
     icon: "./src/assets/icon", // Add your icon here (icon.icns for macOS)

@@ -54,6 +54,12 @@ jobs:
       - name: Build MCP server
         run: npm run build:mcp
 
+      - name: Create env template for packaging
+        run: |
+          if [ ! -f .env ]; then
+            cp .env.example .env || echo 'NVIDIA_API_KEY="your-key-here"' > .env
+          fi
+
       - name: Package application
         run: npm run make
 
