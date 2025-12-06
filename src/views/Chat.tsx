@@ -20,7 +20,7 @@ import {
   Smile,
   Paperclip,
   Sparkles,
-  Plus
+  Plus,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -146,11 +146,13 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
     message: string;
   } | null>(null);
   const [showHistory, setShowHistory] = useState(false);
-  const [threads, setThreads] = useState<Array<{
-    id: string;
-    title: string;
-    created_at: number;
-  }>>([]);
+  const [threads, setThreads] = useState<
+    Array<{
+      id: string;
+      title: string;
+      created_at: number;
+    }>
+  >([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -167,12 +169,41 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
     return () => clearInterval(pollInterval);
   }, [activeThreadId]);
 
+  const deriveTitle = (
+    msgs: Array<{ role: string; content: string }>
+  ): string => {
+    const firstUser = msgs.find((m) => m.role === "user" && m.content.trim());
+    if (!firstUser) return "New Chat";
+    const compact = firstUser.content.trim().replace(/\s+/g, " ");
+    return compact.length > 40 ? `${compact.slice(0, 40)}...` : compact;
+  };
+
   const loadThreads = async () => {
     if (!user) return;
     const result = await window.db.getThreads(user.id);
-    if (result.success && result.threads) {
-      setThreads(result.threads);
+    if (!(result.success && result.threads)) return;
+
+    const hydrated: typeof threads = [];
+    for (const thread of result.threads) {
+      const messages = await window.db.getMessages(thread.id);
+      if (
+        messages.success &&
+        messages.messages &&
+        messages.messages.length > 0
+      ) {
+        const newTitle = deriveTitle(
+          messages.messages.map((m) => ({ role: m.role, content: m.content }))
+        );
+        if (newTitle !== thread.title) {
+          await window.db.updateThreadTitle(thread.id, newTitle);
+          hydrated.push({ ...thread, title: newTitle });
+          continue;
+        }
+      }
+      hydrated.push(thread);
     }
+
+    setThreads(hydrated);
   };
 
   // Register functions with parent
@@ -314,8 +345,17 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
       timestamp: userMessage.timestamp.getTime(),
     });
 
+    // Derive a title from the user's first message
+    const candidateTitle = userMessage.content.trim().replace(/\s+/g, " ");
+    const newTitle =
+      candidateTitle.length > 40
+        ? `${candidateTitle.slice(0, 40)}...`
+        : candidateTitle || "New Chat";
+    await window.db.updateThreadTitle(currentThreadId, newTitle);
+
     try {
-      if (!window.studyAgent) throw new Error("Study agent runtime is unavailable.");
+      if (!window.studyAgent)
+        throw new Error("Study agent runtime is unavailable.");
 
       const result = await window.studyAgent.sendMessage({
         threadId: currentThreadId,
@@ -585,10 +625,14 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                     onClick={() => handleQuickAction(action.prompt)}
                     className="flex flex-col items-center p-4 rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50 hover:border-primary/50 hover:shadow-md transition-all duration-200 text-center group"
                   >
-                    <div className={`p-3 rounded-xl bg-gradient-to-br ${action.gradient} text-white mb-3 shadow-sm group-hover:scale-110 transition-transform`}>
+                    <div
+                      className={`p-3 rounded-xl bg-linear-to-br ${action.gradient} text-white mb-3 shadow-sm group-hover:scale-110 transition-transform`}
+                    >
                       <action.Icon className="w-6 h-6" />
                     </div>
-                    <h3 className="font-semibold text-foreground">{action.title}</h3>
+                    <h3 className="font-semibold text-foreground">
+                      {action.title}
+                    </h3>
                     <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                       {action.description}
                     </p>
@@ -634,25 +678,62 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                       // Check if content is flashcard JSON
                       try {
                         const parsed = JSON.parse(msg.content);
-                        if (parsed.flashcards && Array.isArray(parsed.flashcards)) {
-                          return <FlashcardViewer flashcards={parsed.flashcards} messageId={msg.id} />;
+                        if (
+                          parsed.flashcards &&
+                          Array.isArray(parsed.flashcards)
+                        ) {
+                          return (
+                            <FlashcardViewer
+                              flashcards={parsed.flashcards}
+                              messageId={msg.id}
+                            />
+                          );
                         }
                       } catch (e) {
                         // Not JSON, render as markdown
                       }
                       return (
                         <div className="p-4">
-                          <div className="prose prose-sm dark:prose-invert max-w-none break-words">
+                          <div className="prose prose-sm dark:prose-invert max-w-none wrap-break-word">
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm]}
                               components={{
-                                p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
-                                ul: ({ node, ...props }) => <ul className="list-disc pl-4 mb-2" {...props} />,
-                                ol: ({ node, ...props }) => <ol className="list-decimal pl-4 mb-2" {...props} />,
-                                li: ({ node, ...props }) => <li className="mb-1" {...props} />,
-                                a: ({ node, ...props }) => <a className="text-primary hover:underline" {...props} />,
-                                code: ({ node, ...props }) => <code className="bg-muted px-1 py-0.5 rounded text-xs font-mono" {...props} />,
-                                pre: ({ node, ...props }) => <pre className="bg-muted p-2 rounded-lg overflow-x-auto my-2 text-xs" {...props} />,
+                                p: ({ node, ...props }) => (
+                                  <p className="mb-2 last:mb-0" {...props} />
+                                ),
+                                ul: ({ node, ...props }) => (
+                                  <ul
+                                    className="list-disc pl-4 mb-2"
+                                    {...props}
+                                  />
+                                ),
+                                ol: ({ node, ...props }) => (
+                                  <ol
+                                    className="list-decimal pl-4 mb-2"
+                                    {...props}
+                                  />
+                                ),
+                                li: ({ node, ...props }) => (
+                                  <li className="mb-1" {...props} />
+                                ),
+                                a: ({ node, ...props }) => (
+                                  <a
+                                    className="text-primary hover:underline"
+                                    {...props}
+                                  />
+                                ),
+                                code: ({ node, ...props }) => (
+                                  <code
+                                    className="bg-muted px-1 py-0.5 rounded text-xs font-mono"
+                                    {...props}
+                                  />
+                                ),
+                                pre: ({ node, ...props }) => (
+                                  <pre
+                                    className="bg-muted p-2 rounded-lg overflow-x-auto my-2 text-xs"
+                                    {...props}
+                                  />
+                                ),
                               }}
                             >
                               {msg.content}
@@ -667,7 +748,10 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                         msg.role === "user" ? "right-0" : "left-0"
                       )}
                     >
-                      {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(msg.timestamp).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </div>
                   </div>
                 </motion.div>
@@ -700,16 +784,26 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                       />
                       <motion.div
                         animate={{ scale: [1, 1.2, 1] }}
-                        transition={{ repeat: Infinity, duration: 1, delay: 0.2 }}
+                        transition={{
+                          repeat: Infinity,
+                          duration: 1,
+                          delay: 0.2,
+                        }}
                         className="w-2 h-2 bg-primary/40 rounded-full"
                       />
                       <motion.div
                         animate={{ scale: [1, 1.2, 1] }}
-                        transition={{ repeat: Infinity, duration: 1, delay: 0.4 }}
+                        transition={{
+                          repeat: Infinity,
+                          duration: 1,
+                          delay: 0.4,
+                        }}
                         className="w-2 h-2 bg-primary/40 rounded-full"
                       />
                     </div>
-                    <span className="text-xs text-muted-foreground font-medium ml-2">Thinking...</span>
+                    <span className="text-xs text-muted-foreground font-medium ml-2">
+                      Thinking...
+                    </span>
                   </div>
                 </motion.div>
               )}
@@ -719,7 +813,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
         </div>
 
         {/* Input Area */}
-        <div className="shrink-0 px-4 py-4 z-20 flex justify-center bg-gradient-to-t from-background via-background/80 to-transparent">
+        <div className="shrink-0 px-4 py-4 z-20 flex justify-center bg-linear-to-t from-background via-background/80 to-transparent">
           <div className="w-full max-w-full">
             {/* Upload Progress & Status */}
             <AnimatePresence>
@@ -734,7 +828,9 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                     <div className="bg-card border border-border p-3 rounded-xl shadow-lg flex items-center gap-3">
                       <LoadingSpinner size="sm" />
                       <div className="flex-1">
-                        <p className="text-sm font-medium">{uploadProgress.message}</p>
+                        <p className="text-sm font-medium">
+                          {uploadProgress.message}
+                        </p>
                         <div className="h-1 bg-muted rounded-full mt-1.5 overflow-hidden">
                           <motion.div
                             className="h-full bg-primary"
@@ -747,11 +843,19 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                     </div>
                   )}
                   {uploadStatus && !uploadProgress && (
-                    <div className={cn(
-                      "p-3 rounded-xl flex items-center gap-2 text-sm font-medium shadow-lg",
-                      uploadStatus.type === "success" ? "bg-emerald-50 text-emerald-600 border border-emerald-200" : "bg-red-50 text-red-600 border border-red-200"
-                    )}>
-                      {uploadStatus.type === "success" ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                    <div
+                      className={cn(
+                        "p-3 rounded-xl flex items-center gap-2 text-sm font-medium shadow-lg",
+                        uploadStatus.type === "success"
+                          ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                          : "bg-red-50 text-red-600 border border-red-200"
+                      )}
+                    >
+                      {uploadStatus.type === "success" ? (
+                        <CheckCircle className="w-4 h-4" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4" />
+                      )}
                       {uploadStatus.message}
                     </div>
                   )}
@@ -767,14 +871,19 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                 className="mx-2 mb-2 inline-flex items-center gap-2 px-3 py-1.5 bg-card/80 backdrop-blur-sm text-primary rounded-full text-xs font-medium border border-primary/20 shadow-sm"
               >
                 <Paperclip className="w-3 h-3" />
-                <span className="max-w-[150px] truncate">{selectedDocument.split('/').pop()}</span>
-                <button onClick={() => setSelectedDocument(null)} className="hover:bg-primary/20 rounded-full p-0.5 ml-1">
+                <span className="max-w-[150px] truncate">
+                  {selectedDocument.split("/").pop()}
+                </span>
+                <button
+                  onClick={() => setSelectedDocument(null)}
+                  className="hover:bg-primary/20 rounded-full p-0.5 ml-1"
+                >
                   <X className="w-3 h-3" />
                 </button>
               </motion.div>
             )}
 
-            <div className="relative flex items-center gap-2 bg-brown-200/40 backdrop-blur-2xl border-2 border-brown-300/30 shadow-[0_8px_32px_0_rgba(139,69,19,0.15)] rounded-[2rem] p-2 pl-4 transition-all hover:bg-brown-200/50 hover:shadow-[0_8px_40px_0_rgba(139,69,19,0.2)] hover:border-brown-300/40">
+            <div className="relative flex items-center gap-2 bg-brown-200/40 backdrop-blur-2xl border-2 border-brown-300/30 shadow-[0_8px_32px_0_rgba(139,69,19,0.15)] rounded-4xl p-2 pl-4 transition-all hover:bg-brown-200/50 hover:shadow-[0_8px_40px_0_rgba(139,69,19,0.2)] hover:border-brown-300/40">
               <button
                 onClick={handleFileUpload}
                 disabled={uploading}
@@ -790,7 +899,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyPress}
                 placeholder="Type a message..."
-                className="flex-1 min-h-[36px] max-h-[120px] bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground/60 resize-none py-2 px-2 font-medium text-base"
+                className="flex-1 min-h-9 max-h-[120px] bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground/60 resize-none py-2 px-2 font-medium text-base"
                 disabled={loading}
               />
 
@@ -814,7 +923,11 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                       : "bg-muted text-muted-foreground"
                   )}
                 >
-                  {loading ? <LoadingSpinner size="sm" className="text-current" /> : <Send className="w-5 h-5 ml-0.5" />}
+                  {loading ? (
+                    <LoadingSpinner size="sm" className="text-current" />
+                  ) : (
+                    <Send className="w-5 h-5 ml-0.5" />
+                  )}
                 </Button>
               </div>
             </div>
@@ -838,7 +951,9 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
         <div className="space-y-4 p-2">
           {activeThreadId && (
             <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10">
-              <h3 className="text-xs font-bold text-primary uppercase tracking-wider mb-2">Active Session</h3>
+              <h3 className="text-xs font-bold text-primary uppercase tracking-wider mb-2">
+                Active Session
+              </h3>
               <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                 <MessageSquare className="w-4 h-4 text-primary" />
                 <span>Current Chat</span>
@@ -847,7 +962,9 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
           )}
 
           <div>
-            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 px-2">Recent Chats</h3>
+            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 px-2">
+              Recent Chats
+            </h3>
             <div className="space-y-1">
               {threads.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground text-sm">
@@ -864,19 +981,29 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                     }}
                     className={cn(
                       "w-full text-left p-3 rounded-xl hover:bg-muted transition-colors group",
-                      activeThreadId === thread.id ? "bg-primary/10 border border-primary/20" : ""
+                      activeThreadId === thread.id
+                        ? "bg-primary/10 border border-primary/20"
+                        : ""
                     )}
                   >
                     <div className="flex items-start gap-3">
-                      <MessageSquare className={cn(
-                        "w-4 h-4 mt-0.5 transition-colors",
-                        activeThreadId === thread.id ? "text-primary" : "text-muted-foreground group-hover:text-primary"
-                      )} />
+                      <MessageSquare
+                        className={cn(
+                          "w-4 h-4 mt-0.5 transition-colors",
+                          activeThreadId === thread.id
+                            ? "text-primary"
+                            : "text-muted-foreground group-hover:text-primary"
+                        )}
+                      />
                       <div className="flex-1 min-w-0">
-                        <p className={cn(
-                          "text-sm font-medium transition-colors truncate",
-                          activeThreadId === thread.id ? "text-primary" : "text-foreground group-hover:text-primary"
-                        )}>
+                        <p
+                          className={cn(
+                            "text-sm font-medium transition-colors truncate",
+                            activeThreadId === thread.id
+                              ? "text-primary"
+                              : "text-foreground group-hover:text-primary"
+                          )}
+                        >
                           {thread.title}
                         </p>
                         <p className="text-[10px] text-muted-foreground">
@@ -891,6 +1018,6 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
           </div>
         </div>
       </Drawer>
-    </div >
+    </div>
   );
 };

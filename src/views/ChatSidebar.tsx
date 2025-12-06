@@ -26,31 +26,73 @@ export const ChatSidebar: React.FC = () => {
   const createNewThread = async () => {
     if (!user) return;
     const id = crypto.randomUUID();
-    const title = "New Chat";
-    await window.db.createThread(id, title, user.id);
+    await window.db.createThread(id, "New Chat", user.id);
     setActiveThreadId(id);
     loadThreads();
   };
-
-  const deleteThread = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    await window.db.deleteThread(id);
-    if (activeThreadId === id) {
-      setActiveThreadId(null);
+  const generateTitleFromMessages = (
+    messages: Array<{ role: string; content: string }>
+  ): string => {
+    const firstUserMessage = messages.find((m) => m.role === "user");
+    if (firstUserMessage && firstUserMessage.content.trim()) {
+      const text = firstUserMessage.content.trim().replace(/\s+/g, " ");
+      return text.length > 40 ? `${text.slice(0, 40)}...` : text;
     }
-    loadThreads();
+    return "New Chat";
   };
 
-  return (
-    <div className="w-64 bg-muted/30 border-r border-border flex flex-col h-full">
-      <div className="p-4">
-        <button
-          onClick={createNewThread}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-2xl transition-all shadow-md shadow-primary/20 font-medium"
-        >
-          <Plus className="w-5 h-5" />
-          New Chat
+  const hydrateTitles = async () => {
+    if (!user) return;
+    // Fetch threads and their first message to derive titles
+    const result = await window.db.getThreads(user.id);
+    if (!(result.success && result.threads)) return;
+
+    const updatedThreads: ConversationThread[] = [];
+
+    for (const thread of result.threads) {
+      const messages = await window.db.getMessages(thread.id);
+      if (
+        messages.success &&
+        messages.messages &&
+        messages.messages.length > 0
+      ) {
+        const derivedTitle = generateTitleFromMessages(
+          messages.messages.map((m) => ({ role: m.role, content: m.content }))
+        );
+        if (derivedTitle !== thread.title) {
+          await window.db.updateThreadTitle(thread.id, derivedTitle);
+          updatedThreads.push({ ...thread, title: derivedTitle });
+          continue;
+        }
+      }
+      updatedThreads.push(thread);
+    }
+
+    setThreads(updatedThreads);
         </button>
+      const hydrateTitles = async () => {
+        if (!user) return;
+        const result = await window.db.getThreads(user.id);
+        if (!(result.success && result.threads)) return;
+
+        const updatedThreads: ConversationThread[] = [];
+
+        for (const thread of result.threads) {
+          const messages = await window.db.getMessages(thread.id);
+          if (messages.success && messages.messages && messages.messages.length > 0) {
+            const derivedTitle = generateTitleFromMessages(messages.messages.map((m) => ({ role: m.role, content: m.content })));
+            if (derivedTitle !== thread.title) {
+              await window.db.updateThreadTitle(thread.id, derivedTitle);
+              updatedThreads.push({ ...thread, title: derivedTitle });
+              continue;
+            }
+          }
+          updatedThreads.push(thread);
+        }
+
+        setThreads(updatedThreads);
+      };
+
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar px-3 pb-3">
@@ -66,25 +108,33 @@ export const ChatSidebar: React.FC = () => {
                   : "hover:bg-background/50 hover:shadow-sm"
               )}
             >
-              <div className={cn(
-                "w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors",
-                activeThreadId === thread.id ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-              )}>
+              <div
+                className={cn(
+                  "w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors",
+                  activeThreadId === thread.id
+                    ? "bg-primary/10 text-primary"
+                    : "bg-muted text-muted-foreground"
+                )}
+              >
                 <MessageSquare className="w-4 h-4" />
               </div>
-              
+
               <div className="flex-1 min-w-0">
-                <div className={cn(
-                  "text-sm font-medium truncate transition-colors",
-                  activeThreadId === thread.id ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
-                )}>
+                <div
+                  className={cn(
+                    "text-sm font-medium truncate transition-colors",
+                    activeThreadId === thread.id
+                      ? "text-foreground"
+                      : "text-muted-foreground group-hover:text-foreground"
+                  )}
+                >
                   {thread.title}
                 </div>
                 <div className="text-[10px] text-muted-foreground/70 mt-0.5">
                   {new Date(thread.created_at).toLocaleDateString()}
                 </div>
               </div>
-              
+
               <div
                 onClick={(e) => deleteThread(e, thread.id)}
                 className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-destructive/10 rounded-lg text-muted-foreground hover:text-destructive transition-all"

@@ -97,6 +97,10 @@ declare global {
         title: string,
         userId: string
       ) => Promise<{ success: boolean; error?: string }>;
+      updateThreadTitle: (
+        id: string,
+        title: string
+      ) => Promise<{ success: boolean; error?: string }>;
       deleteThread: (
         id: string
       ) => Promise<{ success: boolean; error?: string }>;

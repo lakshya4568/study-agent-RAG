@@ -163,6 +163,8 @@ contextBridge.exposeInMainWorld("db", {
     ipcRenderer.invoke("db:get-threads", { userId }),
   createThread: (id: string, title: string, userId: string) =>
     ipcRenderer.invoke("db:create-thread", { id, title, userId }),
+  updateThreadTitle: (id: string, title: string) =>
+    ipcRenderer.invoke("db:update-thread-title", { id, title }),
   deleteThread: (id: string) => ipcRenderer.invoke("db:delete-thread", { id }),
   getMessages: (threadId: string) =>
     ipcRenderer.invoke("db:get-messages", { threadId }),

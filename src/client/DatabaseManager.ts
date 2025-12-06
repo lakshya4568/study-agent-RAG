@@ -245,6 +245,17 @@ export class DatabaseManager {
     }));
   }
 
+  updateThreadTitle(id: string, title: string) {
+    if (!this.db) throw new Error("Database not initialized");
+    const sanitizedTitle = title.trim();
+    if (!sanitizedTitle) return;
+
+    const stmt = this.db.prepare(
+      "UPDATE threads SET title = ?, updated_at = ? WHERE id = ?"
+    );
+    stmt.run(sanitizedTitle, Date.now(), id);
+  }
+
   deleteThread(id: string) {
     if (!this.db) throw new Error("Database not initialized");
     const stmt = this.db.prepare("DELETE FROM threads WHERE id = ?");
