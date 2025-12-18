@@ -491,6 +491,21 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
     }
   };
 
+  const handleDeleteThread = async (threadId: string) => {
+    if (!user) return;
+    const confirmed = confirm("Delete this chat? This cannot be undone.");
+    if (!confirmed) return;
+
+    await window.db.deleteThread(threadId);
+
+    if (activeThreadId === threadId) {
+      setActiveThreadId(null);
+      setMessages([]);
+    }
+
+    loadThreads();
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -698,37 +713,37 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm]}
                               components={{
-                                p: ({ node, ...props }) => (
+                                p: ({ ...props }) => (
                                   <p className="mb-2 last:mb-0" {...props} />
                                 ),
-                                ul: ({ node, ...props }) => (
+                                ul: ({ ...props }) => (
                                   <ul
                                     className="list-disc pl-4 mb-2"
                                     {...props}
                                   />
                                 ),
-                                ol: ({ node, ...props }) => (
+                                ol: ({ ...props }) => (
                                   <ol
                                     className="list-decimal pl-4 mb-2"
                                     {...props}
                                   />
                                 ),
-                                li: ({ node, ...props }) => (
+                                li: ({ ...props }) => (
                                   <li className="mb-1" {...props} />
                                 ),
-                                a: ({ node, ...props }) => (
+                                a: ({ ...props }) => (
                                   <a
                                     className="text-primary hover:underline"
                                     {...props}
                                   />
                                 ),
-                                code: ({ node, ...props }) => (
+                                code: ({ ...props }) => (
                                   <code
                                     className="bg-muted px-1 py-0.5 rounded text-xs font-mono"
                                     {...props}
                                   />
                                 ),
-                                pre: ({ node, ...props }) => (
+                                pre: ({ ...props }) => (
                                   <pre
                                     className="bg-muted p-2 rounded-lg overflow-x-auto my-2 text-xs"
                                     {...props}
@@ -973,45 +988,56 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                 </div>
               ) : (
                 threads.map((thread) => (
-                  <button
-                    key={thread.id}
-                    onClick={() => {
-                      setActiveThreadId(thread.id);
-                      setShowHistory(false);
-                    }}
-                    className={cn(
-                      "w-full text-left p-3 rounded-xl hover:bg-muted transition-colors group",
-                      activeThreadId === thread.id
-                        ? "bg-primary/10 border border-primary/20"
-                        : ""
-                    )}
-                  >
-                    <div className="flex items-start gap-3">
-                      <MessageSquare
-                        className={cn(
-                          "w-4 h-4 mt-0.5 transition-colors",
-                          activeThreadId === thread.id
-                            ? "text-primary"
-                            : "text-muted-foreground group-hover:text-primary"
-                        )}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p
+                  <div className="relative" key={thread.id}>
+                    <button
+                      onClick={() => {
+                        setActiveThreadId(thread.id);
+                        setShowHistory(false);
+                      }}
+                      className={cn(
+                        "w-full text-left p-3 rounded-xl hover:bg-muted transition-colors group pr-10",
+                        activeThreadId === thread.id
+                          ? "bg-primary/10 border border-primary/20"
+                          : ""
+                      )}
+                    >
+                      <div className="flex items-start gap-3">
+                        <MessageSquare
                           className={cn(
-                            "text-sm font-medium transition-colors truncate",
+                            "w-4 h-4 mt-0.5 transition-colors",
                             activeThreadId === thread.id
                               ? "text-primary"
-                              : "text-foreground group-hover:text-primary"
+                              : "text-muted-foreground group-hover:text-primary"
                           )}
-                        >
-                          {thread.title}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {new Date(thread.created_at).toLocaleDateString()}
-                        </p>
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p
+                            className={cn(
+                              "text-sm font-medium transition-colors truncate",
+                              activeThreadId === thread.id
+                                ? "text-primary"
+                                : "text-foreground group-hover:text-primary"
+                            )}
+                          >
+                            {thread.title}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {new Date(thread.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </button>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteThread(thread.id);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      title="Delete chat"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 ))
               )}
             </div>
