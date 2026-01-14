@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useChatStore, useAuthStore } from "../client/store";
 import { MessageSquare, Plus, Trash2 } from "lucide-react";
-import type { ConversationThread } from "../client/types";
+import type { ConversationThread, ChatMessage } from "../client/types";
 import { cn } from "../lib/utils";
 
 export const ChatSidebar: React.FC = () => {
@@ -41,9 +41,21 @@ export const ChatSidebar: React.FC = () => {
     return "New Chat";
   };
 
+  const deleteThread = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (confirm("Are you sure you want to delete this chat?")) {
+      const result = await window.db.deleteThread(id);
+      if (result.success) {
+        if (activeThreadId === id) {
+          setActiveThreadId(null);
+        }
+        loadThreads();
+      }
+    }
+  };
+
   const hydrateTitles = async () => {
     if (!user) return;
-    // Fetch threads and their first message to derive titles
     const result = await window.db.getThreads(user.id);
     if (!(result.success && result.threads)) return;
 
@@ -57,7 +69,10 @@ export const ChatSidebar: React.FC = () => {
         messages.messages.length > 0
       ) {
         const derivedTitle = generateTitleFromMessages(
-          messages.messages.map((m) => ({ role: m.role, content: m.content }))
+          messages.messages.map((m: ChatMessage) => ({
+            role: m.role,
+            content: m.content,
+          }))
         );
         if (derivedTitle !== thread.title) {
           await window.db.updateThreadTitle(thread.id, derivedTitle);
@@ -69,30 +84,32 @@ export const ChatSidebar: React.FC = () => {
     }
 
     setThreads(updatedThreads);
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-muted/30 border-r border-border backdrop-blur-sm">
+      <div className="p-4 flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <MessageSquare className="w-5 h-5 text-primary" />
+            Chats
+          </h2>
+          <button
+            onClick={hydrateTitles}
+            className="text-[10px] text-muted-foreground hover:text-primary transition-colors"
+            title="Refresh titles"
+          >
+            Refresh
+          </button>
+        </div>
+
+        <button
+          onClick={createNewThread}
+          className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-all shadow-sm hover:shadow-md font-medium"
+        >
+          <Plus className="w-4 h-4" />
+          New Chat
         </button>
-      const hydrateTitles = async () => {
-        if (!user) return;
-        const result = await window.db.getThreads(user.id);
-        if (!(result.success && result.threads)) return;
-
-        const updatedThreads: ConversationThread[] = [];
-
-        for (const thread of result.threads) {
-          const messages = await window.db.getMessages(thread.id);
-          if (messages.success && messages.messages && messages.messages.length > 0) {
-            const derivedTitle = generateTitleFromMessages(messages.messages.map((m) => ({ role: m.role, content: m.content })));
-            if (derivedTitle !== thread.title) {
-              await window.db.updateThreadTitle(thread.id, derivedTitle);
-              updatedThreads.push({ ...thread, title: derivedTitle });
-              continue;
-            }
-          }
-          updatedThreads.push(thread);
-        }
-
-        setThreads(updatedThreads);
-      };
-
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar px-3 pb-3">
