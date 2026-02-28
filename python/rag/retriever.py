@@ -278,6 +278,7 @@ class HybridRetriever:
         """Get retriever statistics."""
         return {
             "total_documents": self._total_documents,
+            "document_count": self._total_documents,  # backward compat alias
             "collection_name": self.config.collection_name,
             "hybrid_search": self.config.enable_hybrid_search,
             "persist_dir": self.config.chroma_persist_dir,

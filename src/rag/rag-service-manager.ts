@@ -129,14 +129,14 @@ function getRagServicePath(): string {
   const bundledPath = path.join(
     process.resourcesPath,
     "python",
-    "nvidia_rag_service.py"
+    "enhanced_rag_service.py"
   );
   if (existsSync(bundledPath)) {
     return bundledPath;
   }
 
   // 2. Check in current working directory (Development)
-  return path.join(process.cwd(), "python", "nvidia_rag_service.py");
+  return path.join(process.cwd(), "python", "enhanced_rag_service.py");
 }
 
 function getChromaPersistDir(): string {

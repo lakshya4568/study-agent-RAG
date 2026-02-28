@@ -76,16 +76,26 @@ export interface AgentQueryResponse {
 export interface HealthResponse {
   status: string;
   nvidia_key_set: boolean;
-  persist_dir: string;
-  collection_name: string;
   embedding_model: string;
+  reranking_model: string;
   llm_model: string;
+  hybrid_search: boolean;
+  reranking_enabled: boolean;
+  chunk_size_tokens: number;
+  chunk_overlap_tokens: number;
+  /** @deprecated kept for backward compat */
+  persist_dir?: string;
+  /** @deprecated kept for backward compat */
+  collection_name?: string;
 }
 
 export interface CollectionStats {
   collection_name: string;
-  document_count: number;
+  total_documents: number;
+  hybrid_search: boolean;
   persist_dir: string;
+  /** @deprecated alias for total_documents */
+  document_count?: number;
 }
 
 export class RAGClientError extends Error {
