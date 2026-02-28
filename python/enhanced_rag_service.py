@@ -25,7 +25,8 @@ from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
 # Modular RAG imports
-from rag import RAGConfig, RAGPipeline
+from rag.config import RAGConfig
+from rag.pipeline import RAGPipeline
 
 load_dotenv()
 
@@ -183,6 +184,7 @@ async def query_rag(request: QueryRequest):
         if request.stream:
 
             async def generate() -> AsyncIterator[str]:
+                assert pipeline is not None
                 async for chunk in pipeline.query_stream(
                     request.question, top_k=request.top_k
                 ):

@@ -34,6 +34,7 @@ export class NVIDIAOpenAIChat {
     this.client = new OpenAI({
       apiKey: getRequiredApiKey(),
       baseURL: NVIDIA_BASE_URL,
+      timeout: 120000, // 2 minute timeout to prevent indefinite hangs
     });
     this.model = options.model || NVIDIA_CHAT_MODEL;
     this.temperature = options.temperature ?? 0.2;

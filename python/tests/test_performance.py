@@ -453,7 +453,7 @@ class TestLiveEmbeddingPerformance:
         config.chroma_persist_dir = tempfile.mkdtemp()
         config.collection_name = "test_performance"
 
-        from rag import RAGPipeline
+        from rag.pipeline import RAGPipeline
         pipe = RAGPipeline(config)
         pipe.initialize()
         return pipe

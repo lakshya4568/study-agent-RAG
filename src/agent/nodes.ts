@@ -134,19 +134,21 @@ export function createQueryNode(tools: StructuredTool[]) {
         logger.info("[QueryNode] No tools available");
       }
 
-      // Create tool-aware system prompt with examples
-      const enhancedSystemPrompt = createToolAwareSystemPrompt(
-        STUDY_MENTOR_SYSTEM_PROMPT,
-        enrichedTools
-      );
+      // When RAG context is present, use the base system prompt (no tool
+      // descriptions) to keep the payload small for the NVIDIA free-tier API.
+      // Tool-aware prompt is only needed when we actually plan to call tools.
+      const hasRAGContext = (state.documents?.length ?? 0) > 0;
+      const systemPrompt = hasRAGContext
+        ? STUDY_MENTOR_SYSTEM_PROMPT
+        : createToolAwareSystemPrompt(STUDY_MENTOR_SYSTEM_PROMPT, enrichedTools);
 
       const messages = [
-        new SystemMessage(enhancedSystemPrompt),
+        new SystemMessage(systemPrompt),
         ...state.messages,
       ];
 
       logger.info(
-        `[QueryNode] Invoking model with ${messages.length} messages`
+        `[QueryNode] Invoking model with ${messages.length} messages (RAG context: ${hasRAGContext})`
       );
 
       // Convert LangChain messages to OpenAI format
@@ -168,9 +170,18 @@ export function createQueryNode(tools: StructuredTool[]) {
         };
       });
 
-      // Use invokeWithTools if tools available, otherwise regular invoke
+      // When RAG context is already present (route=rag), skip tools to avoid
+      // sending a massive payload (19+ tool schemas + RAG context) that causes
+      // NVIDIA free-tier API to hang/timeout. The RAG pipeline already retrieved
+      // and contextualized the answer — we just need the LLM to synthesize it.
       let responseContent: string;
-      if (openAITools.length > 0) {
+
+      if (hasRAGContext) {
+        logger.info(
+          `[QueryNode] RAG context present (${state.documents!.length} docs), using direct invoke (no tools)`
+        );
+        responseContent = await model.invoke(openAIMessages);
+      } else if (openAITools.length > 0) {
         // Tool executor that maps back to LangChain tools with validation
         const toolExecutor = async (
           toolName: string,

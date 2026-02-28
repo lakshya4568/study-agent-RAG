@@ -159,8 +159,8 @@ class HybridRetriever:
                         metadata=meta or {},
                     )
                     for doc, meta in zip(
-                        results.get("documents", []),
-                        results.get("metadatas", []),
+                        results.get("documents") or [],
+                        results.get("metadatas") or [],
                     )
                 ]
                 self._keyword_searcher.index(docs)

@@ -23,6 +23,7 @@ try:
 
     _TIKTOKEN_AVAILABLE = True
 except ImportError:
+    tiktoken = None  # type: ignore[assignment]  # noqa: F841
     _TIKTOKEN_AVAILABLE = False
     logger.warning("tiktoken not available, falling back to approximate token counting")
 
@@ -54,7 +55,7 @@ class SemanticChunker:
         self.config = config
         self._tokenizer = None
 
-        if _TIKTOKEN_AVAILABLE:
+        if _TIKTOKEN_AVAILABLE and tiktoken is not None:
             try:
                 self._tokenizer = tiktoken.get_encoding(
                     config.chunking.encoding_name
