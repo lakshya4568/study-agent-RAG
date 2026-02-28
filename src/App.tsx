@@ -6,20 +6,22 @@ import {
   Zap,
   Plus,
   History as HistoryIcon,
+  FlaskConical,
 } from "lucide-react";
 import { MainLayout, Sidebar, TopBar } from "./components/layout";
 import { Badge, Button } from "./components/ui";
 import { Chat } from "./views/Chat";
 import { ServerManager } from "./views/ServerManager";
 import { Settings } from "./views/Settings";
+import { RAGDashboard } from "./views/RAGDashboard";
 import { Login } from "./views/Login";
 import { Signup } from "./views/Signup";
 import { useAuthStore } from "./client/store";
 
 export const App: React.FC = () => {
-  const [activeView, setActiveView] = useState<"chat" | "servers" | "settings">(
-    "chat"
-  );
+  const [activeView, setActiveView] = useState<
+    "chat" | "servers" | "settings" | "rag-dashboard"
+  >("chat");
   const [authView, setAuthView] = useState<"login" | "signup">("login");
   const { isAuthenticated, logout } = useAuthStore();
 
@@ -27,8 +29,8 @@ export const App: React.FC = () => {
     createNewThread: () => void;
     openHistory: () => void;
   }>({
-    createNewThread: () => { },
-    openHistory: () => { },
+    createNewThread: () => {},
+    openHistory: () => {},
   });
 
   if (!isAuthenticated) {
@@ -64,6 +66,14 @@ export const App: React.FC = () => {
       onClick: () => setActiveView("settings"),
       active: activeView === "settings",
     },
+    {
+      id: "rag-dashboard",
+      icon: FlaskConical,
+      label: "RAG Dev",
+      description: "Pipeline Inspector",
+      onClick: () => setActiveView("rag-dashboard"),
+      active: activeView === "rag-dashboard",
+    },
   ];
 
   const topBarActions = (
@@ -86,7 +96,11 @@ export const App: React.FC = () => {
       >
         History
       </Button>
-      <Badge variant="outline" size="sm" className="gap-1.5 bg-background/50 backdrop-blur-sm rounded-full">
+      <Badge
+        variant="outline"
+        size="sm"
+        className="gap-1.5 bg-background/50 backdrop-blur-sm rounded-full"
+      >
         <Zap className="w-3 h-3 text-yellow-500" />
         Pro Plan
       </Badge>
@@ -95,18 +109,8 @@ export const App: React.FC = () => {
 
   return (
     <MainLayout
-      sidebar={
-        <Sidebar
-          items={sidebarItems}
-          onLogout={logout}
-        />
-      }
-      topBar={
-        <TopBar
-          title="StudyBuddy"
-          actions={topBarActions}
-        />
-      }
+      sidebar={<Sidebar items={sidebarItems} onLogout={logout} />}
+      topBar={<TopBar title="StudyBuddy" actions={topBarActions} />}
     >
       {activeView === "chat" && (
         <Chat
@@ -117,6 +121,7 @@ export const App: React.FC = () => {
       )}
       {activeView === "servers" && <ServerManager />}
       {activeView === "settings" && <Settings />}
+      {activeView === "rag-dashboard" && <RAGDashboard />}
     </MainLayout>
   );
 };

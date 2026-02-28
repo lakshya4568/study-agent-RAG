@@ -14,7 +14,7 @@ contextBridge.exposeInMainWorld("mcpClient", {
    * Add and connect to a new MCP server
    */
   addServer: (
-    config: MCPServerConfig
+    config: MCPServerConfig,
   ): Promise<{ success: boolean; error?: string }> => {
     return ipcRenderer.invoke("mcp:addServer", config);
   },
@@ -23,7 +23,7 @@ contextBridge.exposeInMainWorld("mcpClient", {
    * Remove a server connection
    */
   removeServer: (
-    serverId: string
+    serverId: string,
   ): Promise<{ success: boolean; error?: string }> => {
     return ipcRenderer.invoke("mcp:removeServer", serverId);
   },
@@ -55,7 +55,7 @@ contextBridge.exposeInMainWorld("mcpClient", {
   executeTool: (
     serverId: string,
     toolName: string,
-    args?: Record<string, unknown>
+    args?: Record<string, unknown>,
   ): Promise<ToolExecutionResult> => {
     return ipcRenderer.invoke("mcp:executeTool", serverId, toolName, args);
   },
@@ -82,7 +82,7 @@ contextBridge.exposeInMainWorld("mcpClient", {
     serverId: string,
     serverName: string,
     args?: Record<string, unknown>,
-    description?: string
+    description?: string,
   ): Promise<{ requestId: string }> => {
     return ipcRenderer.invoke("mcp:requestToolExecution", {
       toolName,
@@ -156,6 +156,14 @@ contextBridge.exposeInMainWorld("appConfig", {
 
 contextBridge.exposeInMainWorld("fs", {
   readFile: (path: string) => ipcRenderer.invoke("fs:readFile", path),
+});
+
+contextBridge.exposeInMainWorld("ragDashboard", {
+  getHealth: () => ipcRenderer.invoke("rag:getHealth"),
+  getCollectionStats: () => ipcRenderer.invoke("rag:getCollectionStats"),
+  getPipelineStats: () => ipcRenderer.invoke("rag:getPipelineStats"),
+  clearCollection: () => ipcRenderer.invoke("rag:clearCollection"),
+  getVectorStoreState: () => ipcRenderer.invoke("db:getVectorStoreState"),
 });
 
 contextBridge.exposeInMainWorld("db", {

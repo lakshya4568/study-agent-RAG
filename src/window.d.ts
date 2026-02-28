@@ -22,10 +22,10 @@ declare global {
   interface Window {
     mcpClient: {
       addServer: (
-        config: MCPServerConfig
+        config: MCPServerConfig,
       ) => Promise<{ success: boolean; error?: string }>;
       removeServer: (
-        serverId: string
+        serverId: string,
       ) => Promise<{ success: boolean; error?: string }>;
       getServerInfo: (serverId: string) => Promise<ServerInfo | undefined>;
       getAllServers: () => Promise<ServerInfo[]>;
@@ -35,7 +35,7 @@ declare global {
       executeTool: (
         serverId: string,
         toolName: string,
-        args?: Record<string, unknown>
+        args?: Record<string, unknown>,
       ) => Promise<ToolExecutionResult>;
       findToolServer: (toolName: string) => Promise<string | undefined>;
       getConnectedCount: () => Promise<number>;
@@ -44,7 +44,7 @@ declare global {
         serverId: string,
         serverName: string,
         args?: Record<string, unknown>,
-        description?: string
+        description?: string,
       ) => Promise<{ requestId: string }>;
       approveToolExecution: (requestId: string) => Promise<void>;
       denyToolExecution: (requestId: string) => Promise<void>;
@@ -61,7 +61,7 @@ declare global {
         password: string;
       }) => Promise<{ success: boolean; user?: User; error?: string }>;
       getUser: (
-        id: string
+        id: string,
       ) => Promise<{ success: boolean; user?: User; error?: string }>;
     };
     studyAgent: {
@@ -73,7 +73,7 @@ declare global {
       getStatus: () => Promise<AgentStatus>;
       reloadDocuments: (documentPaths: string[]) => Promise<AgentStatus>;
       addDocuments: (
-        documentPaths: string[]
+        documentPaths: string[],
       ) => Promise<AgentDocumentAddResult>;
       openFileDialog: () => Promise<{
         success: boolean;
@@ -83,7 +83,7 @@ declare global {
     appConfig: {
       getSummary: () => Promise<ConfigSummaryItem[]>;
       update: (
-        values: Record<string, string | undefined>
+        values: Record<string, string | undefined>,
       ) => Promise<ConfigSummaryItem[]>;
     };
     db: {
@@ -95,14 +95,14 @@ declare global {
       createThread: (
         id: string,
         title: string,
-        userId: string
+        userId: string,
       ) => Promise<{ success: boolean; error?: string }>;
       updateThreadTitle: (
         id: string,
-        title: string
+        title: string,
       ) => Promise<{ success: boolean; error?: string }>;
       deleteThread: (
-        id: string
+        id: string,
       ) => Promise<{ success: boolean; error?: string }>;
       getMessages: (threadId: string) => Promise<{
         success: boolean;
@@ -110,13 +110,13 @@ declare global {
         error?: string;
       }>;
       saveMessage: (
-        message: ChatMessage
+        message: ChatMessage,
       ) => Promise<{ success: boolean; error?: string }>;
       clearMessages: (
-        threadId: string
+        threadId: string,
       ) => Promise<{ success: boolean; error?: string }>;
       saveFlashcard: (
-        flashcard: Flashcard
+        flashcard: Flashcard,
       ) => Promise<{ success: boolean; error?: string }>;
       getFlashcardsByMessageId: (messageId: string) => Promise<{
         success: boolean;
@@ -125,13 +125,85 @@ declare global {
       }>;
       updateFlashcardStatus: (
         id: string,
-        isMastered: boolean
+        isMastered: boolean,
       ) => Promise<{ success: boolean; error?: string }>;
+      getAllDocuments: () => Promise<
+        Array<{
+          id: string;
+          name: string;
+          path: string;
+          type: string;
+          size: number;
+          uploadedAt: number;
+          status?: "processing" | "ready" | "error";
+          chunkCount?: number;
+          error?: string;
+        }>
+      >;
+      deleteDocument: (
+        id: string,
+      ) => Promise<{ success: boolean; error?: string }>;
+      getStats: () => Promise<{
+        threads: number;
+        messages: number;
+        documents: number;
+        dbSizeMB: number;
+      }>;
     };
     fs: {
       readFile: (
-        path: string
+        path: string,
       ) => Promise<{ success: boolean; content?: string; error?: string }>;
+    };
+    ragDashboard: {
+      getHealth: () => Promise<{
+        status: string;
+        nvidia_key_set: boolean;
+        embedding_model: string;
+        reranking_model?: string;
+        llm_model: string;
+        hybrid_search?: boolean;
+        reranking_enabled?: boolean;
+        chunk_size_tokens: number;
+        chunk_overlap_tokens: number;
+      }>;
+      getCollectionStats: () => Promise<{
+        collection_name: string;
+        total_documents: number;
+        document_count: number;
+        hybrid_search: boolean;
+        persist_dir: string;
+      }>;
+      getPipelineStats: () => Promise<{
+        embedder: {
+          model: string;
+          total_requests: number;
+          total_tokens_embedded: number;
+          dimensions: number;
+        };
+        retriever: {
+          collection_name: string;
+          total_documents: number;
+          document_count: number;
+          hybrid_search: boolean;
+          persist_dir: string;
+        };
+        reranker: {
+          model: string;
+          total_reranked: number;
+          avg_input_docs?: number;
+        };
+        generator: {
+          model: string;
+          total_generations: number;
+        };
+        metrics: Record<string, unknown>;
+      }>;
+      clearCollection: () => Promise<{ status: string; message: string }>;
+      getVectorStoreState: () => Promise<{
+        totalDocuments: number;
+        totalChunks: number;
+      } | null>;
     };
   }
 }
