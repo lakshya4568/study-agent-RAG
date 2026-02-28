@@ -92,10 +92,9 @@ export interface HealthResponse {
 export interface CollectionStats {
   collection_name: string;
   total_documents: number;
+  document_count: number;
   hybrid_search: boolean;
   persist_dir: string;
-  /** @deprecated alias for total_documents */
-  document_count?: number;
 }
 
 export class RAGClientError extends Error {
