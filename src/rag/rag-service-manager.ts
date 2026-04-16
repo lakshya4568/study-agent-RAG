@@ -194,6 +194,39 @@ async function waitForHealthy(timeoutMs: number): Promise<boolean> {
   return false;
 }
 
+async function runStartupSelfHealCheck(baseURL: string): Promise<void> {
+  const response = await fetch(`${baseURL}/collection/startup-self-heal`, {
+    method: "GET",
+    signal: AbortSignal.timeout(15000),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      `Startup self-heal check failed: HTTP ${response.status} ${response.statusText}${
+        errorData.detail ? ` - ${errorData.detail}` : ""
+      }`
+    );
+  }
+
+  const result = (await response.json()) as {
+    status: string;
+    collection_name: string;
+    document_count: number;
+    recovered: boolean;
+  };
+
+  if (result.recovered) {
+    logger.warn(
+      `RAG startup self-heal recovered missing collection '${result.collection_name}'`
+    );
+  } else {
+    logger.info(
+      `RAG startup self-heal check passed for '${result.collection_name}' (${result.document_count} docs)`
+    );
+  }
+}
+
 /**
  * Start the Python RAG service
  */
@@ -305,6 +338,10 @@ export async function startRAGService(): Promise<void> {
 
     // Verify service details
     const health = await ragClient.healthCheck();
+
+    // Startup self-check to auto-heal stale/missing collection handles before first upload.
+    await runStartupSelfHealCheck(ragClient.getBaseURL());
+
     logger.info("✓ RAG service is healthy");
     logger.info(`  - Collection: ${health.collection_name}`);
     logger.info(`  - Embedding Model: ${health.embedding_model}`);

@@ -142,6 +142,59 @@ class HybridRetriever:
             f"Recreated missing collection '{self.config.collection_name}'"
         )
 
+    def startup_self_heal_check(self) -> Dict[str, Any]:
+        """
+        Verify collection accessibility on startup and self-heal if needed.
+
+        Returns:
+            Dict with startup check status and recovery metadata
+        """
+        if self._vector_store is None:
+            raise RuntimeError("Retriever not initialized")
+
+        recovered = False
+
+        try:
+            collection = self._vector_store._collection
+            count = collection.count()
+            self._total_documents = count
+
+            if count == 0:
+                # Ensure keyword index state matches an empty collection.
+                self._keyword_searcher = KeywordSearcher()
+            else:
+                results = collection.get(
+                    limit=min(count, 10000),
+                    include=["documents", "metadatas"],
+                )
+                docs = [
+                    Document(
+                        page_content=doc,
+                        metadata=meta or {},
+                    )
+                    for doc, meta in zip(
+                        results.get("documents") or [],
+                        results.get("metadatas") or [],
+                    )
+                ]
+                self._keyword_searcher.index(docs)
+        except Exception as e:
+            if not self._is_missing_collection_error(e):
+                raise
+
+            logger.warning(
+                "Startup self-heal detected missing collection; recreating"
+            )
+            self._recover_missing_collection()
+            recovered = True
+
+        return {
+            "status": "ok",
+            "collection_name": self.config.collection_name,
+            "document_count": self._total_documents,
+            "recovered": recovered,
+        }
+
     def initialize(self) -> "HybridRetriever":
         """Initialize the vector store."""
         self._create_vector_store()

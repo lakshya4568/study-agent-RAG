@@ -58,6 +58,15 @@ async def lifespan(app: FastAPI):
     pipeline = RAGPipeline(config)
     pipeline.initialize()
 
+    startup_check = pipeline.run_startup_self_heal_check()
+    app.state.startup_self_heal = startup_check
+    logger.info(
+        "✓ Startup self-heal check: "
+        f"collection='{startup_check['collection_name']}', "
+        f"docs={startup_check['document_count']}, "
+        f"recovered={startup_check['recovered']}"
+    )
+
     logger.info("✓ RAG Service ready")
     yield
 
@@ -108,6 +117,13 @@ class HealthResponse(BaseModel):
     reranking_enabled: bool
     chunk_size_tokens: int
     chunk_overlap_tokens: int
+
+
+class StartupSelfHealResponse(BaseModel):
+    status: str
+    collection_name: str
+    document_count: int
+    recovered: bool
 
 
 class DocumentResponse(BaseModel):
@@ -217,6 +233,20 @@ async def get_collection_stats():
         raise HTTPException(status_code=503, detail="Pipeline not initialized")
 
     return pipeline.get_collection_stats()
+
+
+@app.get("/collection/startup-self-heal", response_model=StartupSelfHealResponse)
+async def startup_self_heal_check():
+    """Run collection startup self-heal check on demand."""
+    if not pipeline:
+        raise HTTPException(status_code=503, detail="Pipeline not initialized")
+
+    try:
+        result = pipeline.run_startup_self_heal_check()
+        return result
+    except Exception as e:
+        logger.error(f"Startup self-heal check error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/metrics")

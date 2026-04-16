@@ -337,6 +337,11 @@ class RAGPipeline:
         """Get collection statistics."""
         return self.retriever.get_stats()
 
+    def run_startup_self_heal_check(self) -> Dict[str, Any]:
+        """Run startup collection self-check and recovery if required."""
+        self._ensure_initialized()
+        return self.retriever.startup_self_heal_check()
+
     def get_metrics_summary(self) -> Dict[str, Any]:
         """Get performance metrics summary."""
         return self.metrics.get_summary()
