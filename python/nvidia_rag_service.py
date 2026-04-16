@@ -34,7 +34,7 @@ COLLECTION_NAME = "study_materials"
 
 # Model Configuration
 EMBEDDING_MODEL = "nvidia/llama-3.2-nemoretriever-300m-embed-v2"
-LLM_MODEL = "moonshotai/kimi-k2-instruct"
+LLM_MODEL = "qwen/qwen3.5-397b-a17b"
 
 # RAG Configuration (Token-based)
 CHUNK_SIZE = 512  # tokens
@@ -94,7 +94,7 @@ async def initialize_clients():
         nvidia_api_key=NVIDIA_API_KEY,
         temperature=0.6,  # Recommended for Kimi K2
         top_p=0.9,
-        max_completion_tokens=4096,
+        max_completion_tokens=8234,
     )
 
     # LLM for streaming queries
@@ -103,7 +103,7 @@ async def initialize_clients():
         nvidia_api_key=NVIDIA_API_KEY,
         temperature=0.6,
         top_p=0.9,
-        max_completion_tokens=4096,
+        max_completion_tokens=8234,
         streaming=True,  # Enable streaming
     )
 

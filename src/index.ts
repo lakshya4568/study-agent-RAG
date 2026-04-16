@@ -32,6 +32,15 @@ import { ragClient } from "./rag/rag-client";
 declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
 declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 
+const isDev = !app.isPackaged;
+const shouldAutoOpenDevTools = process.env.ELECTRON_OPEN_DEVTOOLS === "true";
+const shouldDisableGpuInDev = process.env.ELECTRON_ENABLE_GPU !== "true";
+
+if (isDev && shouldDisableGpuInDev) {
+  app.disableHardwareAcceleration();
+  app.commandLine.appendSwitch("disable-gpu");
+}
+
 // Disable Autofill and related features to prevent DevTools errors
 app.commandLine.appendSwitch(
   "disable-features",
@@ -161,10 +170,13 @@ const createWindow = (): void => {
   // and load the index.html of the app.
   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
 
-  // Open the DevTools.
-  mainWindow.webContents.openDevTools();
+  if (isDev && shouldAutoOpenDevTools) {
+    mainWindow.webContents.openDevTools();
+    logger.info("🪟 Main window created and DevTools opened");
+  } else {
+    logger.info("🪟 Main window created");
+  }
 
-  logger.info("🪟 Main window created and DevTools opened");
   logger.info(`   Size: ${width}x${height}`);
 };
 

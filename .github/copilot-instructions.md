@@ -4,6 +4,9 @@
 
 NVIDIA API Rate Limit = 40 Requests per Minute (free tier)
 
+
+Always USE THE .venv for python path configure through uv.
+
 This is a **freshly initialized Electron application** (using Electron Forge + Webpack + TypeScript) with the **vision** of becoming a Model Context Protocol (MCP) client for AI-powered study tools. The MCP client implementation **does not exist yet**—the codebase is currently a vanilla Electron starter template.**Study Agent MCP Client** is a universal, agent-enabled desktop client (TypeScript + Electron) designed to interface with any _Model Context Protocol (MCP)_ server. It empowers the creation and delivery of intelligent, personalized study tools by leveraging dynamically discovered capabilities from MCP servers—including Google Forms. The goal is to allow AI-driven workflows (summarization, flashcards, quiz generation, study mentoring) by connecting to multiple backends through a standardized protocol.
 
 ---

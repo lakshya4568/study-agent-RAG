@@ -116,8 +116,14 @@ class HybridRetriever:
         self._keyword_searcher = KeywordSearcher()
         self._total_documents: int = 0
 
-    def initialize(self) -> "HybridRetriever":
-        """Initialize the vector store."""
+    @staticmethod
+    def _is_missing_collection_error(error: Exception) -> bool:
+        """Return True when Chroma reports a missing/deleted collection."""
+        message = str(error).lower()
+        return "collection" in message and "does not exist" in message
+
+    def _create_vector_store(self) -> None:
+        """Create a fresh Chroma vector store client for the configured collection."""
         persist_dir = self.config.chroma_persist_dir
         Path(persist_dir).mkdir(parents=True, exist_ok=True)
 
@@ -126,6 +132,19 @@ class HybridRetriever:
             embedding_function=self.embedder._client,
             persist_directory=persist_dir,
         )
+
+    def _recover_missing_collection(self) -> None:
+        """Recover from a stale/deleted collection handle by recreating it."""
+        self._total_documents = 0
+        self._keyword_searcher = KeywordSearcher()
+        self._create_vector_store()
+        logger.info(
+            f"Recreated missing collection '{self.config.collection_name}'"
+        )
+
+    def initialize(self) -> "HybridRetriever":
+        """Initialize the vector store."""
+        self._create_vector_store()
 
         # Load existing documents into keyword index
         self._rebuild_keyword_index()
@@ -139,7 +158,7 @@ class HybridRetriever:
 
     def _rebuild_keyword_index(self) -> None:
         """Rebuild the keyword search index from the vector store."""
-        if not self._vector_store:
+        if self._vector_store is None:
             return
 
         try:
@@ -166,6 +185,12 @@ class HybridRetriever:
                 self._keyword_searcher.index(docs)
                 logger.info(f"Keyword index built with {len(docs)} documents")
         except Exception as e:
+            if self._is_missing_collection_error(e):
+                logger.warning(
+                    "Collection missing while rebuilding keyword index; recreating"
+                )
+                self._recover_missing_collection()
+                return
             logger.warning(f"Failed to rebuild keyword index: {e}")
 
     def add_documents(self, documents: List[Document]) -> int:
@@ -178,16 +203,30 @@ class HybridRetriever:
         Returns:
             Number of documents added
         """
-        if not self._vector_store:
+        if self._vector_store is None:
             raise RuntimeError("Retriever not initialized")
 
-        self._vector_store.add_documents(documents)
+        try:
+            self._vector_store.add_documents(documents)
+        except Exception as e:
+            if not self._is_missing_collection_error(e):
+                raise
+
+            logger.warning(
+                "Collection missing during add_documents; recreating and retrying"
+            )
+            self._recover_missing_collection()
+            assert self._vector_store is not None
+            self._vector_store.add_documents(documents)
+
         self._total_documents += len(documents)
 
         # Rebuild keyword index
         self._rebuild_keyword_index()
 
-        logger.info(f"Added {len(documents)} documents (total: {self._total_documents})")
+        logger.info(
+            f"Added {len(documents)} documents (total: {self._total_documents})"
+        )
         return len(documents)
 
     def retrieve(
@@ -205,16 +244,26 @@ class HybridRetriever:
         Returns:
             List of (document, score) tuples
         """
-        if not self._vector_store:
+        if self._vector_store is None:
             raise RuntimeError("Retriever not initialized")
 
         k = top_k or self.config.retriever.top_k
         cfg = self.config.retriever
 
         # ── Semantic search ────────────────────────────────────────────────
-        semantic_results = self._vector_store.similarity_search_with_score(
-            query, k=k
-        )
+        try:
+            semantic_results = self._vector_store.similarity_search_with_score(
+                query, k=k
+            )
+        except Exception as e:
+            if not self._is_missing_collection_error(e):
+                raise
+
+            logger.warning(
+                "Collection missing during retrieval; recreating and returning empty results"
+            )
+            self._recover_missing_collection()
+            return []
 
         if not cfg.use_hybrid or not self.config.enable_hybrid_search:
             return semantic_results
@@ -286,8 +335,17 @@ class HybridRetriever:
 
     def clear(self) -> None:
         """Clear all documents."""
-        if self._vector_store:
-            self._vector_store.delete_collection()
-            self._total_documents = 0
-            self._keyword_searcher = KeywordSearcher()
-            logger.info("✓ Collection cleared")
+        if self._vector_store is not None:
+            try:
+                self._vector_store.delete_collection()
+            except Exception as e:
+                if not self._is_missing_collection_error(e):
+                    raise
+                logger.warning(
+                    "Collection already missing during clear; creating a fresh one"
+                )
+
+        self._total_documents = 0
+        self._keyword_searcher = KeywordSearcher()
+        self._create_vector_store()
+        logger.info("✓ Collection cleared")
