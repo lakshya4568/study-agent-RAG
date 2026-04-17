@@ -24,9 +24,12 @@ import type {
   AgentStatus,
 } from "./types";
 import { ragClient } from "../rag/rag-client";
+import { MemoryManager } from "./MemoryManager";
+import type { MemoryStatus } from "./MemoryManager";
 
 // Re-export types for convenience
 export type { AgentMessageDTO, AgentInvocationResult, AgentStatus };
+export type { MemoryStatus };
 
 dotenv.config();
 
@@ -47,12 +50,14 @@ export class StudyAgentService {
   private lastInvocationLatencyMs?: number;
   private lastInitDurationMs?: number;
   private lastInitError?: string;
+  private memoryManager: MemoryManager;
 
   constructor(
     options: StudyAgentOptions = {},
     private mcpManager?: MCPClientManager
   ) {
     this.options = { ...options };
+    this.memoryManager = new MemoryManager();
 
     // Listen for tool changes if manager is provided
     if (this.mcpManager) {
@@ -94,6 +99,14 @@ export class StudyAgentService {
       logger.info(
         "StudyAgentService setup: checking RAG service connection..."
       );
+
+      // Initialize persistent memory system
+      try {
+        this.memoryManager.initialize();
+        logger.info("🧠 Memory system initialized");
+      } catch (memError) {
+        logger.warn("Failed to initialize memory system:", memError);
+      }
 
       // Test RAG service connection
       try {
@@ -227,7 +240,7 @@ export class StudyAgentService {
 
       logger.info("StudyAgentService setup: building study mentor graph");
       // Graph queries RAG service directly via ragClient
-      this.graph = await createStudyMentorGraph(allTools);
+      this.graph = await createStudyMentorGraph(allTools, this.memoryManager);
       logger.info("Study agent initialized successfully.");
       this.lastInitError = undefined;
     } catch (error) {
@@ -525,11 +538,26 @@ export class StudyAgentService {
 
       logger.info(`Agent invoke: "${userMessage.substring(0, 100)}..."`);
 
+      // Load persistent memory context
+      let memoryContext = "";
+      try {
+        memoryContext = this.memoryManager.getMemoryForPrompt();
+        if (memoryContext) {
+          logger.info(
+            `[Memory] Loaded ${memoryContext.length} chars of memory context`
+          );
+        }
+      } catch (memError) {
+        logger.warn("Failed to load memory context:", memError);
+      }
+
       const input: StudyAgentStateType = {
         messages: [...conversationHistory, new HumanMessage(userMessage)],
         documents: [],
         currentTopic: "",
         route: "general",
+        memoryContext,
+        memoryCommand: "",
       };
 
       const invokeConfig: RunnableConfig | undefined = options?.threadId
@@ -549,6 +577,13 @@ export class StudyAgentService {
       logger.info(
         `Agent invocation completed in ${this.lastInvocationLatencyMs.toFixed(0)}ms`
       );
+
+      // Fire-and-forget: analyze conversation turn for memory updates
+      this.memoryManager
+        .analyzeAndUpdate(userMessage, content)
+        .catch((err) =>
+          logger.warn("[Memory] Background memory analysis failed:", err)
+        );
 
       return {
         success: true,
@@ -580,6 +615,11 @@ export class StudyAgentService {
         latencyMs: this.lastInvocationLatencyMs,
       };
     }
+  }
+
+  /** Access the MemoryManager for IPC handlers */
+  getMemoryManager(): MemoryManager {
+    return this.memoryManager;
   }
 
   async dispose(): Promise<void> {

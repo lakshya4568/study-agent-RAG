@@ -6,6 +6,7 @@ import { logger } from "../client/logger";
 import { ragClient } from "../rag/rag-client";
 import { StructuredTool } from "@langchain/core/tools";
 import type { ChatCompletionTool } from "openai/resources/chat/completions";
+import type { MemoryManager } from "./MemoryManager";
 import {
   enrichAllTools,
   toOpenAIToolFormat,
@@ -61,6 +62,15 @@ Your Communication Style:
 - Be specific: Give concrete examples, step-by-step guidance
 - End with engagement: "Does that make sense?" "Want to try an example?" "What part should we explore next?"
 
+MEMORY SYSTEM:
+- You have access to a persistent memory about this user (provided below as "Memory Context")
+- Use the memory context naturally in your responses — don't expose raw memory unless the user asks
+- When the user says "remember this" or similar, acknowledge that it has been saved
+- When the user says "forget this" or "delete that memory", acknowledge the removal
+- When the user asks "what do you know about me?" or "what do you remember?", share relevant memories naturally
+- If "Temporary chat mode" is active, note that memory saving is paused
+- Only mention memory updates when relevant or explicitly requested by the user
+
 Remember: You're not a calculator or answer key - you're a mentor helping students become independent learners! 🚀`;
 
 function formatSourceLabel(doc: Document): string {
@@ -84,6 +94,7 @@ export async function routeNode(
     const prompt = `You are a router for a study assistant. Decide the best strategy for the user query.
     
     Options:
+    - "memory": Use this when the user is explicitly asking about their saved memory, asking you to remember something, forget something, or manage their memory. Examples: "remember this", "what do you know about me?", "forget that", "delete that memory", "what do you remember?", "save this", "temporary chat mode", "do not save this".
     - "flashcard": Use this when the user EXPLICITLY asks to create or generate flashcards, study cards, or quiz cards.
     - "rag": Use this when the user asks about specific documents, study materials, or information that would be found in the knowledge base. ALSO use this for requests to "list", "extract", "summarize", or "find" information from the documents.
     - "tool": Use this ONLY when the user asks to perform a specific SYSTEM action (e.g., read a local file path, list directory, search github, calculate something) that requires using external tools. Do NOT use this for questions about uploaded documents.
@@ -91,13 +102,14 @@ export async function routeNode(
     
     Query: ${query}
     
-    Return ONLY the option name (flashcard, rag, tool, or general).`;
+    Return ONLY the option name (memory, flashcard, rag, tool, or general).`;
 
     const response = await model.invoke([{ role: "user", content: prompt }]);
     const route = response.toLowerCase().trim();
 
     logger.info(`Router decision: ${route}`);
 
+    if (route.includes("memory")) return { route: "memory" };
     if (route.includes("flashcard")) return { route: "flashcard" };
     if (route.includes("rag")) return { route: "rag" };
     if (route.includes("tool")) return { route: "tool" };
@@ -138,9 +150,15 @@ export function createQueryNode(tools: StructuredTool[]) {
       // descriptions) to keep the payload small for the NVIDIA free-tier API.
       // Tool-aware prompt is only needed when we actually plan to call tools.
       const hasRAGContext = (state.documents?.length ?? 0) > 0;
-      const systemPrompt = hasRAGContext
+      let systemPrompt = hasRAGContext
         ? STUDY_MENTOR_SYSTEM_PROMPT
         : createToolAwareSystemPrompt(STUDY_MENTOR_SYSTEM_PROMPT, enrichedTools);
+
+      // Inject persistent memory context into the system prompt
+      const memoryCtx = state.memoryContext || "";
+      if (memoryCtx) {
+        systemPrompt += `\n\n--- Memory Context ---\n${memoryCtx}\n--- End Memory Context ---`;
+      }
 
       const messages = [
         new SystemMessage(systemPrompt),
@@ -498,4 +516,98 @@ export async function generateNode(
       ],
     };
   }
+}
+
+/**
+ * Creates a memory node that handles explicit memory commands.
+ * Uses the MemoryManager instance passed at graph construction time.
+ */
+export function createMemoryNode(memoryManager: MemoryManager) {
+  return async function memoryNode(
+    state: StudyAgentStateType
+  ): Promise<Partial<StudyAgentStateType>> {
+    try {
+      const lastMessage = state.messages[state.messages.length - 1];
+      const query =
+        typeof lastMessage.content === "string"
+          ? lastMessage.content
+          : JSON.stringify(lastMessage.content);
+
+      const lowerQuery = query.toLowerCase().trim();
+
+      // Detect the specific memory command
+      let result: string;
+
+      if (
+        lowerQuery.includes("temporary chat") ||
+        lowerQuery.includes("do not save") ||
+        lowerQuery.includes("don't save") ||
+        lowerQuery.includes("temporary mode")
+      ) {
+        result = memoryManager.executeMemoryCommand("temporary_mode");
+      } else if (
+        lowerQuery.includes("what do you know about me") ||
+        lowerQuery.includes("what do you remember") ||
+        lowerQuery.includes("show me my memory") ||
+        lowerQuery.includes("show memory") ||
+        lowerQuery.includes("my memories")
+      ) {
+        const rawMemory = memoryManager.executeMemoryCommand("recall");
+        // Let the LLM present the memory naturally
+        const model = createNVIDIAOpenAIChat();
+        const memoryPrompt = `The user asked about their saved memories. Here is the raw memory file contents:
+
+${rawMemory}
+
+Present this information back to the user in a friendly, organized way. If no facts are saved yet, let them know warmly. Use your personality as Alex, the study mentor.`;
+
+        result = await model.invoke([
+          { role: "system", content: STUDY_MENTOR_SYSTEM_PROMPT },
+          { role: "user", content: memoryPrompt },
+        ]);
+      } else if (
+        lowerQuery.includes("forget") ||
+        lowerQuery.includes("delete") ||
+        lowerQuery.includes("remove memory")
+      ) {
+        // Extract what to forget — remove command words
+        const toForget = query
+          .replace(/\b(forget|delete|remove)\b/gi, "")
+          .replace(/\b(memory|that|this|about|my)\b/gi, "")
+          .trim();
+        result = memoryManager.executeMemoryCommand("forget", toForget || query);
+      } else if (
+        lowerQuery.includes("remember") ||
+        lowerQuery.includes("save this") ||
+        lowerQuery.includes("note this")
+      ) {
+        // Extract what to remember — remove command words
+        const toRemember = query
+          .replace(/\b(remember|save|note)\b/gi, "")
+          .replace(/\b(this|that|please)\b/gi, "")
+          .trim();
+        result = memoryManager.executeMemoryCommand(
+          "remember",
+          toRemember || query
+        );
+      } else {
+        // Fallback — treat as a recall
+        result = memoryManager.executeMemoryCommand("recall");
+      }
+
+      return {
+        messages: [new AIMessage({ content: result })],
+      };
+    } catch (error) {
+      logger.error("Memory node failed", error);
+      return {
+        messages: [
+          new AIMessage({
+            content:
+              "I had trouble processing that memory command. Could you try again? 😊",
+          }),
+        ],
+      };
+    }
+  };
 }

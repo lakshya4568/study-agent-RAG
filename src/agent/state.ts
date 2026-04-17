@@ -12,8 +12,14 @@ export const StudyAgentState = Annotation.Root({
   currentTopic: Annotation<string>({
     reducer: (_state, update) => update ?? "",
   }),
-  route: Annotation<"general" | "rag" | "tool" | "flashcard" | string>({
+  route: Annotation<"general" | "rag" | "tool" | "flashcard" | "memory" | string>({
     reducer: (_state, update) => update ?? "general",
+  }),
+  memoryContext: Annotation<string>({
+    reducer: (_state, update) => update ?? "",
+  }),
+  memoryCommand: Annotation<string>({
+    reducer: (_state, update) => update ?? "",
   }),
 });
 

@@ -340,3 +340,55 @@ The agent system should:
 - [Context Isolation](https://www.electronjs.org/docs/latest/tutorial/context-isolation)
 - [MCP Specification](https://modelcontextprotocol.io/docs/specification)
 - [Electron Forge Webpack Plugin](https://www.electronforge.io/config/plugins/webpack)
+
+---
+
+## Memory System
+
+The agent has a persistent long-term memory system modeled after ChatGPT Memory / Gemini Saved Info. It stores durable facts and compressed chat history in Markdown files in Electron's `userData` directory.
+
+### Architecture
+
+```
+userData/memory/
+├── Memory.md                # Structured long-term memory (user profile, preferences, projects, etc.)
+├── Chat_History_Summary.md  # Compressed rolling summary of past conversations
+└── logs/                    # Optional raw dated logs (archival use)
+```
+
+### Key Files
+
+- `src/agent/MemoryManager.ts` — Core service for all memory I/O and LLM-driven extraction
+- `src/agent/nodes.ts` — `createMemoryNode()` handles explicit memory commands in the LangGraph graph
+- `src/agent/graph.ts` — Wires the `memory` route: router → memoryNode → END
+- `src/agent/StudyAgentService.ts` — Initializes MemoryManager, loads context before invoke, analyzes after
+- `src/index.ts` — IPC handlers for `memory:*` channels
+- `src/preload.ts` — Exposes `window.memory.*` API to renderer
+- `src/window.d.ts` — Type declarations for memory API
+
+### Data Flow
+
+1. **Before every invoke**: `StudyAgentService` calls `memoryManager.getMemoryForPrompt()` and injects the result into `state.memoryContext`, which is appended to the system prompt in `queryNode`.
+2. **After every invoke**: `StudyAgentService` calls `memoryManager.analyzeAndUpdate()` fire-and-forget. The LLM decides whether to update `Memory.md`.
+3. **Explicit commands** ("remember this", "forget X", "what do you remember?"): Routed to `memoryNode` which calls `memoryManager.executeMemoryCommand()`.
+
+### Memory Update Rules
+
+- LLM decides what to store — not hardcoded rules
+- Only stable, user-relevant facts are saved
+- Duplicates are detected and merged
+- "Last Updated" timestamp is maintained automatically
+- Temporary mode skips all writes
+
+### User Commands
+
+| Command | Effect |
+|---------|--------|
+| "Remember this" / "Save this" | Saves to Explicit Saved Memories section |
+| "Forget X" / "Delete memory" | Removes matching entries from Memory.md |
+| "What do you remember?" | Presents saved memories naturally |
+| "Temporary chat mode" | Toggles mode where no memory is saved |
+
+### API Rate Impact
+
+Memory analysis adds ~1 extra NVIDIA API call per message (fire-and-forget). With the existing router + query flow, total is ~3-4 calls/message. Stay aware of the 40 req/min free-tier limit.

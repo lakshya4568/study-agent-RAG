@@ -205,6 +205,41 @@ declare global {
         totalChunks: number;
       } | null>;
     };
+    memory: {
+      getMemory: () => Promise<{
+        success: boolean;
+        content?: string;
+        error?: string;
+      }>;
+      getChatHistory: () => Promise<{
+        success: boolean;
+        content?: string;
+        error?: string;
+      }>;
+      forgetEntry: (entry: string) => Promise<{
+        success: boolean;
+        message?: string;
+        error?: string;
+      }>;
+      setTemporaryMode: (enabled: boolean) => Promise<{
+        success: boolean;
+        temporaryMode?: boolean;
+        error?: string;
+      }>;
+      getStatus: () => Promise<{
+        success: boolean;
+        status?: {
+          memoryFileExists: boolean;
+          chatHistoryFileExists: boolean;
+          memoryFileSizeBytes: number;
+          chatHistoryFileSizeBytes: number;
+          lastUpdated: string | null;
+          temporaryMode: boolean;
+          memoryDir: string;
+        };
+        error?: string;
+      }>;
+    };
   }
 }
 

@@ -166,6 +166,55 @@ contextBridge.exposeInMainWorld("ragDashboard", {
   getVectorStoreState: () => ipcRenderer.invoke("db:getVectorStoreState"),
 });
 
+contextBridge.exposeInMainWorld("memory", {
+  /**
+   * Get raw Memory.md content
+   */
+  getMemory: (): Promise<{ success: boolean; content?: string; error?: string }> => {
+    return ipcRenderer.invoke("memory:getMemory");
+  },
+
+  /**
+   * Get raw Chat_History_Summary.md content
+   */
+  getChatHistory: (): Promise<{ success: boolean; content?: string; error?: string }> => {
+    return ipcRenderer.invoke("memory:getChatHistory");
+  },
+
+  /**
+   * Remove a specific memory entry
+   */
+  forgetEntry: (entry: string): Promise<{ success: boolean; message?: string; error?: string }> => {
+    return ipcRenderer.invoke("memory:forgetEntry", entry);
+  },
+
+  /**
+   * Toggle temporary chat mode (no memory saving)
+   */
+  setTemporaryMode: (enabled: boolean): Promise<{ success: boolean; temporaryMode?: boolean; error?: string }> => {
+    return ipcRenderer.invoke("memory:setTemporaryMode", enabled);
+  },
+
+  /**
+   * Get memory system status
+   */
+  getStatus: (): Promise<{
+    success: boolean;
+    status?: {
+      memoryFileExists: boolean;
+      chatHistoryFileExists: boolean;
+      memoryFileSizeBytes: number;
+      chatHistoryFileSizeBytes: number;
+      lastUpdated: string | null;
+      temporaryMode: boolean;
+      memoryDir: string;
+    };
+    error?: string;
+  }> => {
+    return ipcRenderer.invoke("memory:getStatus");
+  },
+});
+
 contextBridge.exposeInMainWorld("db", {
   getThreads: (userId: string) =>
     ipcRenderer.invoke("db:get-threads", { userId }),

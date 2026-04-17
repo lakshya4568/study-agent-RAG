@@ -938,3 +938,74 @@ ipcMain.handle("fs:readFile", async (_, filePath: string) => {
     return { success: false, error: err.message };
   }
 });
+
+// ========================================
+// Memory System IPC Handlers
+// ========================================
+
+ipcMain.handle("memory:getMemory", () => {
+  try {
+    const memoryManager = studyAgentService.getMemoryManager();
+    return { success: true, content: memoryManager.loadMemory() };
+  } catch (error) {
+    logger.error("Failed to get memory", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
+
+ipcMain.handle("memory:getChatHistory", () => {
+  try {
+    const memoryManager = studyAgentService.getMemoryManager();
+    return { success: true, content: memoryManager.loadChatHistory() };
+  } catch (error) {
+    logger.error("Failed to get chat history", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
+
+ipcMain.handle("memory:forgetEntry", (_, entry: string) => {
+  try {
+    const memoryManager = studyAgentService.getMemoryManager();
+    const result = memoryManager.executeMemoryCommand("forget", entry);
+    return { success: true, message: result };
+  } catch (error) {
+    logger.error("Failed to forget memory entry", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
+
+ipcMain.handle("memory:setTemporaryMode", (_, enabled: boolean) => {
+  try {
+    const memoryManager = studyAgentService.getMemoryManager();
+    memoryManager.setTemporaryMode(enabled);
+    return { success: true, temporaryMode: enabled };
+  } catch (error) {
+    logger.error("Failed to set temporary mode", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
+
+ipcMain.handle("memory:getStatus", () => {
+  try {
+    const memoryManager = studyAgentService.getMemoryManager();
+    return { success: true, status: memoryManager.getStatus() };
+  } catch (error) {
+    logger.error("Failed to get memory status", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+});

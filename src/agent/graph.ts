@@ -3,22 +3,26 @@ import type { CompiledStateGraph } from "@langchain/langgraph";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 import type { StudyAgentStateType } from "./state";
 import { StudyAgentState } from "./state";
-import { createQueryNode, retrieveNode, routeNode, flashcardNode } from "./nodes";
+import { createQueryNode, retrieveNode, routeNode, flashcardNode, createMemoryNode } from "./nodes";
+import type { MemoryManager } from "./MemoryManager";
 
 export async function createStudyMentorGraph(
-  tools: ConstructorParameters<typeof ToolNode>[0]
+  tools: ConstructorParameters<typeof ToolNode>[0],
+  memoryManager: MemoryManager
 ): Promise<
   CompiledStateGraph<StudyAgentStateType, Partial<StudyAgentStateType>>
 > {
   const toolNode = new ToolNode(tools);
   const queryNode = createQueryNode(tools as any[]);
+  const memoryNode = createMemoryNode(memoryManager);
 
   const workflow = new StateGraph(StudyAgentState)
     .addNode("router", routeNode)
     .addNode("query", queryNode)
     .addNode("retrieve", retrieveNode)
     .addNode("tools", toolNode)
-    .addNode("flashcard", flashcardNode);
+    .addNode("flashcard", flashcardNode)
+    .addNode("memory", memoryNode);
 
   workflow.addEdge(START, "router");
 
@@ -27,6 +31,7 @@ export async function createStudyMentorGraph(
     tool: "query",
     general: "query",
     flashcard: "flashcard",
+    memory: "memory",
   });
 
   // If we came to flashcard via a direct route but wanted content, maybe we should have gone through RAG first?
@@ -40,6 +45,9 @@ export async function createStudyMentorGraph(
   // "Update the graph workflow... Create edge: router → flashcard → END"
 
   workflow.addEdge("flashcard", END);
+
+  // Memory commands end immediately after the memory node
+  workflow.addEdge("memory", END);
 
   workflow.addEdge("retrieve", "query");
 
