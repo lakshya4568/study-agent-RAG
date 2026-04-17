@@ -123,3 +123,11 @@ env/
 __pycache__/
 *.py[cod]
 *$py.class 
+
+.agent
+.agents
+.claude
+.taskmaster
+
+dist/
+patches
