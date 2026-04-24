@@ -1,0 +1,1615 @@
+\documentclass[conference]{IEEEtran}
+
+% -----------------------------------------------------------------------
+% Required Packages
+% -----------------------------------------------------------------------
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{cite}
+\usepackage{booktabs}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{url}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{float}
+
+% -----------------------------------------------------------------------
+% Listings Style Configuration
+% -----------------------------------------------------------------------
+\definecolor{codebg}{gray}{0.93}
+\definecolor{codegreen}{rgb}{0,0.5,0}
+\definecolor{codegray}{rgb}{0.4,0.4,0.4}
+\definecolor{codeblue}{rgb}{0.0,0.0,0.7}
+
+\lstdefinestyle{jsonStyle}{
+  language=,
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{codeblue}\bfseries,
+  stringstyle=\color{codegreen},
+  commentstyle=\color{codegray}\itshape,
+  breaklines=true,
+  frame=single,
+  rulecolor=\color{gray!40},
+  captionpos=b,
+  morekeywords={mcpServers,command,args,env,type,name,servers,tools,inputSchema,properties,required},
+}
+
+\lstdefinestyle{pythonStyle}{
+  language=Python,
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{codeblue}\bfseries,
+  stringstyle=\color{codegreen},
+  commentstyle=\color{codegray}\itshape,
+  breaklines=true,
+  frame=single,
+  rulecolor=\color{gray!40},
+  captionpos=b,
+}
+
+\lstdefinestyle{tsStyle}{
+  language=,
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{codeblue}\bfseries,
+  stringstyle=\color{codegreen},
+  commentstyle=\color{codegray}\itshape,
+  breaklines=true,
+  frame=single,
+  rulecolor=\color{gray!40},
+  captionpos=b,
+}
+
+% -----------------------------------------------------------------------
+% Hyperref Config
+% -----------------------------------------------------------------------
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  citecolor=black,
+  urlcolor=blue
+}
+
+% -----------------------------------------------------------------------
+% Document Begins
+% -----------------------------------------------------------------------
+\begin{document}
+
+\title{Context Engineering via Model Context Protocol:\\
+A Deep Technical Study of Agentic AI Orchestration in an AI Study Agent}
+
+\author{
+  \IEEEauthorblockN{Lakshya Sharma}
+  \IEEEauthorblockA{
+    School of Engineering and Technology\\
+    Sharda University\\
+    Greater Noida, India\\
+    \texttt{lakshya4568@github.com}
+  }
+}
+
+\maketitle
+
+% -----------------------------------------------------------------------
+% Abstract
+% -----------------------------------------------------------------------
+\begin{abstract}
+Large language model systems are no longer single-prompt artifacts.
+They are runtime systems.
+They route requests.
+They retrieve evidence.
+They execute tools.
+They carry memory.
+And they fail when context is overgrown, stale, or misallocated.
+This paper studies that exact transition through a detailed case analysis of an AI Study Agent that combines LangGraph orchestration, Retrieval-Augmented Generation, and Model Context Protocol tool integration.
+The central argument is technical and direct.
+Prompt engineering optimizes text.
+Context engineering optimizes state, contracts, and token allocation over time.
+Using the project documents as primary evidence, we reconstruct the architecture, define a context lifecycle model, formalize token-budget tradeoffs, and identify concrete breakpoints in routing, retrieval precision, and tool exposure.
+We show why MCP improves modularity and server interoperability while still allowing major inefficiencies when tool schemas are injected indiscriminately or when interaction traces are not compressed.
+We then derive design constraints for context-aware orchestration: slot-bounded context assembly, query-adaptive tool gating, retrieval compression, and explicit reason-act-observe traces.
+The broader contribution is a systems lens.
+MCP is not merely a tool transport.
+When used correctly, it becomes a context control plane for agentic AI.
+When used naively, it increases overhead while preserving opacity.
+\end{abstract}
+
+\begin{IEEEkeywords}
+context engineering, model context protocol, retrieval-augmented generation, agentic AI, tool calling, long-context optimization, reasoning traces
+\end{IEEEkeywords}
+
+% -----------------------------------------------------------------------
+% I. Introduction
+% -----------------------------------------------------------------------
+\section{Introduction}
+
+Large language models can now answer, summarize, reason, and synthesize.
+That statement is true.
+It is also incomplete.
+In practical systems, model quality is often not the bottleneck.
+Context quality is.
+The question is no longer only ``what should the prompt say?''
+The question is ``what should enter the context window at this specific step, and what must stay out?''
+
+This distinction matters more in agentic applications than in static chat.
+An agent is expected to perform multi-step work.
+It routes intent.
+It retrieves evidence.
+It decides whether to invoke tools.
+It may write to memory.
+It may call tools repeatedly.
+Each of these actions introduces context fragments that can help or hurt the next step.
+Some context fragments are essential.
+Some are noisy.
+Some are stale but still expensive.
+
+The attached project documents establish this pressure clearly.
+They describe a system where LangGraph controls routing and execution flow, where a Python RAG backend provides retrieval context, and where MCP introduces dynamic tool schemas and server discovery.
+This is exactly the type of architecture where prompt engineering alone becomes insufficient.
+The engineering problem shifts from phrase tuning to information governance.
+
+The paper therefore treats context engineering as a primary discipline.
+Not as a rhetorical rebrand.
+As a systems requirement.
+We define context engineering as the design of structures, policies, and transformations that govern what information the model receives at every inference step.
+That includes retrieval selection, schema exposure, memory compression, and lifecycle pruning.
+It is broader than prompt engineering.
+It is operational.
+
+The paper asks six research questions.
+
+\textbf{RQ1:}
+What counts as context in an agentic LLM system beyond prompt text?
+
+\textbf{RQ2:}
+How does MCP change the structure of context and not only tool invocation mechanics?
+
+\textbf{RQ3:}
+Where do token costs scale nonlinearly in long-running sessions?
+
+\textbf{RQ4:}
+Which failure modes arise when context freshness and route policy diverge?
+
+\textbf{RQ5:}
+How should MCP-enabled systems gate tool visibility under token constraints?
+
+\textbf{RQ6:}
+What architecture-level changes convert MCP from abstraction overhead into reasoning leverage?
+
+The main claims are intentionally assertive.
+
+First.
+MCP improves modularity and interoperability, but does not guarantee reasoning quality unless context assembly policy is disciplined.
+
+Second.
+Unbounded history replay and broad schema exposure create quadratic session-level token costs in practice.
+
+Third.
+Routing that overweights the latest utterance and underweights state produces avoidable retrieval bypass and answer drift.
+
+Fourth.
+A slot-based context policy with adaptive schema gating offers a cleaner optimization target than prompt-only refinement.
+
+The rest of the paper is structured as follows.
+Section II situates the work in related literature and standards.
+Section III defines the system model and context taxonomy.
+Section IV presents a full architecture reconstruction from the provided material.
+Section V develops the core context engineering framework via MCP.
+Section VI introduces mathematical analyses for token, latency, and retrieval behavior.
+Section VII provides a critical failure analysis.
+Section VIII compares the design to ReAct, Toolformer, and Reflexion paradigms.
+Section IX proposes concrete redesign patterns.
+Section X discusses limitations.
+Section XI outlines future directions.
+Section XII closes with a systems-level conclusion.
+
+% -----------------------------------------------------------------------
+% II. Related Work and Framing
+% -----------------------------------------------------------------------
+\section{Related Work and Framing}
+\label{sec:related}
+
+\subsection{Prompt Engineering and Its Ceiling}
+
+Prompt engineering has produced major gains in few-shot performance and reasoning style control.
+Its strengths are real.
+Instruction shaping can alter decomposition quality.
+Demonstration selection can shift output format stability.
+Reasoning prompts can reduce superficial errors.
+
+Yet prompt engineering has a structural ceiling in agentic systems.
+It optimizes text artifacts, not runtime context architecture.
+A perfect instruction still degrades if paired with stale retrieval chunks.
+A careful chain-of-thought style still wastes tokens if irrelevant tool schemas are always injected.
+A strong system prompt still fails if route policy skips retrieval at the wrong step.
+
+This paper does not reject prompt engineering.
+It repositions it.
+Prompt engineering remains a component.
+Context engineering becomes the envelope around it.
+
+\subsection{RAG in Multi-Step Agent Systems}
+
+RAG reduces hallucination by grounding generation in retrieved evidence.
+That logic is now standard.
+What is less discussed in implementation papers is lifecycle mismatch between retrieval context and conversation context.
+If retrieval snapshots are appended but never pruned, they become expensive historical residue.
+If retrieval is triggered only by explicit keywords, follow-up references can miss grounding.
+If chunking is fixed and retrieval count is fixed, context payload may be either too sparse or too bloated.
+
+The provided research material emphasizes these exact tensions.
+It also highlights token-aware chunking and hybrid retrieval as practical mitigation.
+Still, retrieval quality alone is not enough.
+How retrieval outputs are inserted, prioritized, and expired matters equally.
+
+\subsection{MCP as Standardized Capability Layer}
+
+MCP introduces a host-client-server protocol model with typed tool schemas and runtime capability discovery.
+This is significant.
+It allows one agent host to interoperate with heterogeneous tool backends through a shared contract model.
+It also enables dynamic expansion of capabilities without changing core orchestration code.
+
+But this same strength creates new context questions.
+Should all discovered tools be made visible to the model all the time?
+Should schemas be transformed into dense natural language instructions on every step?
+Should tool contracts be summarized differently for planning versus invocation phases?
+
+The protocol does not impose one answer.
+Host policy does.
+This is precisely where context engineering enters.
+
+\subsection{Agentic Reasoning Paradigms as Comparative Anchors}
+
+ReAct emphasizes explicit thought-action-observation cycles.
+Toolformer emphasizes learned and selective tool calls.
+Reflexion emphasizes iterative self-feedback memory.
+These paradigms expose one shared insight.
+Reasoning quality improves when intermediate states are explicit, auditable, and policy-governed.
+
+The studied system partially aligns with these paradigms.
+It has routing and tool invocation paths.
+It has persistent memory support.
+It has retrieval-grounded generation.
+But it still centralizes too much work in monolithic query calls.
+And it still allows context accumulation patterns that blur relevance boundaries over long sessions.
+
+% -----------------------------------------------------------------------
+% III. Problem Definition and Context Taxonomy
+% -----------------------------------------------------------------------
+\section{Problem Definition and Context Taxonomy}
+\label{sec:taxonomy}
+
+\subsection{Operational Definition of Context}
+
+In this paper, context is defined as any token payload or structured artifact that can influence the next model inference.
+That includes:
+
+\begin{enumerate}[leftmargin=1.2em]
+\item system policy messages,
+\item user and assistant conversational history,
+\item retrieved document passages,
+\item tool schema definitions and examples,
+\item tool outputs and execution traces,
+\item memory summaries,
+\item route metadata and control tags.
+\end{enumerate}
+
+A token is not context only because it exists.
+It becomes context when the model can attend to it.
+That distinction matters for engineering.
+Stored state and injected state are not the same thing.
+
+\subsection{Context Classes}
+
+We classify context into five classes.
+
+\textbf{C1: Policy Context.}
+Role, style, constraints, safety directives.
+Usually stable across turns.
+
+\textbf{C2: Interaction Context.}
+Recent messages, unresolved references, discourse state.
+High volatility.
+
+\textbf{C3: Evidence Context.}
+Retrieved chunks, citations, metadata.
+Query-dependent.
+
+\textbf{C4: Capability Context.}
+Tool schemas, parameter contracts, invocation affordances.
+Environment-dependent.
+
+\textbf{C5: Memory Context.}
+Long-term user or session abstractions.
+Slow-changing but often compressed.
+
+The central engineering mistake in many systems is to flatten all five classes into a single append-only stream.
+That flattening is convenient for implementation.
+It is costly for relevance.
+
+\subsection{Context Lifecycle Stages}
+
+Each context class moves through a lifecycle.
+
+\textbf{Stage 1: Creation.}
+A context artifact is generated or retrieved.
+
+\textbf{Stage 2: Transformation.}
+The artifact is formatted, compressed, enriched, or normalized.
+
+\textbf{Stage 3: Injection.}
+The artifact is inserted into model-visible input.
+
+\textbf{Stage 4: Retention.}
+The artifact remains in memory or history for future steps.
+
+\textbf{Stage 5: Expiration.}
+The artifact is pruned, summarized, or excluded from future calls.
+
+Most systems implement creation and injection well enough.
+They under-implement expiration.
+The documents provided for this study repeatedly point to this gap.
+
+\subsection{Objective Function}
+
+Let context payload at turn $t$ be represented as
+\begin{equation}
+\mathcal{C}_t = \{P_t, H_t, R_t, Z_t, M_t\},
+\end{equation}
+where $P$ is policy, $H$ is history, $R$ is retrieval evidence, $Z$ is tool schema payload, and $M$ is memory summary.
+
+Let token size of each component be $\tau(\cdot)$.
+Given budget $B_t$, the feasibility constraint is
+\begin{equation}
+\tau(P_t)+\tau(H_t)+\tau(R_t)+\tau(Z_t)+\tau(M_t) \le B_t.
+\end{equation}
+
+We define utility of context component $x$ as $U(x|q_t,s_t)$ with query $q_t$ and state $s_t$.
+The optimization problem is
+\begin{equation}
+\max_{\mathcal{C}_t} \sum_{x\in\mathcal{C}_t} w_x U(x|q_t,s_t)
+\quad \text{s.t. token budget and freshness constraints.}
+\label{eq:objective}
+\end{equation}
+
+Prompt engineering mostly tunes $U(P_t|\cdot)$.
+Context engineering optimizes the full Eq.~\ref{eq:objective}.
+
+% -----------------------------------------------------------------------
+% IV. Reconstructed System Architecture
+% -----------------------------------------------------------------------
+\section{Reconstructed System Architecture}
+\label{sec:architecture}
+
+\subsection{Top-Level Structure}
+
+The studied system follows a layered structure:
+frontend interaction,
+agent orchestration,
+MCP capability integration,
+and RAG service support.
+
+The user flow is straightforward at surface level.
+A query arrives.
+A route is selected.
+Retrieval and tool paths may be triggered.
+A response is generated.
+
+Under the hood, however, context enters from multiple channels at different times.
+This temporal mismatch is what drives many subtle failures.
+
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.94\columnwidth}{
+\centering
+\vspace{0.2cm}
+\textbf{PNG Placeholder: fig_architecture_overview.png}\\
+Insert full three-layer architecture diagram here\\
+(Frontend, LangGraph orchestration, MCP servers, RAG backend)\\
+\vspace{0.2cm}
+}}
+\caption{System architecture placeholder for a high-level visual. Replace with fig\_architecture\_overview.png.}
+\label{fig:arch_overview}
+\end{figure}
+
+\subsection{LangGraph-Oriented Control Flow}
+
+The workflow described in the project analysis can be summarized as:
+route,
+optional retrieve,
+query,
+optional tool execution,
+response.
+
+At first glance this appears clean.
+In practice, two points are critical.
+
+Point one.
+Route decisions that depend heavily on the latest utterance can mis-handle follow-up references.
+
+Point two.
+If query processing injects broad policy plus broad tool metadata while replaying long history, token cost rises faster than expected.
+
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.94\columnwidth}{
+\centering
+\vspace{0.2cm}
+\textbf{PNG Placeholder: fig_langgraph_flow.png}\\
+Insert node-edge flow diagram here\\
+(router, retrieve, query, tools, flashcard, memory)\\
+\vspace{0.2cm}
+}}
+\caption{LangGraph control-flow placeholder. Replace with fig\_langgraph\_flow.png.}
+\label{fig:langgraph_flow}
+\end{figure}
+
+\subsection{MCP Capability Layer}
+
+The documents emphasize dynamic tool discovery and schema-driven invocation.
+This is a major architectural advantage.
+Tool servers can be added or removed with lower coupling.
+Schema contracts become machine-readable and auditable.
+
+However, dynamic discovery should not imply dynamic saturation.
+Discovering 20 tools does not mean all 20 must be visible to the model for every query.
+Selective exposure is part of context engineering, not protocol support.
+
+\subsection{RAG Pipeline Layer}
+
+The RAG service performs ingestion,
+chunking,
+embedding,
+storage,
+retrieval,
+optional reranking,
+and generation support.
+
+The provided material notes token-based chunking and hybrid retrieval as deliberate choices.
+These choices improve baseline retrieval behavior.
+Still, the context engineering question remains:
+how many retrieved chunks should be injected at each step,
+and in what transformed format?
+
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.94\columnwidth}{
+\centering
+\vspace{0.2cm}
+\textbf{PNG Placeholder: fig_rag_pipeline.png}\\
+Insert RAG ingestion and retrieval pipeline visual here\\
+(loader, chunker, embedder, vector DB, retriever, reranker, generator)\\
+\vspace{0.2cm}
+}}
+\caption{RAG pipeline placeholder. Replace with fig\_rag\_pipeline.png.}
+\label{fig:rag_pipeline}
+\end{figure}
+
+% -----------------------------------------------------------------------
+% V. Context Engineering via MCP
+% -----------------------------------------------------------------------
+\section{Context Engineering via MCP}
+\label{sec:core}
+
+\subsection{Why MCP Matters for Context, Not Just Tools}
+
+MCP is often introduced as a standard for tool connectivity.
+That is correct but incomplete.
+In an agentic system, tool schemas are not neutral metadata.
+They are context tokens.
+They influence planning.
+They influence call probability.
+They influence output format choices.
+
+When schemas are concise and selectively exposed, they improve execution precision.
+When schemas are verbose and always-on, they can dilute attention and inflate latency.
+Hence,
+MCP becomes a context-control instrument.
+Not just a transport protocol.
+
+\subsection{Schema as Context Contract}
+
+A tool schema defines:
+name,
+description,
+parameter set,
+required fields,
+defaults,
+constraints.
+
+This structured shape provides two advantages over prose-only tool descriptions.
+
+First,
+validation can be externalized and deterministic.
+
+Second,
+the model can receive compact affordance information that is easier to parse than ad-hoc textual instructions.
+
+But there is also risk.
+If schema enrichment adds many generated examples and detailed parameter commentary for every tool at every step, the schema payload can dominate context budget.
+
+\begin{lstlisting}[style=jsonStyle, caption={Example MCP tool contract structure with validation-relevant fields.}, label={lst:mcp_contract}]
+{
+  "name": "generate_quiz",
+  "description": "Create quiz items from topic and level",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "topic": {
+        "type": "string",
+        "minLength": 3,
+        "description": "Subject or chapter"
+      },
+      "difficulty": {
+        "type": "string",
+        "enum": ["easy", "medium", "hard"],
+        "default": "medium"
+      },
+      "count": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 30,
+        "default": 10
+      }
+    },
+    "required": ["topic"]
+  }
+}
+\end{lstlisting}
+
+\subsection{Tool Gating Policy}
+
+Given tool set $\mathcal{Z}$,
+query $q_t$,
+and state $s_t$,
+we define adaptive tool exposure:
+\begin{equation}
+\mathcal{Z}_t = \{z \in \mathcal{Z} \mid g(z,q_t,s_t)=1\}.
+\label{eq:tool_gating}
+\end{equation}
+
+The gate $g$ may be heuristic,
+classifier-based,
+or model-assisted.
+The key property is boundedness.
+$|\mathcal{Z}_t|$ must remain small unless evidence justifies expansion.
+
+This policy directly reduces schema token load.
+It also reduces accidental tool deliberation.
+
+\subsection{Context Slot Design}
+
+We define five slots.
+
+\textbf{Slot A: Policy slot.}
+Stable system behavior directives.
+
+\textbf{Slot B: Interaction slot.}
+Recent conversational turns and unresolved references.
+
+\textbf{Slot C: Evidence slot.}
+Retrieved passages and citations.
+
+\textbf{Slot D: Capability slot.}
+Gated tool schemas and invocation affordances.
+
+\textbf{Slot E: Memory slot.}
+Compressed long-term user and task context.
+
+Each slot receives a token cap.
+Caps are query-adaptive.
+Unused budget can be reassigned.
+This is basic resource scheduling.
+That is exactly what context engineering should be.
+
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.94\columnwidth}{
+\centering
+\vspace{0.2cm}
+\textbf{PNG Placeholder: fig_context_slots.png}\\
+Insert slot-based context budget diagram here\\
+(Policy, Interaction, Evidence, Capability, Memory)\\
+\vspace{0.2cm}
+}}
+\caption{Slot-based context assembly placeholder. Replace with fig\_context\_slots.png.}
+\label{fig:context_slots}
+\end{figure}
+
+\subsection{Slot Budgeting Formulation}
+
+Let slot token allocations be $b_P,b_H,b_R,b_Z,b_M$.
+Then
+\begin{equation}
+b_P+b_H+b_R+b_Z+b_M \le B_t.
+\end{equation}
+
+Let relevance estimates be $\hat{u}_P,\hat{u}_H,\hat{u}_R,\hat{u}_Z,\hat{u}_M$.
+A practical allocator can solve
+\begin{equation}
+\max_{b} \sum_{x\in\{P,H,R,Z,M\}} \hat{u}_x \log(1+b_x)
+\quad \text{s.t. } b_x\ge0,\sum_x b_x\le B_t.
+\label{eq:allocator}
+\end{equation}
+
+The logarithm regularizes monopolization.
+No single slot consumes all budget unless utility estimates are extreme.
+
+\subsection{Inference-Time Assembly Procedure}
+
+\begin{algorithm}[H]
+\caption{Adaptive Context Assembly with MCP-Aware Tool Gating}
+\label{alg:adaptive_context}
+\begin{algorithmic}[1]
+\Require query $q_t$, state $s_t$, budget $B_t$, full tool set $\mathcal{Z}$
+\State Estimate route intent and retrieval need from $(q_t,s_t)$
+\State Retrieve evidence candidates and compute relevance scores
+\State Compress evidence candidates into bounded evidence slot
+\State Build interaction slot from recent turns plus unresolved references
+\State Load memory summary only if personalization or continuity is needed
+\State Gate tool set using Eq.~\ref{eq:tool_gating}
+\State Allocate slot budgets using Eq.~\ref{eq:allocator}
+\State Trim and normalize each slot to fit assigned budget
+\State Assemble final model input in deterministic slot order
+\State Invoke model and capture tool/trace outputs
+\State Update state with compressed trace artifacts
+\State \Return response and updated state
+\end{algorithmic}
+\end{algorithm}
+
+% -----------------------------------------------------------------------
+% VI. Mathematical Analysis
+% -----------------------------------------------------------------------
+\section{Mathematical Analysis of Cost and Quality Tradeoffs}
+\label{sec:math}
+
+\subsection{Retrieval Similarity and Fusion}
+
+For query embedding $\mathbf{q}$ and chunk embedding $\mathbf{c}_i$,
+\begin{equation}
+s_i = \cos(\mathbf{q},\mathbf{c}_i)=\frac{\mathbf{q}\cdot\mathbf{c}_i}{\|\mathbf{q}\|\|\mathbf{c}_i\|}.
+\end{equation}
+
+Hybrid ranking in the studied material can be represented using reciprocal rank fusion:
+\begin{equation}
+S(d)=\frac{w_s}{k+r_s(d)}+\frac{w_k}{k+r_k(d)},
+\label{eq:rrf_math}
+\end{equation}
+where $w_s$ and $w_k$ are semantic and keyword weights,
+$k$ is an RRF stabilizer,
+and $r_s,r_k$ are respective ranks.
+
+If semantic weight dominates,
+conceptual queries benefit.
+But topical ambiguity can increase near-neighbor noise.
+Hence reranking or compression remains necessary before evidence injection.
+
+\subsection{Session-Level Token Growth}
+
+Assume per-turn injected tokens:
+policy $p$,
+new interaction tokens $u_t$,
+assistant output tokens $a_t$,
+retrieval tokens $r_t$,
+schema tokens $z_t$,
+memory tokens $m_t$.
+
+If the system replays full prior history each turn,
+prompt tokens at turn $t$ are approximated by
+\begin{equation}
+T_t \approx p + z_t + m_t + \sum_{i=1}^{t-1}(u_i+a_i+\rho_i r_i),
+\end{equation}
+with $\rho_i\in\{0,1\}$ indicating whether retrieval artifacts persist in replay.
+
+Cumulative session token traffic:
+\begin{equation}
+\mathrm{Cost}(n)=\sum_{t=1}^{n} T_t.
+\end{equation}
+
+If average per-turn contribution is bounded away from zero,
+$\mathrm{Cost}(n)$ scales quadratically in $n$.
+This is the hidden tax of replay-heavy design.
+
+\subsection{Latency Decomposition}
+
+Total latency can be decomposed as
+\begin{equation}
+L_t = L^{(t)}_{route} + L^{(t)}_{retrieve} + L^{(t)}_{rerank} + L^{(t)}_{assemble} + L^{(t)}_{llm} + L^{(t)}_{tool}.
+\end{equation}
+
+$L^{(t)}_{llm}$ is sensitive to token count.
+Thus token optimization indirectly optimizes latency.
+Broad schema exposure affects both quality and time.
+
+\subsection{Error Propagation Model}
+
+Let route accuracy be $p_r$,
+retrieval precision be $p_e$,
+and tool-call correctness be $p_z$.
+Under a simplified independence assumption,
+step success probability is
+\begin{equation}
+P_{succ} \approx p_r\cdot p_e\cdot p_z.
+\end{equation}
+
+This model is simplistic but useful.
+If any factor degrades,
+overall success falls quickly.
+Route reliability is often underrated in practice.
+
+\subsection{Context Freshness Metric}
+
+Define freshness score for evidence chunk $e_i$ at turn $t$:
+\begin{equation}
+F(e_i,t)=\exp(-\lambda\Delta t_i)\cdot \mathbb{I}[\text{topic match}],
+\end{equation}
+where $\Delta t_i$ is age in turns.
+
+A naive replay policy effectively sets weak decay,
+allowing stale evidence to persist.
+Freshness-aware pruning should enforce thresholding on $F$ before reinjection.
+
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.94\columnwidth}{
+\centering
+\vspace{0.2cm}
+\textbf{PNG Placeholder: fig_token_growth_curve.png}\\
+Insert line chart of cumulative token cost vs turns\\
+(compare naive replay vs slot-bounded policy)\\
+\vspace{0.2cm}
+}}
+\caption{Token-growth visualization placeholder. Replace with fig\_token\_growth\_curve.png.}
+\label{fig:token_growth}
+\end{figure}
+
+% -----------------------------------------------------------------------
+% VII. Deep Critical Analysis
+% -----------------------------------------------------------------------
+\section{Deep Critical Analysis of the Studied Design}
+\label{sec:critical}
+
+\subsection{Observation A: Context Is Layered, But Governance Is Uneven}
+
+The design already distinguishes retrieval,
+tool schemas,
+memory,
+and dialogue state.
+This is good architecture intent.
+
+The problem is governance asymmetry.
+Creation and injection are explicit.
+Expiration and pruning are less explicit.
+That asymmetry creates accumulation drift.
+
+\subsection{Observation B: MCP Modularity Is Strong at Boundaries}
+
+MCP clearly lowers coupling between capability providers and host orchestration.
+This is a genuine engineering win.
+Teams can ship servers independently.
+The host can discover them dynamically.
+
+But modularity at boundaries does not imply efficiency inside inference payload.
+If every server contributes always-visible schemas,
+inference context can degrade despite clean service boundaries.
+
+\subsection{Observation C: Monolithic Query Calls Hide Intermediate Reasoning}
+
+When tool interaction traces are collapsed into final response text,
+post-hoc diagnosis becomes harder.
+Was the error due to wrong tool choice?
+Wrong argument shape?
+Wrong observation interpretation?
+Without explicit intermediate artifacts,
+root-cause analysis is slower and less reliable.
+
+\subsection{Observation D: Retrieval and Routing Coupling Needs State Awareness}
+
+If route decisions overfit lexical cues in the last utterance,
+follow-up turns can lose retrieval grounding.
+This breaks down especially for anaphoric user language:
+``that section'',
+``the previous topic'',
+``summarize it now''.
+
+A state-aware router should consult recent retrieved topic context,
+not only current text surface.
+
+\subsection{Observation E: Memory Can Improve Continuity or Amplify Noise}
+
+Memory integration is useful when compressed and scoped.
+It is harmful when raw and over-broad.
+Memory tokens are expensive.
+Memory relevance is variable.
+Memory injection requires strict intent gating.
+
+\subsection{Observation F: Context Bloat Is Usually Silent Until It Is Expensive}
+
+Systems often appear stable in short tests.
+The cost curve emerges later.
+As session depth increases,
+latency creeps,
+retrieval relevance falls,
+and responses become less anchored.
+This is a lifecycle problem.
+Not a single-step bug.
+
+% -----------------------------------------------------------------------
+% VIII. Failure Modes and Break Conditions
+% -----------------------------------------------------------------------
+\section{Failure Modes and Break Conditions}
+\label{sec:failures}
+
+\subsection{Failure Mode 1: Instruction Dilution by System Stacking}
+
+Break condition:
+multiple system-level directives are replayed with limited pruning.
+
+Observed symptom:
+responses remain fluent but citation fidelity declines.
+The model follows high-level style directives while underweighting local evidence constraints.
+
+Why it happens:
+attention is finite.
+Directive competition is real.
+Priority ambiguity emerges when too many policy-like fragments coexist.
+
+\subsection{Failure Mode 2: Retrieval Bypass in Follow-Up Turns}
+
+Break condition:
+router relies primarily on latest utterance lexical form.
+
+Observed symptom:
+follow-up conceptual questions receive plausible but weakly grounded answers.
+
+Why it happens:
+anaphoric turns lack explicit retrieval trigger terms.
+Without state-aware routing,
+retrieval can be skipped when it is still required.
+
+\subsection{Failure Mode 3: Tool Over-Deliberation}
+
+Break condition:
+large ungated tool schema payload is always visible.
+
+Observed symptom:
+extra tool speculation,
+longer response time,
+higher token use without commensurate utility.
+
+Why it happens:
+the model evaluates more affordances than needed.
+Capability abundance becomes cognitive noise.
+
+\subsection{Failure Mode 4: Trace Opacity in Multi-Step Tasks}
+
+Break condition:
+intermediate tool steps are not represented as explicit inspectable state transitions.
+
+Observed symptom:
+hard-to-debug wrong outputs in workflows requiring multiple calls and reflections.
+
+Why it happens:
+collapsed traces remove causal visibility.
+
+\subsection{Failure Mode 5: Session Drift Under Prolonged Interaction}
+
+Break condition:
+append-only history without adaptive summarization.
+
+Observed symptom:
+rising latency,
+inconsistent grounding,
+topic bleed.
+
+Why it happens:
+stale tokens persist longer than their utility horizon.
+
+\subsection{Failure Mode 6: Shared Retrieval Space Contention}
+
+Break condition:
+insufficient isolation in vector retrieval context across users or tasks.
+
+Observed symptom:
+cross-topic contamination,
+irrelevant chunks in top-$k$ retrieval.
+
+Why it happens:
+index segmentation and metadata filtering are underutilized.
+
+\begin{table}[H]
+\caption{Failure Modes, Trigger Conditions, and Primary Mitigations}
+\label{tab:failure_matrix}
+\centering
+\begin{tabular}{p{1.9cm}p{2.0cm}p{2.1cm}}
+\toprule
+Failure Type & Trigger Condition & Primary Mitigation \\
+\midrule
+Instruction dilution & System-message accumulation & Directive dedup + slot precedence \\
+Retrieval bypass & Last-utterance routing bias & State-aware route gating \\
+Tool over-deliberation & Always-on schema exposure & Query-adaptive MCP tool gating \\
+Trace opacity & Collapsed intermediate calls & Explicit reason-act-observe logs \\
+Session drift & Full history replay & Adaptive summarization + caps \\
+Retrieval contamination & Weak corpus isolation & Metadata filters + index partitioning \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.94\columnwidth}{
+\centering
+\vspace{0.2cm}
+\textbf{PNG Placeholder: fig_failure_heatmap.png}\\
+Insert risk heatmap for failure modes vs session depth\\
+\vspace{0.2cm}
+}}
+\caption{Failure-risk heatmap placeholder. Replace with fig\_failure\_heatmap.png.}
+\label{fig:failure_heatmap}
+\end{figure}
+
+% -----------------------------------------------------------------------
+% IX. Comparative Analysis Against Agent Paradigms
+% -----------------------------------------------------------------------
+\section{Comparative Analysis Against Agent Paradigms}
+\label{sec:comparative}
+
+\subsection{Compared with ReAct-Style Loops}
+
+ReAct emphasizes explicit alternation:
+reason,
+act,
+observe,
+reason again.
+
+The studied design includes route and tool structures,
+but can still collapse execution into opaque response generation in parts of the flow.
+Hence it captures some operational benefits,
+while missing full trace transparency.
+
+\subsection{Compared with Toolformer-Style Selectivity}
+
+Toolformer framing highlights that tools should be called when expected utility exceeds cost.
+The studied architecture has protocol support for tools,
+but selective invocation policy remains under-specified in the source material.
+Adaptive gating is therefore a key improvement path.
+
+\subsection{Compared with Reflexion-Style Self-Feedback}
+
+Reflexion-oriented systems maintain explicit self-improvement traces.
+The studied system has memory support,
+which is a useful substrate.
+Yet a dedicated reflective update loop with controlled policy integration is not deeply articulated.
+That leaves potential gains unrealized.
+
+\subsection{Compared with Prompt-Chaining Baselines}
+
+The architecture is richer than simple prompt chaining.
+It has dynamic routing,
+retrieval,
+and protocolized tools.
+
+Still,
+without strict context budgeting,
+this richer architecture can inherit a prompt-chain weakness:
+incremental token bloat that silently lowers relevance density over time.
+
+\begin{table}[H]
+\caption{Paradigm-Level Comparison}
+\label{tab:paradigm_comparison}
+\centering
+\begin{tabular}{p{2.1cm}p{1.0cm}p{1.0cm}p{1.0cm}}
+\toprule
+Paradigm & Trace Visibility & Tool Selectivity & Long-Session Stability \\
+\midrule
+Prompt chaining & Low & Low & Low \\
+ReAct-style & High & Medium & Medium \\
+Toolformer-style & Medium & High & Medium \\
+Reflexion-style & Medium & Medium & High \\
+Studied MCP design & Medium & Medium (potentially low if ungated) & Medium \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% -----------------------------------------------------------------------
+% X. Design Improvements and Redesign Blueprint
+% -----------------------------------------------------------------------
+\section{Design Improvements and Redesign Blueprint}
+\label{sec:improvements}
+
+\subsection{Improvement 1: Deterministic Slot Scheduler}
+
+Implement a scheduler that allocates token budget across policy,
+interaction,
+evidence,
+capability,
+and memory slots.
+
+Rules:
+
+\begin{enumerate}[leftmargin=1.2em]
+\item Hard-cap each slot.
+\item Reallocate unused budget dynamically.
+\item Apply freshness decay before reinjection.
+\item Deduplicate directives at injection time.
+\end{enumerate}
+
+Expected impact:
+lower token waste,
+more stable grounding,
+better long-session behavior.
+
+\subsection{Improvement 2: Two-Stage Tool Exposure}
+
+Stage A:
+lightweight intent screening to identify candidate tool clusters.
+
+Stage B:
+inject only candidate schemas plus minimal examples.
+
+Expected impact:
+smaller schema payload,
+faster planning,
+fewer accidental tool branches.
+
+\subsection{Improvement 3: State-Aware Routing}
+
+Route function should include:
+
+\begin{enumerate}[leftmargin=1.2em]
+\item latest utterance,
+\item unresolved discourse references,
+\item recent retrieval-topic summary,
+\item last route outcome quality signal.
+\end{enumerate}
+
+Expected impact:
+reduced retrieval bypass,
+improved follow-up grounding.
+
+\subsection{Improvement 4: Explicit Trace Artifacts}
+
+Persist reason-act-observe traces in compact form.
+Inject compressed trace snippets for multi-step continuation.
+This preserves causal explainability with bounded cost.
+
+\subsection{Improvement 5: Retrieval Compression Layer}
+
+Before evidence injection:
+
+\begin{enumerate}[leftmargin=1.2em]
+\item rerank candidate chunks,
+\item compress to citation-preserving statements,
+\item enforce source diversity constraints.
+\end{enumerate}
+
+Expected impact:
+higher relevance density per token.
+
+\subsection{Improvement 6: Memory Injection Gate}
+
+Memory should not be always injected.
+Enable only when query intent or task continuity demands it.
+
+Expected impact:
+reduced irrelevant personalization noise,
+lower token load.
+
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.94\columnwidth}{
+\centering
+\vspace{0.2cm}
+\textbf{PNG Placeholder: fig_redesign_blueprint.png}\\
+Insert redesigned orchestration blueprint\\
+(slot scheduler + route gate + tool gate + compression stage)\\
+\vspace{0.2cm}
+}}
+\caption{Redesign blueprint placeholder. Replace with fig\_redesign\_blueprint.png.}
+\label{fig:redesign_blueprint}
+\end{figure}
+
+\subsection{Improvement 7: Monitoring Metrics for Context Health}
+
+Introduce runtime metrics:
+
+\begin{enumerate}[leftmargin=1.2em]
+\item context relevance ratio,
+\item stale-token fraction,
+\item schema payload share,
+\item retrieval citation usage rate,
+\item route correction frequency,
+\item tool call utility score.
+\end{enumerate}
+
+These metrics make context engineering observable.
+What is not measured is rarely controlled.
+
+\subsection{Improvement 8: Evaluation Harness for Context Policies}
+
+Build an offline replay harness with controlled scenarios.
+Compare policy variants on:
+quality,
+latency,
+token cost,
+and failure incidence.
+
+This turns context policy from intuition into evidence-driven engineering.
+
+% -----------------------------------------------------------------------
+% XI. Extended Discussion
+% -----------------------------------------------------------------------
+\section{Extended Discussion}
+\label{sec:discussion}
+
+\subsection{MCP Adoption Pattern in Real Projects}
+
+Many teams first adopt MCP for practical interoperability.
+That is sensible.
+It reduces ad-hoc integration work.
+It creates reusable capability endpoints.
+
+The next phase should be context-aware governance.
+Without it,
+MCP remains beneficial but under-leveraged.
+The protocol can carry much more architectural value when tied to selective exposure and state policy.
+
+\subsection{Context Engineering as an Organizational Discipline}
+
+The findings suggest context engineering should be owned explicitly.
+Not split implicitly across prompting,
+retrieval,
+and tools teams.
+
+A practical structure:
+
+\begin{enumerate}[leftmargin=1.2em]
+\item maintain a context contract catalog,
+\item define slot budgets per product mode,
+\item enforce freshness and expiration SLAs,
+\item run periodic context-drift audits.
+\end{enumerate}
+
+This mirrors how mature teams handle API contracts.
+Context is now an API surface for inference.
+
+\subsection{Why This Matters Beyond Education Use Cases}
+
+The case study domain is educational assistance.
+The engineering pattern is general.
+Any domain with retrieval,
+tools,
+and long sessions faces the same context dynamics.
+
+Examples include enterprise copilots,
+clinical evidence assistants,
+research workflow agents,
+and developer tooling agents.
+The specific tools differ.
+The context lifecycle problem does not.
+
+\subsection{Security and Governance Considerations}
+
+Context engineering intersects with security.
+Over-broad tool exposure increases attack surface.
+Over-broad memory injection increases leakage risk.
+Stale retrieval artifacts can revive sensitive data unexpectedly.
+
+Hence policy design should include:
+
+\begin{enumerate}[leftmargin=1.2em]
+\item capability least privilege,
+\item intent-validated tool invocation,
+\item memory redaction layers,
+\item provenance tagging for retrieved evidence.
+\end{enumerate}
+
+\subsection{Tradeoff Summary}
+
+There is no free design.
+Compression can remove nuance.
+Strict gating can miss helpful tools.
+Aggressive pruning can reduce continuity.
+
+The goal is not maximal reduction.
+The goal is allocation quality.
+
+% -----------------------------------------------------------------------
+% XII. Limitations
+% -----------------------------------------------------------------------
+\section{Limitations}
+\label{sec:limitations}
+
+This paper is grounded in the attached project documentation and existing manuscript context.
+It does not claim a new benchmark dataset.
+It does not report large-scale live A/B tests.
+
+The mathematical models are intentionally simplifying.
+They clarify engineering trends.
+They are not full probabilistic simulators.
+
+The comparative discussion references major paradigms for conceptual anchoring,
+not for strict controlled equivalence.
+
+The recommendations are design-oriented.
+They still require implementation-specific validation before production adoption.
+
+These limitations are acceptable for the goal of this study:
+a deep architectural analysis that reframes MCP-enabled systems through context engineering constraints.
+
+% -----------------------------------------------------------------------
+% XIII. Future Directions
+% -----------------------------------------------------------------------
+\section{Future Directions}
+\label{sec:future}
+
+\subsection{Direction A: Learned Slot Allocation}
+
+Replace heuristic slot budgets with learned policies that optimize quality-cost objectives under varying query classes.
+
+\subsection{Direction B: Adaptive Schema Distillation}
+
+Automatically compress schema descriptions into query-specific affordance summaries.
+
+\subsection{Direction C: Retrieval Freshness Controllers}
+
+Use freshness-aware confidence scores to decide reinjection versus expiration.
+
+\subsection{Direction D: Trace-Aware Self-Repair}
+
+Leverage explicit reason-act-observe traces to trigger automatic correction policies after failed tool calls.
+
+\subsection{Direction E: Multi-Agent MCP Topologies}
+
+Explore coordinated specialist agents sharing MCP capability pools with explicit arbitration and budget negotiation.
+
+\subsection{Direction F: Standardized Context Health Benchmarks}
+
+Create reusable benchmark suites for context relevance,
+staleness,
+compression loss,
+and schema overhead in MCP-enabled systems.
+
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.94\columnwidth}{
+\centering
+\vspace{0.2cm}
+\textbf{PNG Placeholder: fig_future_roadmap.png}\\
+Insert research roadmap visual with milestones\\
+\vspace{0.2cm}
+}}
+\caption{Future roadmap placeholder. Replace with fig\_future\_roadmap.png.}
+\label{fig:future_roadmap}
+\end{figure}
+
+% -----------------------------------------------------------------------
+% XIV. Conclusion
+% -----------------------------------------------------------------------
+\section{Conclusion}
+\label{sec:conclusion}
+
+This paper argued that context engineering,
+not prompt engineering alone,
+is the decisive systems problem for modern agentic AI.
+
+Using the supplied project analyses,
+we reconstructed an MCP-enabled RAG agent architecture and examined where context is created,
+transformed,
+injected,
+and left to decay.
+
+The conclusions are clear.
+
+MCP is valuable.
+It provides real modularity and protocolized capability integration.
+
+But MCP is not automatically efficient.
+Without selective schema exposure,
+slot-bounded assembly,
+and explicit trace governance,
+it can carry overhead that weakens long-session reasoning quality.
+
+The path forward is concrete.
+Treat context as a scheduled resource.
+Apply deterministic lifecycle policy.
+Gate capabilities by intent.
+Compress evidence before injection.
+Persist only useful traces.
+Measure context health continuously.
+
+Agentic systems fail quietly when context policy is vague.
+They improve rapidly when context policy is explicit.
+
+That is the core finding.
+
+% -----------------------------------------------------------------------
+% XV. Appendix A: Extended Analytical Notes
+% -----------------------------------------------------------------------
+\section*{Appendix A: Extended Analytical Notes}
+
+This appendix expands implementation-facing analysis points so the manuscript can directly support system redesign work.
+
+\subsection*{A1. Context Audit Checklist}
+
+\begin{enumerate}[leftmargin=1.2em]
+\item Enumerate all model-visible context artifacts by source.
+\item Compute token share of each artifact category over 50-turn sessions.
+\item Label each artifact by utility horizon (one turn, short horizon, long horizon).
+\item Record reinjection frequency and freshness decay profile.
+\item Identify stale artifacts surviving beyond utility horizon.
+\item Measure route decision error under anaphoric follow-up prompts.
+\item Measure schema payload growth as tool count increases.
+\item Measure response-time sensitivity to schema payload volume.
+\item Track citation fidelity relative to retrieval payload size.
+\item Track memory-injection utility by intent class.
+\end{enumerate}
+
+\subsection*{A2. Slot Policy Template}
+
+\begin{lstlisting}[style=pythonStyle, caption={Pseudo-template for context slot policy implementation.}, label={lst:slot_template}]
+def allocate_slots(query, state, budget):
+    profile = classify_query_profile(query, state)
+
+    caps = {
+        "policy": 0.10 * budget,
+        "history": 0.25 * budget,
+        "evidence": 0.35 * budget,
+        "capability": 0.20 * budget,
+        "memory": 0.10 * budget,
+    }
+
+    caps = adapt_caps(caps, profile)
+
+    slots = {}
+    slots["policy"] = build_policy_slot(state, caps["policy"])
+    slots["history"] = build_history_slot(state, caps["history"])
+    slots["evidence"] = build_evidence_slot(query, state, caps["evidence"])
+    slots["capability"] = build_capability_slot(query, state, caps["capability"])
+    slots["memory"] = build_memory_slot(query, state, caps["memory"])
+
+    slots = normalize_and_trim(slots, budget)
+    return slots
+\end{lstlisting}
+
+\subsection*{A3. Route Reliability Stress Cases}
+
+Case 1:
+Direct explicit retrieval request.
+Expected route is retrieval-enabled.
+
+Case 2:
+Anaphoric follow-up with no explicit retrieval keyword.
+Expected route should still preserve retrieval.
+
+Case 3:
+Tool request with mixed conceptual phrasing.
+Expected route should gate to capability slot while preserving evidence continuity.
+
+Case 4:
+Cross-topic pivot mid-session.
+Expected route should trigger stale evidence pruning and topic reset handling.
+
+\subsection*{A4. Schema Payload Compression Heuristics}
+
+\begin{enumerate}[leftmargin=1.2em]
+\item Include full schema only for selected tools.
+\item Convert non-selected tools to one-line affordance labels.
+\item Limit examples to one per selected tool unless ambiguity detected.
+\item Strip verbose prose from unchanged schema descriptions.
+\item Cache and reference schema signatures by hash in trace logs.
+\end{enumerate}
+
+\subsection*{A5. Evidence Compression Heuristics}
+
+\begin{enumerate}[leftmargin=1.2em]
+\item Keep source identifiers and citation anchors intact.
+\item Preserve at least one exact quote per high-impact source.
+\item Remove duplicate semantic statements across chunks.
+\item Penalize overly similar chunks from same source region.
+\item Enforce minimum cross-source diversity when available.
+\end{enumerate}
+
+\subsection*{A6. Suggested Evaluation Matrix}
+
+\begin{longtable}{p{2.0cm}p{2.4cm}p{2.6cm}}
+\toprule
+Dimension & Metric & Target Direction \\
+\midrule
+Token efficiency & Avg prompt tokens per turn & Decrease \\
+Latency & P50 end-to-end latency & Decrease \\
+Grounding & Citation-faithful answer ratio & Increase \\
+Tool quality & Useful tool-call ratio & Increase \\
+Route quality & Correct route selection rate & Increase \\
+Stability & Drift incidents per 100 turns & Decrease \\
+Memory utility & Helpful memory injection rate & Increase \\
+Schema overhead & Schema token share & Decrease \\
+Evidence quality & Relevant evidence density & Increase \\
+Debuggability & Trace completeness score & Increase \\
+\bottomrule
+\end{longtable}
+
+% -----------------------------------------------------------------------
+% XVI. Appendix B: Placeholder Figure Index
+% -----------------------------------------------------------------------
+\section*{Appendix B: PNG Placeholder Figure Index}
+
+For convenience,
+all figure placeholders included in this manuscript are listed below.
+
+\begin{enumerate}[leftmargin=1.2em]
+\item fig\_architecture\_overview.png
+\item fig\_langgraph\_flow.png
+\item fig\_rag\_pipeline.png
+\item fig\_context\_slots.png
+\item fig\_token\_growth\_curve.png
+\item fig\_failure\_heatmap.png
+\item fig\_redesign\_blueprint.png
+\item fig\_future\_roadmap.png
+\end{enumerate}
+
+These placeholders are currently rendered as framed text boxes to keep the source compilable before assets are prepared.
+
+% -----------------------------------------------------------------------
+% XVII. References
+% -----------------------------------------------------------------------
+\begin{thebibliography}{99}
+
+\bibitem{anthropic_mcp}
+Anthropic,
+``Introducing the Model Context Protocol,''
+2024.
+[Online].
+Available:
+\url{https://www.anthropic.com/news/model-context-protocol}
+
+\bibitem{mcp_spec}
+Model Context Protocol Working Group,
+``Model Context Protocol Specification,''
+2025.
+[Online].
+Available:
+\url{https://modelcontextprotocol.io/specification/2025-06-18}
+
+\bibitem{anthropic_context}
+Anthropic,
+``Effective Context Engineering for AI Agents,''
+2025.
+[Online].
+Available:
+\url{https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents}
+
+\bibitem{langchain_context}
+LangChain,
+``Context Engineering Documentation,''
+2025.
+[Online].
+Available:
+\url{https://docs.langchain.com/oss/python/langchain/context-engineering}
+
+\bibitem{react}
+S. Yao,
+J. Zhao,
+D. Yu,
+N. Du,
+I. Shafran,
+K. Narasimhan,
+and Y. Cao,
+``ReAct: Synergizing Reasoning and Acting in Language Models,''
+arXiv:2210.03629,
+2022.
+
+\bibitem{toolformer}
+T. Schick,
+J. Dwivedi-Yu,
+R. Dessi,
+R. Raileanu,
+M. Lomeli,
+E. Hambro,
+L. Zettlemoyer,
+N. Cancedda,
+and T. Scialom,
+``Toolformer: Language Models Can Teach Themselves to Use Tools,''
+arXiv:2302.04761,
+2023.
+
+\bibitem{reflexion}
+N. Shinn,
+B. Labash,
+A. Gopinath,
+K. Narasimhan,
+and S. Yao,
+``Reflexion: Language Agents with Verbal Reinforcement Learning,''
+arXiv:2303.11366,
+2023.
+
+\bibitem{context_doc}
+L. Sharma,
+``Context Engineering Notes (project document),''
+\emph{AI Study Agent repository},
+2026.
+
+\bibitem{analysis_doc}
+L. Sharma,
+``Research Analysis Notes (project document),''
+\emph{AI Study Agent repository},
+2026.
+
+\bibitem{j_split}
+A. Arora et al.,
+``JSPLIT: Prompt Bloating Mitigation for MCP Tool Catalogs,''
+arXiv:2510.14537,
+2025.
+
+\bibitem{readme_ai}
+X. Liu et al.,
+``Readme\_AI: Context Servers for Agentic Workflows,''
+IEEE Access,
+2025.
+
+\bibitem{rag_foundation}
+P. Lewis et al.,
+``Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks,''
+NeurIPS,
+2020.
+
+\bibitem{dpr}
+V. Karpukhin et al.,
+``Dense Passage Retrieval for Open-Domain Question Answering,''
+EMNLP,
+2020.
+
+\bibitem{fewshot}
+T. B. Brown et al.,
+``Language Models are Few-Shot Learners,''
+NeurIPS,
+2020.
+
+\bibitem{cot}
+J. Wei et al.,
+``Chain-of-Thought Prompting Elicits Reasoning in Large Language Models,''
+NeurIPS,
+2022.
+
+\bibitem{gpt4}
+OpenAI,
+``GPT-4 Technical Report,''
+arXiv:2303.08774,
+2023.
+
+\bibitem{weaviate_context}
+Weaviate,
+``Context Engineering for Production LLM Systems,''
+2025.
+
+\bibitem{mcp_intro_blog}
+P. Schmid,
+``An Introduction to MCP for LLM Engineers,''
+2025.
+
+\bibitem{context_window_limits}
+S. Orange,
+``Prompt Length vs Context Window: Practical Limits in LLM Systems,''
+2025.
+
+\bibitem{mcp_github}
+Model Context Protocol,
+``Official MCP Repository,''
+GitHub,
+2025.
+[Online].
+Available:
+\url{https://github.com/modelcontextprotocol}
+
+\end{thebibliography}
+
+\end{document}

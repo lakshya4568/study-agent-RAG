@@ -152,7 +152,7 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
   return (
     <div className="bg-white rounded-3xl shadow-2xl border-4 border-transparent bg-clip-padding relative overflow-hidden flex flex-col max-w-2xl mx-auto my-6 h-[600px] ring-4 ring-pink-100/50">
       {/* Colorful Gradient Border Effect */}
-      <div className="absolute inset-0 rounded-3xl bg-linear-to-br from-pink-400 via-purple-400 to-cyan-400 -z-10 m-[-4px]" />
+      <div className="absolute inset-0 rounded-3xl bg-linear-to-br from-pink-400 via-purple-400 to-cyan-400 -z-10 -m-1" />
 
       {/* Header */}
       <div className="p-5 border-b border-pink-100 flex justify-between items-center bg-linear-to-r from-pink-50 via-white to-cyan-50">
