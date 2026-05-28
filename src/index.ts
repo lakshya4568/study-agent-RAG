@@ -94,15 +94,18 @@ logger.info("=".repeat(60));
 logger.info("🚀 AI Study Agent - Starting Up");
 logger.info("=".repeat(60));
 
-// Load MCP servers from config
-const mcpConfig = loadMcpConfig();
-logger.info(`📋 Loading MCP configuration from mcp.json`);
-logger.info(
-  `Found ${Object.keys(mcpConfig.mcpServers).length} MCP servers configured`,
-);
+function connectConfiguredMcpServers(): void {
+  const mcpConfig = loadMcpConfig();
+  logger.info(`📋 Loading MCP configuration from mcp.json`);
+  logger.info(
+    `Found ${Object.keys(mcpConfig.mcpServers).length} MCP servers configured`,
+  );
 
-for (const [id, config] of Object.entries(mcpConfig.mcpServers)) {
-  if (config.command) {
+  for (const [id, config] of Object.entries(mcpConfig.mcpServers)) {
+    if (!config.command) {
+      continue;
+    }
+
     logger.info(`🔌 Adding MCP server: ${id}`);
     logger.info(
       `   Command: ${config.command} ${(config.args || []).join(" ")}`,
@@ -129,6 +132,37 @@ const configManager = new ConfigManager();
 
 logger.info("📊 Study Agent ready for initialization");
 logger.info("=".repeat(60));
+
+async function bootstrapBackgroundServices(): Promise<void> {
+  connectConfiguredMcpServers();
+
+  // Start NVIDIA RAG service without blocking initial UI render.
+  try {
+    logger.info("🚀 Starting NVIDIA RAG service...");
+    await startRAGService();
+    logger.info("✅ NVIDIA RAG service started successfully");
+    logger.info("   Model: nvidia/llama-3.2-nemoretriever-300m-embed-v2");
+    logger.info("   LLM: meta/llama-3.3-70b-instruct (via OpenAI SDK)");
+  } catch (error) {
+    logger.error("❌ Failed to start NVIDIA RAG service:", error);
+    logger.error("   RAG features may not be available");
+  }
+
+  // Warm up the Study Agent in the background.
+  logger.info("\n🔥 Warming up Study Agent...");
+  studyAgentService
+    .initialize()
+    .then(() => {
+      logger.info("✅ Study Agent initialized and ready");
+      logger.info("=".repeat(60));
+      logger.info("🎉 All systems operational - Ready for queries!");
+      logger.info("=".repeat(60) + "\n");
+    })
+    .catch((error) => {
+      logger.error("❌ Study agent failed to initialize on startup:", error);
+      logger.warn("   Agent will initialize on first query instead");
+    });
+}
 
 function convertChatHistoryToMessages(
   history: ChatMessage[],
@@ -188,19 +222,15 @@ app.on("ready", async () => {
   logger.info("⚡ Electron App Ready - Initializing Services");
   logger.info("=".repeat(60));
 
-  // Initialize file logging now that app is ready
-  await initializeFileLogging();
-  logger.info("📝 File logging initialized");
+  // Initialize file logging in background so it never delays first paint.
+  void initializeFileLogging().then(() => {
+    logger.info("📝 File logging initialized");
+  });
 
   // Initialize database BEFORE registering IPC handlers
   try {
     dbManager.initialize();
-    const stats = dbManager.getStats();
     logger.info("💾 Database initialized successfully");
-    logger.info(`   Conversation threads: ${stats.threads}`);
-    logger.info(`   Total messages: ${stats.messages}`);
-    logger.info(`   Uploaded documents: ${stats.documents}`);
-    logger.info(`   Database size: ${stats.dbSizeMB.toFixed(2)} MB`);
   } catch (error) {
     logger.error("❌ Failed to initialize database:", error);
   }
@@ -209,34 +239,13 @@ app.on("ready", async () => {
   registerDatabaseHandlers();
   logger.info("🔌 IPC handlers registered");
 
-  // Start NVIDIA RAG service after database is ready
-  try {
-    logger.info("🚀 Starting NVIDIA RAG service...");
-    await startRAGService();
-    logger.info("✅ NVIDIA RAG service started successfully");
-    logger.info("   Model: nvidia/llama-3.2-nemoretriever-300m-embed-v2");
-    logger.info("   LLM: moonshotai/kimi-k2-instruct (via OpenAI SDK)");
-  } catch (error) {
-    logger.error("❌ Failed to start NVIDIA RAG service:", error);
-    logger.error("   RAG features may not be available");
-  }
-
+  // Show the UI immediately once core IPC is ready.
   createWindow();
 
-  // Warm up the Study Agent so the UI immediately shows status
-  logger.info("\n🔥 Warming up Study Agent...");
-  studyAgentService
-    .initialize()
-    .then(() => {
-      logger.info("✅ Study Agent initialized and ready");
-      logger.info("=".repeat(60));
-      logger.info("🎉 All systems operational - Ready for queries!");
-      logger.info("=".repeat(60) + "\n");
-    })
-    .catch((error) => {
-      logger.error("❌ Study agent failed to initialize on startup:", error);
-      logger.warn("   Agent will initialize on first query instead");
-    });
+  // Continue slower startup work in the background.
+  setImmediate(() => {
+    void bootstrapBackgroundServices();
+  });
 });
 
 // Quit when all windows are closed.

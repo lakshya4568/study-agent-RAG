@@ -21,8 +21,8 @@ class NVIDIAEmbedder:
     NVIDIA embedding model wrapper with rate limiting and model switching.
 
     Supports:
-    - nvidia/llama-3.2-nv-embedqa-1b-v2 (QA-optimized, recommended)
-    - nvidia/llama-3.2-nemoretriever-300m-embed-v2 (lightweight)
+    - nvidia/llama-nemotron-embed-1b-v2 (QA-optimized, recommended)
+    - nvidia/llama-nemotron-embed-300m-v2 (lightweight)
     - nvidia/nv-embedcode-7b-v1 (code retrieval)
     - nvidia/nv-embedqa-e5-v5 (English QA)
     - baai/bge-m3 (multi-vector)

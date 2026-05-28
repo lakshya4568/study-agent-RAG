@@ -159,14 +159,17 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
   useEffect(() => {
     loadTools();
     loadThreads();
-    if (activeThreadId) {
-      loadMessages(activeThreadId);
-    } else {
-      setMessages([]);
-    }
-
+    loadPendingToolCalls();
     const pollInterval = setInterval(loadPendingToolCalls, 2000);
     return () => clearInterval(pollInterval);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (activeThreadId) {
+      loadMessages(activeThreadId);
+      return;
+    }
+    setMessages([]);
   }, [activeThreadId]);
 
   const deriveTitle = (
@@ -178,32 +181,73 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
     return compact.length > 40 ? `${compact.slice(0, 40)}...` : compact;
   };
 
+  const isPlaceholderTitle = (title: string): boolean => {
+    const normalized = title.trim().toLowerCase();
+    return (
+      normalized === "" ||
+      normalized === "new chat" ||
+      normalized === "new conversation"
+    );
+  };
+
   const loadThreads = async () => {
     if (!user) return;
     const result = await window.db.getThreads(user.id);
     if (!(result.success && result.threads)) return;
 
-    const hydrated: typeof threads = [];
-    for (const thread of result.threads) {
-      const messages = await window.db.getMessages(thread.id);
-      if (
-        messages.success &&
-        messages.messages &&
-        messages.messages.length > 0
-      ) {
-        const newTitle = deriveTitle(
-          messages.messages.map((m) => ({ role: m.role, content: m.content }))
-        );
-        if (newTitle !== thread.title) {
-          await window.db.updateThreadTitle(thread.id, newTitle);
-          hydrated.push({ ...thread, title: newTitle });
-          continue;
-        }
-      }
-      hydrated.push(thread);
+    // Render thread list immediately, then lazily repair legacy placeholder titles.
+    setThreads(result.threads);
+
+    const threadsNeedingRepair = result.threads
+      .filter((thread) => isPlaceholderTitle(thread.title))
+      .slice(0, 5);
+    if (!threadsNeedingRepair.length) {
+      return;
     }
 
-    setThreads(hydrated);
+    void Promise.allSettled(
+      threadsNeedingRepair.map(async (thread) => {
+        const messagesResult = await window.db.getMessages(thread.id);
+        if (
+          !messagesResult.success ||
+          !messagesResult.messages ||
+          messagesResult.messages.length === 0
+        ) {
+          return null;
+        }
+
+        const newTitle = deriveTitle(
+          messagesResult.messages.map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+        );
+        if (!newTitle || newTitle === thread.title) {
+          return null;
+        }
+
+        await window.db.updateThreadTitle(thread.id, newTitle);
+        return { id: thread.id, title: newTitle };
+      }),
+    ).then((results) => {
+      const titleUpdates = new Map<string, string>();
+      for (const resultItem of results) {
+        if (resultItem.status === "fulfilled" && resultItem.value) {
+          titleUpdates.set(resultItem.value.id, resultItem.value.title);
+        }
+      }
+
+      if (titleUpdates.size === 0) {
+        return;
+      }
+
+      setThreads((prev) =>
+        prev.map((thread) => {
+          const nextTitle = titleUpdates.get(thread.id);
+          return nextTitle ? { ...thread, title: nextTitle } : thread;
+        }),
+      );
+    });
   };
 
   // Register functions with parent

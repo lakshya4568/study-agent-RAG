@@ -5,7 +5,7 @@ import type {
   ChatCompletionTool,
 } from "openai/resources/chat/completions";
 
-const NVIDIA_CHAT_MODEL = "moonshotai/kimi-k2-instruct"; // Using Kimi K2 Instruct
+const NVIDIA_CHAT_MODEL = "meta/llama-3.3-70b-instruct"; // Using LLaMA 3.3 70B Instruct
 const NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1";
 
 function getRequiredApiKey(): string {

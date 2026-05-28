@@ -169,7 +169,7 @@ export class StudyAgentService {
         const clients = this.mcpManager.getAllClients();
         for (const { client, serverId } of clients) {
           try {
-            const tools = await loadMcpTools(serverId, client);
+            const tools = await loadMcpTools(serverId, client as any);
             logger.info(`Loaded ${tools.length} tools from server ${serverId}`);
 
             // Sanitize schemas using raw definitions from MCP server

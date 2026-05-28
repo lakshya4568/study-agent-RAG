@@ -22,8 +22,8 @@ class NVIDIAReranker:
     NVIDIA reranking model wrapper.
 
     Supports:
-    - nvidia/llama-3.2-nv-rerankqa-1b-v2 (recommended for QA)
-    - nvidia/llama-3.2-nemoretriever-500m-rerank-v2 (lightweight)
+    - nvidia/llama-nemotron-rerank-1b-v2 (recommended for QA)
+    - nvidia/llama-nemotron-rerank-500m-v2 (lightweight)
     """
 
     def __init__(self, config: RAGConfig):

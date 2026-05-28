@@ -26,13 +26,13 @@ class ModelConfig:
 # ── Available NVIDIA Embedding Models ──────────────────────────────────────────
 EMBEDDING_MODELS = {
     "nv-embedqa-1b-v2": ModelConfig(
-        model_id="nvidia/llama-3.2-nv-embedqa-1b-v2",
+        model_id="nvidia/llama-nemotron-embed-1b-v2",
         description="Multilingual QA retrieval with long context support (1B params)",
         max_tokens=512,
         dimensions=2048,
     ),
     "nemoretriever-300m-v2": ModelConfig(
-        model_id="nvidia/llama-3.2-nemoretriever-300m-embed-v2",
+        model_id="nvidia/llama-nemotron-embed-300m-v2",
         description="Multilingual QA retrieval, lightweight (300M params)",
         max_tokens=512,
         dimensions=1024,
@@ -60,11 +60,11 @@ EMBEDDING_MODELS = {
 # ── Available NVIDIA Reranking Models ──────────────────────────────────────────
 RERANKING_MODELS = {
     "nv-rerankqa-1b-v2": ModelConfig(
-        model_id="nvidia/llama-3.2-nv-rerankqa-1b-v2",
+        model_id="nvidia/llama-nemotron-rerank-1b-v2",
         description="Multilingual, cross-lingual QA reranking (1B params)",
     ),
     "nemoretriever-500m-rerank-v2": ModelConfig(
-        model_id="nvidia/llama-3.2-nemoretriever-500m-rerank-v2",
+        model_id="nvidia/llama-nemotron-rerank-500m-v2",
         description="GPU-accelerated passage reranking (500M params)",
     ),
 }
@@ -72,7 +72,7 @@ RERANKING_MODELS = {
 # ── Available LLM Models ──────────────────────────────────────────────────────
 LLM_MODELS = {
     "kimi-k2-instruct": ModelConfig(
-        model_id="moonshotai/kimi-k2-instruct",
+        model_id="meta/llama-3.3-70b-instruct",
         description="Kimi K2 Instruct - multi-modal reasoning",
         max_tokens=4096,
     ),
@@ -86,27 +86,29 @@ class ChunkingConfig:
     chunk_size: int = 512  # tokens
     chunk_overlap: int = 128  # 25% overlap
     encoding_name: str = "cl100k_base"
-    separators: List[str] = field(default_factory=lambda: [
-        "\n\n\n",  # Section breaks
-        "\n\n",    # Paragraph breaks
-        "\n",      # Line breaks
-        ". ",      # Sentence ends
-        "? ",      # Question ends
-        "! ",      # Exclamation ends
-        "; ",      # Semicolons
-        ", ",      # Commas
-        " ",       # Words
-        "",        # Characters (fallback)
-    ])
+    separators: List[str] = field(
+        default_factory=lambda: [
+            "\n\n\n",  # Section breaks
+            "\n\n",  # Paragraph breaks
+            "\n",  # Line breaks
+            ". ",  # Sentence ends
+            "? ",  # Question ends
+            "! ",  # Exclamation ends
+            "; ",  # Semicolons
+            ", ",  # Commas
+            " ",  # Words
+            "",  # Characters (fallback)
+        ]
+    )
 
 
 @dataclass
 class RetrieverConfig:
     """Configuration for document retrieval."""
 
-    top_k: int = 10           # Initial retrieval count (before reranking)
-    top_n: int = 5            # Final count after reranking
-    use_hybrid: bool = True   # Enable hybrid (keyword + semantic) search
+    top_k: int = 10  # Initial retrieval count (before reranking)
+    top_n: int = 5  # Final count after reranking
+    use_hybrid: bool = True  # Enable hybrid (keyword + semantic) search
     keyword_weight: float = 0.3  # Weight for keyword search in hybrid mode
     semantic_weight: float = 0.7  # Weight for semantic search in hybrid mode
     similarity_threshold: float = 0.0  # Minimum similarity score
@@ -198,6 +200,8 @@ class RAGConfig:
             llm_model=os.getenv("RAG_LLM_MODEL", "kimi-k2-instruct"),
             chroma_persist_dir=os.getenv("CHROMA_PERSIST_DIR", "./chroma_db"),
             collection_name=os.getenv("RAG_COLLECTION_NAME", "study_materials"),
-            enable_reranking=os.getenv("RAG_ENABLE_RERANKING", "true").lower() == "true",
-            enable_hybrid_search=os.getenv("RAG_ENABLE_HYBRID", "true").lower() == "true",
+            enable_reranking=os.getenv("RAG_ENABLE_RERANKING", "true").lower()
+            == "true",
+            enable_hybrid_search=os.getenv("RAG_ENABLE_HYBRID", "true").lower()
+            == "true",
         )

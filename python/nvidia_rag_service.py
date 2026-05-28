@@ -33,8 +33,8 @@ CHROMA_PERSIST_DIR = os.getenv("CHROMA_PERSIST_DIR", "./chroma_db")
 COLLECTION_NAME = "study_materials"
 
 # Model Configuration
-EMBEDDING_MODEL = "nvidia/llama-3.2-nemoretriever-300m-embed-v2"
-LLM_MODEL = "qwen/qwen3.5-397b-a17b"
+EMBEDDING_MODEL = "nvidia/llama-nemotron-embed-300m-v2"
+LLM_MODEL = "meta/llama-3.3-70b-instruct"
 
 # RAG Configuration (Token-based)
 CHUNK_SIZE = 512  # tokens

@@ -146,11 +146,12 @@ export function createQueryNode(tools: StructuredTool[]) {
         logger.info("[QueryNode] No tools available");
       }
 
-      // When RAG context is present, use the base system prompt (no tool
-      // descriptions) to keep the payload small for the NVIDIA free-tier API.
+      // When RAG context is present or the route is 'general', use the base system prompt (no tool
+      // descriptions) to keep the payload small and clean.
       // Tool-aware prompt is only needed when we actually plan to call tools.
       const hasRAGContext = (state.documents?.length ?? 0) > 0;
-      let systemPrompt = hasRAGContext
+      const isGeneralRoute = state.route === "general";
+      let systemPrompt = (hasRAGContext || isGeneralRoute)
         ? STUDY_MENTOR_SYSTEM_PROMPT
         : createToolAwareSystemPrompt(STUDY_MENTOR_SYSTEM_PROMPT, enrichedTools);
 
@@ -166,7 +167,7 @@ export function createQueryNode(tools: StructuredTool[]) {
       ];
 
       logger.info(
-        `[QueryNode] Invoking model with ${messages.length} messages (RAG context: ${hasRAGContext})`
+        `[QueryNode] Invoking model with ${messages.length} messages (RAG context: ${hasRAGContext}, General route: ${isGeneralRoute})`
       );
 
       // Convert LangChain messages to OpenAI format
@@ -188,15 +189,14 @@ export function createQueryNode(tools: StructuredTool[]) {
         };
       });
 
-      // When RAG context is already present (route=rag), skip tools to avoid
-      // sending a massive payload (19+ tool schemas + RAG context) that causes
-      // NVIDIA free-tier API to hang/timeout. The RAG pipeline already retrieved
-      // and contextualized the answer — we just need the LLM to synthesize it.
+      // When RAG context is already present (route=rag) or the route is general, skip tools to avoid
+      // sending massive payloads or executing unnecessary tools. The RAG pipeline already retrieved
+      // and contextualized the answer, and the general route should respond directly with general knowledge.
       let responseContent: string;
 
-      if (hasRAGContext) {
+      if (hasRAGContext || isGeneralRoute) {
         logger.info(
-          `[QueryNode] RAG context present (${state.documents!.length} docs), using direct invoke (no tools)`
+          `[QueryNode] Direct invoke without tools (RAG context: ${hasRAGContext}, General route: ${isGeneralRoute})`
         );
         responseContent = await model.invoke(openAIMessages);
       } else if (openAITools.length > 0) {

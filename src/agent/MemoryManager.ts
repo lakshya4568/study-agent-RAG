@@ -195,6 +195,7 @@ export class MemoryManager {
    * Build a concise context string suitable for system-prompt injection.
    * Combines Memory.md and the latest Chat_History_Summary.md entries.
    */
+
   getMemoryForPrompt(): string {
     const memory = this.loadMemory();
     const chatHistory = this.loadChatHistory();

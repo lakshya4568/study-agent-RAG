@@ -140,7 +140,7 @@ export async function loadStudyMCPTools(): Promise<LoadedStudyTools> {
   );
   await client.connect(transport);
 
-  const tools = await loadMcpTools(resolveServerName(serverPath), client);
+  const tools = await loadMcpTools(resolveServerName(serverPath), client as any);
 
   // Patch tools to ensure they have valid Zod schemas
   const patchedTools = patchMcpTools(tools);
