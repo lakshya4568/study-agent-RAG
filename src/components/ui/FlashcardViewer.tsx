@@ -38,10 +38,8 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
       try {
         const savedCards = await window.db.getFlashcardsByMessageId(messageId);
         if (savedCards.success && savedCards.flashcards && savedCards.flashcards.length > 0) {
-          // If DB has records, use them as they contain the mastery status
           setCards(savedCards.flashcards);
         } else {
-          // Fallback: If DB is empty (e.g., delay in saving), use props
           setCards(initialFlashcards);
         }
       } catch (error) {
@@ -130,10 +128,10 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
   if (!currentCard) return null;
 
   const variants = {
-    enter: (direction: number) => ({
-      x: direction > 0 ? 50 : -50,
+    enter: (dir: number) => ({
+      x: dir > 0 ? 50 : -50,
       opacity: 0,
-      scale: 0.9,
+      scale: 0.95,
     }),
     center: {
       zIndex: 1,
@@ -141,189 +139,203 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
       opacity: 1,
       scale: 1,
     },
-    exit: (direction: number) => ({
+    exit: (dir: number) => ({
       zIndex: 0,
-      x: direction < 0 ? 50 : -50,
+      x: dir < 0 ? 50 : -50,
       opacity: 0,
-      scale: 0.9,
+      scale: 0.95,
     }),
   };
 
   return (
-    <div className="bg-white rounded-3xl shadow-2xl border-4 border-transparent bg-clip-padding relative overflow-hidden flex flex-col max-w-2xl mx-auto my-6 h-[600px] ring-4 ring-pink-100/50">
-      {/* Colorful Gradient Border Effect */}
-      <div className="absolute inset-0 rounded-3xl bg-linear-to-br from-pink-400 via-purple-400 to-cyan-400 -z-10 -m-1" />
-
-      {/* Header */}
-      <div className="p-5 border-b border-pink-100 flex justify-between items-center bg-linear-to-r from-pink-50 via-white to-cyan-50">
-        <div className="flex items-center gap-3 text-gray-800">
-          <div className="p-2 bg-white rounded-xl shadow-sm text-pink-500">
-            <Brain className="w-6 h-6" />
-          </div>
-          <div>
-            <h2 className="font-bold text-lg bg-clip-text text-transparent bg-linear-to-r from-pink-500 to-violet-600">
-              Study Time
-            </h2>
-            <div className="flex items-center gap-2 text-xs text-gray-500 font-medium">
-              <span>Card {currentIndex + 1} of {cards.length}</span>
+    <div className="neu-bezel max-w-2xl mx-auto my-6 overflow-hidden flex flex-col h-[560px]">
+      <div className="neu-bezel-inner flex flex-col h-full overflow-hidden">
+        {/* Header */}
+        <div className="p-4 px-5 border-b border-border/40 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl neu-inset-sm flex items-center justify-center text-primary">
+              <Brain className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="font-bold text-sm text-foreground tracking-tight flex items-center gap-2">
+                Active Recall Deck
+              </h2>
+              <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-mono">
+                <span>Card {currentIndex + 1} of {cards.length}</span>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="flex gap-2">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-full shadow-sm border border-pink-100 text-xs text-pink-600 font-bold mr-2">
-            <Trophy className="w-3.5 h-3.5" />
-            {masteredCount} Mastered
-          </div>
-          <Button variant="ghost" size="sm" onClick={handleShuffle} title="Shuffle" className="text-gray-500 hover:text-pink-500 hover:bg-pink-50 rounded-full w-9 h-9 p-0">
-            <Shuffle className="w-4 h-4" />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={handleExport} title="Export JSON" className="text-gray-500 hover:text-cyan-500 hover:bg-cyan-50 rounded-full w-9 h-9 p-0">
-            <Download className="w-4 h-4" />
-          </Button>
-          {onClose && (
-            <Button variant="ghost" size="sm" onClick={onClose} className="text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full w-9 h-9 p-0">
-              <X className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
-      </div>
 
-      {/* Progress Bar */}
-      <div className="w-full bg-pink-50 h-1.5">
-        <motion.div
-          className="h-full bg-linear-to-r from-pink-400 via-purple-400 to-cyan-400"
-          initial={{ width: 0 }}
-          animate={{ width: `${progress}%` }}
-          transition={{ duration: 0.5, ease: "easeInOut" }}
-        />
-      </div>
-
-      {/* Card Area */}
-      <div className="flex-1 relative p-6 md:p-10 flex items-center justify-center perspective-1000 bg-linear-to-b from-white to-pink-50/30 overflow-hidden">
-        <AnimatePresence initial={false} custom={direction} mode="wait">
-          <motion.div
-            key={currentIndex}
-            custom={direction}
-            variants={variants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{
-              x: { type: "spring", stiffness: 300, damping: 30 },
-              opacity: { duration: 0.2 },
-              scale: { duration: 0.2 },
-            }}
-            className="relative w-full h-full max-h-[400px] cursor-pointer group perspective-1000"
-            onClick={handleFlip}
-          >
-            <motion.div
-              className="w-full h-full relative preserve-3d transition-all duration-500"
-              animate={{ rotateY: isFlipped ? 180 : 0 }}
-              transition={{ type: "spring", stiffness: 260, damping: 20 }}
-              style={{ transformStyle: "preserve-3d" }}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-emerald-500/25 text-xs text-emerald-500 dark:text-emerald-400 font-bold neu-inset-sm">
+              <Trophy className="w-3.5 h-3.5" />
+              {masteredCount} Mastered
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleShuffle}
+              title="Shuffle"
+              className="w-8 h-8 rounded-full"
             >
-              {/* Front (Question) */}
-              <div className="absolute inset-0 backface-hidden bg-white rounded-3xl shadow-xl border border-pink-100 flex flex-col items-center justify-center p-8 text-center hover:shadow-2xl hover:border-pink-200 transition-all duration-300 overflow-y-auto custom-scrollbar">
-                <div className="absolute top-0 left-0 w-full h-2 bg-linear-to-r from-pink-300 to-purple-300 rounded-t-3xl opacity-50" />
-
-                <div className="mb-6">
-                  <Badge
-                    variant={currentCard.difficulty === 'hard' ? 'error' : currentCard.difficulty === 'medium' ? 'warning' : 'success'}
-                    className="shadow-sm border-0 ring-1 ring-inset ring-black/5"
-                  >
-                    {currentCard.difficulty.toUpperCase()}
-                  </Badge>
-                </div>
-
-                <h3 className="text-xl md:text-2xl font-bold text-gray-800 leading-tight">
-                  {currentCard.question}
-                </h3>
-
-                <div className="mt-auto pt-8 flex flex-col items-center gap-2">
-                  <div className="w-12 h-1 bg-gray-100 rounded-full mb-2" />
-                  <p className="text-sm text-gray-400 font-medium flex items-center gap-1.5 uppercase tracking-wider text-[10px]">
-                    <RotateCw className="w-3 h-3" /> Tap to flip
-                  </p>
-                </div>
-
-                {currentCard.is_mastered && (
-                  <motion.div
-                    initial={{ scale: 0, rotate: -45 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    className="absolute top-6 right-6 text-green-500 bg-green-50 rounded-full p-1"
-                  >
-                    <CheckCircle className="w-8 h-8 fill-green-500 text-white" />
-                  </motion.div>
-                )}
-              </div>
-
-              {/* Back (Answer) */}
-              <div
-                className="absolute inset-0 backface-hidden bg-linear-to-br from-cyan-50 via-white to-blue-50 rounded-3xl shadow-xl border border-cyan-100 flex flex-col items-center justify-center p-8 text-center rotate-y-180 overflow-y-auto custom-scrollbar"
-                style={{ transform: "rotateY(180deg)" }}
+              <Shuffle className="w-3.5 h-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleExport}
+              title="Export JSON"
+              className="w-8 h-8 rounded-full"
+            >
+              <Download className="w-3.5 h-3.5" />
+            </Button>
+            {onClose && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onClose}
+                className="w-8 h-8 rounded-full text-muted-foreground hover:text-destructive"
               >
-                <div className="absolute top-0 left-0 w-full h-2 bg-linear-to-r from-cyan-300 to-blue-300 rounded-t-3xl opacity-50" />
+                <X className="w-3.5 h-3.5" />
+              </Button>
+            )}
+          </div>
+        </div>
 
-                <div className="prose prose-lg max-w-none w-full mb-auto mt-4">
-                  <p className="text-lg md:text-xl text-gray-700 leading-relaxed font-medium">
-                    {currentCard.answer}
-                  </p>
+        {/* Tactile Progress Bar */}
+        <div className="w-full bg-secondary h-1.5 neu-inset-sm">
+          <motion.div
+            className="h-full bg-primary"
+            initial={{ width: 0 }}
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 0.35, ease: "easeInOut" }}
+          />
+        </div>
+
+        {/* Card Canvas Area */}
+        <div className="flex-1 relative p-6 md:p-8 flex items-center justify-center perspective-1000 bg-background overflow-hidden">
+          <AnimatePresence initial={false} custom={direction} mode="wait">
+            <motion.div
+              key={currentIndex}
+              custom={direction}
+              variants={variants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{
+                x: { type: "spring", stiffness: 350, damping: 30 },
+                opacity: { duration: 0.15 },
+                scale: { duration: 0.15 },
+              }}
+              className="relative w-full h-full max-h-[380px] cursor-pointer group perspective-1000 select-none"
+              onClick={handleFlip}
+            >
+              <motion.div
+                className="w-full h-full relative preserve-3d"
+                animate={{ rotateY: isFlipped ? 180 : 0 }}
+                transition={{ duration: 0.5, ease: [0.2, 0.8, 0.2, 1] }}
+                style={{ transformStyle: "preserve-3d" }}
+              >
+                {/* Front (Question) */}
+                <div className="absolute inset-0 backface-hidden neu-raised rounded-2xl p-7 flex flex-col items-center justify-between text-center overflow-y-auto custom-scrollbar">
+                  <div className="w-full flex items-center justify-between border-b border-border/40 pb-3">
+                    <Badge
+                      variant={currentCard.difficulty === "hard" ? "error" : currentCard.difficulty === "medium" ? "warning" : "success"}
+                      size="sm"
+                      pip
+                    >
+                      {currentCard.difficulty.toUpperCase()}
+                    </Badge>
+                    <span className="text-[10px] font-mono text-muted-foreground">Tap Space to Flip</span>
+                  </div>
+
+                  <h3 className="text-lg md:text-xl font-bold text-foreground leading-snug my-auto px-2">
+                    {currentCard.question}
+                  </h3>
+
+                  <div className="w-full pt-3 border-t border-border/40 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground font-medium uppercase tracking-wider">
+                    <RotateCw className="w-3 h-3 text-primary" /> Reveal Answer
+                  </div>
+
+                  {currentCard.is_mastered && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute top-4 right-4 text-emerald-500 dark:text-emerald-400 bg-emerald-500/15 p-1 rounded-full border border-emerald-500/30"
+                    >
+                      <CheckCircle className="w-5 h-5" />
+                    </motion.div>
+                  )}
                 </div>
 
-                <div className="mt-8 flex gap-2 flex-wrap justify-center w-full">
-                  {currentCard.tags.map(tag => (
-                    <span key={tag} className="text-xs font-bold bg-white px-3 py-1.5 rounded-full text-cyan-600 shadow-sm border border-cyan-100 flex items-center gap-1">
-                      <Sparkles className="w-3 h-3" /> {tag}
+                {/* Back (Answer) */}
+                <div
+                  className="absolute inset-0 backface-hidden neu-raised rounded-2xl p-7 flex flex-col items-center justify-between text-center rotate-y-180 overflow-y-auto custom-scrollbar"
+                  style={{ transform: "rotateY(180deg)" }}
+                >
+                  <div className="w-full flex items-center justify-between border-b border-border/40 pb-3">
+                    <span className="text-xs font-bold text-emerald-500 dark:text-emerald-400 flex items-center gap-1">
+                      <CheckCircle className="w-3.5 h-3.5" /> Answer & Key Concept
                     </span>
-                  ))}
+                    <span className="text-[10px] font-mono text-muted-foreground">Self-Test</span>
+                  </div>
+
+                  <div className="my-auto text-left w-full px-2">
+                    <p className="text-sm md:text-base text-foreground leading-relaxed font-normal">
+                      {currentCard.answer}
+                    </p>
+                  </div>
+
+                  <div className="w-full pt-3 border-t border-border/40 flex gap-1.5 flex-wrap justify-center">
+                    {currentCard.tags?.map((tag) => (
+                      <span key={tag} className="text-[10px] font-medium neu-inset-sm px-2.5 py-1 rounded-full text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                        <Sparkles className="w-2.5 h-2.5" /> {tag}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        </AnimatePresence>
-      </div>
+          </AnimatePresence>
+        </div>
 
-      {/* Controls */}
-      <div className="p-6 border-t border-pink-50 flex justify-between items-center bg-white">
-        <Button
-          variant="ghost"
-          onClick={(e) => { e.stopPropagation(); handlePrev(); }}
-          className="text-gray-500 hover:text-pink-600 hover:bg-pink-50 pl-2 pr-4"
-        >
-          <ChevronLeft className="w-5 h-5 mr-1" /> Previous
-        </Button>
+        {/* Controls Bottom Bar */}
+        <div className="p-4 px-5 border-t border-border/40 flex justify-between items-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => { e.stopPropagation(); handlePrev(); }}
+            className="text-xs font-medium"
+            icon={<ChevronLeft className="w-4 h-4" />}
+          >
+            Previous
+          </Button>
 
-        <Button
-          onClick={(e) => {
-            e.stopPropagation();
-            handleToggleMastered();
-          }}
-          className={`
-            transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl
-            ${currentCard.is_mastered
-              ? "bg-green-500 hover:bg-green-600 text-white ring-4 ring-green-100"
-              : "bg-linear-to-r from-pink-500 to-violet-600 hover:from-pink-600 hover:to-violet-700 text-white ring-4 ring-pink-100"}
-          `}
-        >
-          {currentCard.is_mastered ? (
-            <>
-              <CheckCircle className="w-5 h-5 mr-2" /> Mastered!
-            </>
-          ) : (
-            <>
-              Mark as Mastered
-            </>
-          )}
-        </Button>
+          <Button
+            variant={currentCard.is_mastered ? "emerald" : "primary"}
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleToggleMastered();
+            }}
+            icon={<CheckCircle className="w-4 h-4" />}
+          >
+            {currentCard.is_mastered ? "Mastered!" : "Mark as Mastered"}
+          </Button>
 
-        <Button
-          variant="ghost"
-          onClick={(e) => { e.stopPropagation(); handleNext(); }}
-          className="text-gray-500 hover:text-pink-600 hover:bg-pink-50 pr-2 pl-4"
-        >
-          Next <ChevronRight className="w-5 h-5 ml-1" />
-        </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => { e.stopPropagation(); handleNext(); }}
+            className="text-xs font-medium"
+            icon={<ChevronRight className="w-4 h-4" />}
+            iconPosition="right"
+          >
+            Next
+          </Button>
+        </div>
       </div>
     </div>
   );
 };
+

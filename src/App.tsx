@@ -10,11 +10,25 @@ import { Chat } from "./views/Chat";
 import { ServerManager } from "./views/ServerManager";
 import { Settings } from "./views/Settings";
 import { RAGDashboard } from "./views/RAGDashboard";
+import { useChatStore } from "./client/store";
 
 export const App: React.FC = () => {
   const [activeView, setActiveView] = useState<
     "chat" | "rag-dashboard" | "servers" | "settings"
   >("chat");
+
+  const { theme } = useChatStore();
+
+  // Sync theme to root html element
+  useEffect(() => {
+    if (theme === "light") {
+      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("theme-light", "light");
+    } else {
+      document.documentElement.classList.remove("theme-light", "light");
+      document.documentElement.classList.add("dark");
+    }
+  }, [theme]);
 
   const chatActionsRef = useRef<{
     createNewThread: () => void;
@@ -80,7 +94,7 @@ export const App: React.FC = () => {
     {
       id: "settings",
       icon: Settings2,
-      label: "Control Studio",
+      label: "Settings",
       description: "Keys & Memory",
       shortcut: "⌘4",
       onClick: () => setActiveView("settings"),
@@ -118,3 +132,4 @@ export const App: React.FC = () => {
 };
 
 export default App;
+

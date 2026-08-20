@@ -32,30 +32,30 @@ const CodeBlock: React.FC<{ language?: string; value: string; className?: string
   };
 
   return (
-    <div className="code-block-wrapper my-3 rounded-2xl overflow-hidden border border-border/40 bg-zinc-950 shadow-xl">
-      <div className="code-block-header px-4 py-2 bg-zinc-900/80 border-b border-border/30 flex items-center justify-between">
-        <span className="code-language text-[11px] font-mono font-medium text-muted-foreground uppercase tracking-wider">
+    <div className="code-block-wrapper my-3.5 rounded-2xl overflow-hidden neu-inset border border-border/40 shadow-md">
+      <div className="code-block-header px-4 py-2 bg-secondary/80 border-b border-border/40 flex items-center justify-between">
+        <span className="code-language text-[11px] font-mono font-bold text-muted-foreground uppercase tracking-wider">
           {language || "code"}
         </span>
         <button
           onClick={handleCopy}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg hover:bg-white/10 transition-colors"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-2.5 py-1 rounded-lg neu-raised-sm active:scale-95 transition-all cursor-pointer"
           title="Copy code"
         >
           {copied ? (
             <>
-              <Check className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="text-[11px] text-emerald-400 font-medium">Copied!</span>
+              <Check className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
+              <span className="text-[11px] text-emerald-500 dark:text-emerald-400 font-semibold">Copied!</span>
             </>
           ) : (
             <>
               <Copy className="w-3.5 h-3.5" />
-              <span className="text-[11px]">Copy</span>
+              <span className="text-[11px] font-medium">Copy</span>
             </>
           )}
         </button>
       </div>
-      <pre className="code-block p-4 overflow-x-auto text-xs font-mono leading-relaxed text-zinc-200">
+      <pre className="code-block p-4 overflow-x-auto text-xs font-mono leading-relaxed text-foreground/90 custom-scrollbar">
         <code className={className}>{value}</code>
       </pre>
     </div>
@@ -73,13 +73,13 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(({
         rehypePlugins={[rehypeKatex, rehypeRaw]}
         components={{
           table: ({ ...props }) => (
-            <div className="overflow-x-auto my-4 rounded-xl border border-border/40 shadow-sm">
+            <div className="overflow-x-auto my-4 rounded-xl border border-border/40 neu-raised-sm">
               <table className="markdown-table m-0 w-full" {...props} />
             </div>
           ),
           th: ({ ...props }) => (
             <th
-              className="bg-muted/60 text-foreground px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider border-b border-border/50"
+              className="bg-secondary/70 text-foreground px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider border-b border-border/40"
               {...props}
             />
           ),
@@ -94,7 +94,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(({
 
             return isInline ? (
               <code
-                className="inline-code bg-muted/60 text-foreground px-1.5 py-0.5 rounded-md text-[13px] font-mono border border-border/40"
+                className="inline-code neu-inset-sm text-primary px-1.5 py-0.5 rounded-md text-[12.5px] font-mono border border-border/40"
                 {...props}
               >
                 {children}
@@ -110,24 +110,24 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(({
             <h2 className="text-lg font-bold text-foreground mt-3 mb-2 tracking-tight" {...props} />
           ),
           h3: ({ ...props }) => (
-            <h3 className="text-base font-semibold text-foreground mt-2 mb-1 tracking-tight" {...props} />
+            <h3 className="text-base font-bold text-foreground mt-2 mb-1 tracking-tight" {...props} />
           ),
           p: ({ ...props }) => (
-            <p className="text-sm leading-relaxed mb-2.5 last:mb-0 text-foreground/90" {...props} />
+            <p className="text-[14.5px] leading-relaxed mb-2.5 last:mb-0 text-foreground/90 font-normal" {...props} />
           ),
-          ul: ({ ...props }) => <ul className="list-disc pl-5 my-2 space-y-1 text-sm" {...props} />,
-          ol: ({ ...props }) => <ol className="list-decimal pl-5 my-2 space-y-1 text-sm" {...props} />,
+          ul: ({ ...props }) => <ul className="list-disc pl-5 my-2 space-y-1 text-sm text-foreground/90" {...props} />,
+          ol: ({ ...props }) => <ol className="list-decimal pl-5 my-2 space-y-1 text-sm text-foreground/90" {...props} />,
           li: ({ ...props }) => <li className="leading-relaxed" {...props} />,
           blockquote: ({ ...props }) => (
             <blockquote
-              className="border-l-2 border-primary/50 bg-primary/5 pl-4 py-1.5 my-3 rounded-r-xl text-sm italic text-muted-foreground"
+              className="border-l-3 border-primary neu-inset-sm pl-4 py-2 my-3 rounded-r-xl text-sm italic text-muted-foreground"
               {...props}
             />
           ),
           hr: ({ ...props }) => <hr className="border-border/40 my-4" {...props} />,
           a: ({ ...props }) => (
             <a
-              className="text-primary font-medium hover:underline inline-flex items-center gap-0.5"
+              className="text-primary font-semibold hover:underline inline-flex items-center gap-0.5"
               target="_blank"
               rel="noopener noreferrer"
               {...props}
@@ -142,4 +142,5 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(({
 });
 
 export default MarkdownRenderer;
+
 

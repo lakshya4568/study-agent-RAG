@@ -1,54 +1,59 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { cn } from '../../lib/utils';
+import React from "react";
+import { motion } from "framer-motion";
+import { cn } from "../../lib/utils";
 
 interface IconButtonProps {
   icon: React.ReactNode;
-  variant?: 'primary' | 'secondary' | 'ghost';
-  size?: 'sm' | 'md' | 'lg';
+  variant?: "primary" | "secondary" | "raised" | "ghost" | "danger";
+  size?: "sm" | "md" | "lg";
+  shape?: "squircle" | "circle";
   tooltip?: string;
   className?: string;
-  onClick?: () => void;
+  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   disabled?: boolean;
-  type?: 'button' | 'submit' | 'reset';
+  type?: "button" | "submit" | "reset";
 }
 
 export const IconButton: React.FC<IconButtonProps> = ({
   icon,
-  variant = 'ghost',
-  size = 'md',
+  variant = "ghost",
+  size = "md",
+  shape = "squircle",
   tooltip,
   className,
   onClick,
   disabled,
-  type = 'button',
+  type = "button",
 }) => {
   const variants = {
-    primary: 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg hover:shadow-xl',
-    secondary: 'bg-white/10 backdrop-blur-md text-white border border-white/20 hover:bg-white/20',
-    ghost: 'text-gray-600 hover:bg-gray-100',
+    primary: "neu-convex-primary text-white shadow-md active:scale-95",
+    secondary: "neu-convex text-foreground/90 hover:text-foreground shadow-xs active:scale-95",
+    raised: "neu-raised-sm text-foreground/90 hover:text-foreground active:scale-95",
+    ghost: "text-muted-foreground hover:text-foreground hover:bg-secondary/60 active:scale-95",
+    danger: "neu-raised-sm text-rose-400 hover:bg-rose-500/10 border-rose-500/20 active:scale-95",
   };
 
   const sizes = {
-    sm: 'p-1.5',
-    md: 'p-2',
-    lg: 'p-3',
+    sm: "w-7 h-7 p-1 text-xs",
+    md: "w-8.5 h-8.5 p-1.5 text-sm",
+    lg: "w-10 h-10 p-2 text-base",
   };
 
-  const iconSizes = {
-    sm: 'w-4 h-4',
-    md: 'w-5 h-5',
-    lg: 'w-6 h-6',
+  const shapes = {
+    squircle: "rounded-xl",
+    circle: "rounded-full",
   };
 
   return (
     <motion.button
-      whileHover={{ scale: 1.1 }}
-      whileTap={{ scale: 0.9 }}
+      whileHover={{ scale: disabled ? 1 : 1.04 }}
+      whileTap={{ scale: disabled ? 1 : 0.94 }}
+      transition={{ type: "spring", stiffness: 450, damping: 25 }}
       className={cn(
-        'rounded-xl transition-all duration-200 flex items-center justify-center',
+        "transition-all duration-150 flex items-center justify-center cursor-pointer select-none disabled:opacity-40 disabled:cursor-not-allowed",
         variants[variant],
         sizes[size],
+        shapes[shape],
         className
       )}
       title={tooltip}
@@ -56,7 +61,8 @@ export const IconButton: React.FC<IconButtonProps> = ({
       disabled={disabled}
       type={type}
     >
-      <span className={iconSizes[size]}>{icon}</span>
+      <span className="flex items-center justify-center w-full h-full">{icon}</span>
     </motion.button>
   );
 };
+

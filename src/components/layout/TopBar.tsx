@@ -1,7 +1,6 @@
 import React from "react";
-import { motion } from "framer-motion";
 import { cn } from "../../lib/utils";
-import { Sun, Moon, Sparkles, Cpu } from "lucide-react";
+import { Sun, Moon } from "lucide-react";
 import { useChatStore } from "../../client/store";
 import { ModelSelector } from "../ui/ModelSelector";
 
@@ -26,10 +25,10 @@ export const TopBar: React.FC<TopBarProps> = ({
     if (theme === "dark") {
       setTheme("light");
       document.documentElement.classList.remove("dark");
-      document.documentElement.classList.add("theme-light");
+      document.documentElement.classList.add("theme-light", "light");
     } else {
       setTheme("dark");
-      document.documentElement.classList.remove("theme-light");
+      document.documentElement.classList.remove("theme-light", "light");
       document.documentElement.classList.add("dark");
     }
   };
@@ -37,7 +36,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   return (
     <header
       className={cn(
-        "flex items-center justify-between px-6 py-2.5 bg-background border-b border-border select-none z-30",
+        "flex items-center justify-between px-6 py-2.5 bg-card border-b border-border/40 select-none z-30 shadow-xs",
         className
       )}
     >
@@ -49,7 +48,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         )}
         {title && (
           <div className="flex items-center gap-2 min-w-0">
-            <h1 className="text-base font-bold text-foreground tracking-tight truncate">
+            <h1 className="text-sm font-bold text-foreground tracking-tight truncate">
               {title}
             </h1>
             {subtitle && (
@@ -70,13 +69,13 @@ export const TopBar: React.FC<TopBarProps> = ({
         {/* Theme toggle */}
         <button
           onClick={toggleTheme}
-          className="w-9 h-9 rounded-full bg-card border border-border/60 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all active:scale-95 shadow-sm"
+          className="w-8.5 h-8.5 rounded-xl neu-raised-sm flex items-center justify-center text-muted-foreground hover:text-foreground active:scale-95 transition-all cursor-pointer"
           title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
         >
           {theme === "dark" ? (
             <Sun className="w-4 h-4 text-amber-400" />
           ) : (
-            <Moon className="w-4 h-4 text-indigo-400" />
+            <Moon className="w-4 h-4 text-emerald-500" />
           )}
         </button>
 
@@ -85,4 +84,6 @@ export const TopBar: React.FC<TopBarProps> = ({
     </header>
   );
 };
+
+
 

@@ -3,9 +3,7 @@ import {
   ArrowUp,
   Plus,
   Paperclip,
-  Sparkles,
   Layers,
-  Image as ImageIcon,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import {
@@ -395,14 +393,14 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
           className="flex-1 overflow-y-auto px-4 md:px-16 lg:px-24 py-6 space-y-4 custom-scrollbar"
         >
           {messages.length === 0 ? (
-            /* ChatGPT Minimalist Empty State */
+            /* Apple / Minimalist Neumorphic Empty State */
             <div className="max-w-2xl mx-auto flex flex-col items-center justify-center min-h-[60vh] text-center px-4 space-y-6">
-              <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground/90">
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground/95">
                 What can I help you study today?
               </h1>
 
-              {/* Minimal Suggestion Chips */}
-              <div className="flex flex-wrap items-center justify-center gap-2 max-w-lg">
+              {/* Tactile Suggestion Chips */}
+              <div className="flex flex-wrap items-center justify-center gap-2.5 max-w-lg">
                 {[
                   "Explain dynamic programming intuitively",
                   "Generate 5 practice flashcards on Machine Learning",
@@ -415,7 +413,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                       setInput(prompt);
                       inputRef.current?.focus();
                     }}
-                    className="px-3.5 py-1.5 rounded-full bg-secondary/80 hover:bg-secondary text-xs text-foreground/80 border border-border/60 hover:border-border transition-all cursor-pointer text-left"
+                    className="px-4 py-2 rounded-full neu-raised-sm text-xs text-foreground/85 hover:text-foreground hover:brightness-105 active:scale-95 transition-all cursor-pointer text-left border border-border/40 select-none"
                   >
                     {prompt}
                   </button>
@@ -427,7 +425,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
             <div className="max-w-2xl mx-auto space-y-4 pb-6">
               {/* Top Timestamp */}
               <div className="text-center py-2">
-                <span className="text-xs text-muted-foreground/60 font-medium">
+                <span className="text-[11px] text-muted-foreground/60 font-mono">
                   {new Date().toLocaleDateString("en-US", {
                     weekday: "short",
                     month: "short",
@@ -468,7 +466,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                     <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
                     <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" />
                   </div>
-                  <span>Thinking...</span>
+                  <span>Reasoning and formulating answer...</span>
                 </div>
               )}
 
@@ -477,28 +475,28 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
           )}
         </div>
 
-        {/* Floating ChatGPT-Style Prompt Dock */}
-        <div className="shrink-0 px-4 pb-3 pt-1 z-20 flex justify-center bg-background">
+        {/* Floating Tactile Prompt Dock */}
+        <div className="shrink-0 px-4 pb-3 pt-1 z-20 flex justify-center bg-transparent">
           <div className="w-full max-w-2xl space-y-2">
-            {/* Rounded Full Floating Pill Dock (ChatGPT Authentic Design) */}
-            <div className="w-full rounded-full bg-secondary/80 dark:bg-[#212121] border border-border dark:border-[#333333] px-3 py-1.5 flex items-center gap-2.5 shadow-lg focus-within:border-border/90 transition-all relative">
+            {/* Rounded Full Floating Pill Dock */}
+            <div className="w-full rounded-full neu-floating border border-border/50 px-3.5 py-1.5 flex items-center gap-2.5 shadow-md focus-within:border-primary/60 transition-all relative">
               {/* + Action Menu Button */}
               <div className="relative" ref={actionMenuRef}>
                 <button
                   type="button"
                   onClick={() => setIsActionMenuOpen(!isActionMenuOpen)}
                   className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-all cursor-pointer shrink-0",
-                    isActionMenuOpen && "bg-secondary text-foreground rotate-45"
+                    "w-8 h-8 rounded-full flex items-center justify-center neu-convex text-muted-foreground hover:text-foreground active:scale-95 transition-all cursor-pointer shrink-0 border border-border/40",
+                    isActionMenuOpen && "text-primary rotate-45"
                   )}
                   title="Add attachments or create flashcards"
                 >
-                  <Plus className="w-4 h-4 transition-transform duration-150" />
+                  <Plus className="w-4 h-4 transition-transform duration-200" />
                 </button>
 
                 {/* Dropdown Menu on + Click */}
                 {isActionMenuOpen && (
-                  <div className="absolute bottom-full left-0 mb-2 w-56 rounded-2xl bg-[#1e1e1e] border border-[#333333] shadow-2xl p-1.5 z-50 text-xs animate-in fade-in zoom-in-95 duration-150">
+                  <div className="absolute bottom-full left-0 mb-2.5 w-60 rounded-2xl neu-floating bg-popover border border-border/40 shadow-xl p-2 z-50 text-xs animate-in fade-in zoom-in-95 duration-150 space-y-1">
                     <button
                       type="button"
                       onClick={() => {
@@ -506,10 +504,10 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                         setInput("Create 10 high-yield study flashcards for: ");
                         inputRef.current?.focus();
                       }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[#cccccc] hover:bg-[#282828] hover:text-white transition-colors cursor-pointer text-left"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-foreground hover:bg-secondary/70 transition-all cursor-pointer text-left"
                     >
-                      <Layers className="w-4 h-4 text-amber-400 shrink-0" />
-                      <span>Create flashcard</span>
+                      <Layers className="w-4 h-4 text-amber-500 shrink-0" />
+                      <span className="font-medium">Create flashcard deck</span>
                     </button>
 
                     <button
@@ -518,10 +516,10 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                         setIsActionMenuOpen(false);
                         handleFileUpload();
                       }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[#cccccc] hover:bg-[#282828] hover:text-white transition-colors cursor-pointer text-left"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-foreground hover:bg-secondary/70 transition-all cursor-pointer text-left"
                     >
-                      <Paperclip className="w-4 h-4 text-emerald-400 shrink-0" />
-                      <span>Upload photos and files</span>
+                      <Paperclip className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span className="font-medium">Attach PDF or notes</span>
                     </button>
                   </div>
                 )}
@@ -539,12 +537,12 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                     handleSend();
                   }
                 }}
-                placeholder="Ask anything..."
-                className="flex-1 bg-transparent border-none outline-none text-[14.5px] text-foreground placeholder:text-muted-foreground/50 py-1"
+                placeholder="Ask anything or request study analysis..."
+                className="flex-1 bg-transparent border-none outline-none text-[14px] text-foreground placeholder:text-muted-foreground/60 py-1 font-medium"
                 disabled={loading}
               />
 
-              {/* Right Side: Model Switcher + Send Button */}
+              {/* Right Side: Model Switcher + Tactile Send Button */}
               <div className="flex items-center gap-2 shrink-0">
                 <ModelSelector dropUp align="right" />
 
@@ -552,10 +550,10 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                   onClick={handleSend}
                   disabled={!input.trim() || loading}
                   className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0",
+                    "w-8.5 h-8.5 rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0",
                     input.trim()
-                      ? "bg-foreground text-background dark:bg-white dark:text-black hover:opacity-90 active:scale-95 shadow-xs"
-                      : "bg-muted/60 text-muted-foreground/40 cursor-not-allowed"
+                      ? "neu-convex-primary text-white shadow-sm active:scale-95"
+                      : "bg-secondary text-muted-foreground/30 border border-border/40 cursor-not-allowed"
                   )}
                   title="Send query"
                 >
@@ -569,8 +567,8 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
             </div>
 
             {/* Disclaimer */}
-            <p className="text-[11px] text-muted-foreground/50 text-center select-none pt-0.5">
-              Study Agent can make mistakes. Check important info.
+            <p className="text-[10.5px] text-muted-foreground/45 text-center select-none pt-0.5 font-mono">
+              Study Agent with Groq LPUs & NVIDIA NIM RAG · Check key references
             </p>
           </div>
         </div>
@@ -580,3 +578,4 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
 };
 
 export default Chat;
+

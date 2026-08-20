@@ -73,9 +73,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.18, ease: "easeOut" }}
-        className="flex justify-end mb-6 w-full group"
+        className="flex justify-end mb-6 w-full group select-text"
       >
-        <div className="rounded-[22px] px-5 py-3 bg-[#244f2c] dark:bg-[#1e4624] text-[#f0fdf4] text-[15px] font-normal leading-relaxed shadow-sm max-w-[82%] sm:max-w-[72%] break-words">
+        <div className="rounded-[20px] px-5 py-3 bg-primary text-primary-foreground text-[14.5px] font-normal leading-relaxed neu-raised-sm border border-primary/40 shadow-sm max-w-[82%] sm:max-w-[72%] break-words">
           <p className="whitespace-pre-wrap">{content}</p>
         </div>
       </motion.div>
@@ -87,7 +87,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
       <motion.div
         initial={{ opacity: 0, y: 4 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex justify-start mb-4 max-w-2xl text-xs text-muted-foreground bg-secondary/40 border border-border/50 px-3.5 py-2 rounded-xl"
+        className="flex justify-start mb-4 max-w-2xl text-xs text-muted-foreground neu-inset-sm px-4 py-2.5 rounded-xl border border-border/40"
       >
         <MarkdownRenderer content={content} />
       </motion.div>
@@ -103,20 +103,20 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
     >
       {/* Thinking Accordion (Stitch Spec) */}
       {thinkingContent && (
-        <details className="mb-3 group bg-indigo-500/10 rounded-xl border border-indigo-500/20 overflow-hidden transition-all max-w-2xl">
-          <summary className="flex items-center gap-2 p-2.5 cursor-pointer text-indigo-400 font-medium text-xs select-none outline-none">
-            <ChevronRight className="w-3.5 h-3.5 group-open:rotate-90 transition-transform" />
+        <details className="mb-3 group neu-inset-sm rounded-xl border border-primary/25 overflow-hidden transition-all max-w-2xl">
+          <summary className="flex items-center gap-2 p-2.5 cursor-pointer text-primary font-semibold text-xs select-none outline-none hover:brightness-110">
+            <ChevronRight className="w-3.5 h-3.5 group-open:rotate-90 transition-transform duration-200" />
             <Brain className="w-3.5 h-3.5" />
             <span>Reasoning & Thought Process</span>
           </summary>
-          <div className="px-3.5 pb-2.5 pt-1 border-t border-indigo-500/10 text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap font-mono">
+          <div className="px-3.5 pb-2.5 pt-1 border-t border-primary/15 text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap font-mono">
             {thinkingContent}
           </div>
         </details>
       )}
 
-      {/* Main AI Content (ChatGPT style: direct canvas layout without card borders) */}
-      <div className="w-full text-foreground/95 text-[15px] leading-relaxed py-0.5 space-y-3">
+      {/* Main AI Content */}
+      <div className="w-full text-foreground/95 text-[15px] leading-relaxed py-0.5 space-y-3 select-text">
         {flashcards && id ? (
           <FlashcardViewer flashcards={flashcards} messageId={id} />
         ) : (
@@ -124,16 +124,16 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
         )}
       </div>
 
-      {/* ChatGPT-style Action Bar (Copy, Share, Retry, More) */}
+      {/* Tactile Action Bar (Copy, Share, Retry, More) */}
       {!flashcards && (
-        <div className="flex items-center gap-2 pt-2 text-muted-foreground/60 text-xs">
+        <div className="flex items-center gap-1.5 pt-2 text-muted-foreground/70 text-xs">
           <button
             onClick={handleCopy}
-            className="p-1 rounded-md hover:text-foreground hover:bg-secondary/60 transition-colors cursor-pointer"
+            className="w-7 h-7 rounded-lg neu-raised-sm flex items-center justify-center hover:text-foreground active:scale-95 transition-all cursor-pointer"
             title="Copy response"
           >
             {copied ? (
-              <Check className="w-3.5 h-3.5 text-emerald-400" />
+              <Check className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
             ) : (
               <Copy className="w-3.5 h-3.5" />
             )}
@@ -141,7 +141,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
 
           <button
             onClick={handleCopy}
-            className="p-1 rounded-md hover:text-foreground hover:bg-secondary/60 transition-colors cursor-pointer"
+            className="w-7 h-7 rounded-lg neu-raised-sm flex items-center justify-center hover:text-foreground active:scale-95 transition-all cursor-pointer"
             title="Share"
           >
             <Share2 className="w-3.5 h-3.5" />
@@ -149,7 +149,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
 
           <button
             onClick={() => {}}
-            className="p-1 rounded-md hover:text-foreground hover:bg-secondary/60 transition-colors cursor-pointer"
+            className="w-7 h-7 rounded-lg neu-raised-sm flex items-center justify-center hover:text-foreground active:scale-95 transition-all cursor-pointer"
             title="Retry"
           >
             <RotateCw className="w-3.5 h-3.5" />
@@ -157,7 +157,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
 
           <button
             onClick={() => {}}
-            className="p-1 rounded-md hover:text-foreground hover:bg-secondary/60 transition-colors cursor-pointer"
+            className="w-7 h-7 rounded-lg neu-raised-sm flex items-center justify-center hover:text-foreground active:scale-95 transition-all cursor-pointer"
             title="More"
           >
             <MoreHorizontal className="w-3.5 h-3.5" />
@@ -167,3 +167,4 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
     </motion.div>
   );
 });
+

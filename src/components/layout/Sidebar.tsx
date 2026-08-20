@@ -4,7 +4,6 @@ import {
   LucideIcon,
   Plus,
   PanelLeftClose,
-  PanelLeftOpen,
   MessageSquare,
   Trash2,
   Sun,
@@ -49,10 +48,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     if (theme === "dark") {
       setTheme("light");
       document.documentElement.classList.remove("dark");
-      document.documentElement.classList.add("theme-light");
+      document.documentElement.classList.add("theme-light", "light");
     } else {
       setTheme("dark");
-      document.documentElement.classList.remove("theme-light");
+      document.documentElement.classList.remove("theme-light", "light");
       document.documentElement.classList.add("dark");
     }
   };
@@ -98,7 +97,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside
       className={cn(
-        "h-full flex flex-col py-3 bg-background border-r border-border select-none shrink-0 justify-between z-40 relative transition-[width] duration-200 ease-in-out",
+        "h-full flex flex-col py-3 bg-card border-r border-border/40 select-none shrink-0 justify-between z-40 relative transition-[width] duration-200 ease-in-out shadow-sm",
         isSidebarExpanded ? "w-64 px-3" : "w-[60px] px-2 items-center",
         className
       )}
@@ -113,9 +112,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         >
           <div className="flex items-center gap-2.5 overflow-hidden">
-            {/* 8-pointed geometric emblem */}
+            {/* Tactile 8-pointed geometric emblem */}
             <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-foreground hover:bg-secondary transition-colors cursor-pointer shrink-0"
+              className="w-9 h-9 rounded-xl neu-raised-sm flex items-center justify-center text-foreground hover:brightness-105 active:scale-95 transition-all cursor-pointer shrink-0"
               title="Study Agent"
               onClick={toggleSidebar}
             >
@@ -123,13 +122,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="1.75"
+                strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="w-5 h-5 text-foreground"
+                className="w-4.5 h-4.5 text-primary"
               >
                 <path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07l14.14-14.14" />
-                <circle cx="12" cy="12" r="3" fill="currentColor" fillOpacity="0.15" />
+                <circle cx="12" cy="12" r="3" fill="currentColor" fillOpacity="0.2" />
               </svg>
             </div>
 
@@ -149,27 +148,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               type="button"
               onClick={toggleSidebar}
-              className="p-1 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors cursor-pointer"
+              className="w-7 h-7 rounded-lg neu-raised-sm flex items-center justify-center text-muted-foreground hover:text-foreground active:scale-95 transition-all cursor-pointer"
               title="Collapse sidebar"
             >
-              <PanelLeftClose className="w-4 h-4" />
+              <PanelLeftClose className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
 
-        {/* + New Button */}
+        {/* + New Session Button */}
         {isSidebarExpanded ? (
           <button
             type="button"
             onClick={onNewSession}
-            className="w-full h-9 px-3 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground flex items-center justify-between transition-all border border-border/80 shadow-xs active:scale-[0.98] cursor-pointer group shrink-0"
+            className="w-full h-9 px-3 rounded-xl neu-convex text-foreground flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer group shrink-0 border border-border/40"
             title="New Study Session (⌘N)"
           >
             <div className="flex items-center gap-2 font-semibold text-xs text-foreground">
-              <Plus className="w-3.5 h-3.5 group-hover:rotate-90 transition-transform duration-200" />
+              <Plus className="w-3.5 h-3.5 text-primary group-hover:rotate-90 transition-transform duration-200" />
               <span>New Session</span>
             </div>
-            <span className="text-[10px] text-muted-foreground/80 font-mono bg-background/50 px-1.5 py-0.5 rounded border border-border/40">
+            <span className="text-[10px] text-muted-foreground font-mono neu-inset-sm px-1.5 py-0.5 rounded">
               ⌘N
             </span>
           </button>
@@ -177,17 +176,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <button
             type="button"
             onClick={onNewSession}
-            className="w-9 h-9 rounded-full bg-secondary hover:bg-secondary/80 text-foreground flex items-center justify-center transition-all border border-border shadow-xs hover:scale-105 active:scale-95 cursor-pointer group shrink-0"
+            className="w-9 h-9 rounded-full neu-convex text-foreground flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer group shrink-0 border border-border/40"
             title="New Study Session (⌘N)"
           >
-            <Plus className="w-4 h-4 text-foreground group-hover:rotate-90 transition-transform duration-200" />
+            <Plus className="w-4 h-4 text-primary group-hover:rotate-90 transition-transform duration-200" />
           </button>
         )}
 
-        <div className="w-full h-[1px] bg-border/50 my-0.5 shrink-0" />
+        <div className="w-full h-[1px] bg-border/40 my-0.5 shrink-0" />
 
         {/* Navigation Items */}
-        <nav className="flex flex-col gap-1 w-full shrink-0">
+        <nav className="flex flex-col gap-1.5 w-full shrink-0">
           {items.map((item) => {
             const Icon = item.icon;
             if (isSidebarExpanded) {
@@ -197,19 +196,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   key={item.id}
                   onClick={item.onClick}
                   className={cn(
-                    "w-full h-8 px-2.5 rounded-xl flex items-center justify-between transition-all duration-150 relative cursor-pointer text-left",
+                    "w-full h-8.5 px-3 rounded-xl flex items-center justify-between transition-all duration-150 relative cursor-pointer text-left select-none",
                     item.active
-                      ? "bg-secondary text-foreground font-semibold shadow-xs border border-border/80"
+                      ? "neu-convex text-foreground font-semibold border border-border/60 shadow-xs"
                       : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
                   )}
                   title={item.label}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <Icon className={cn("w-4 h-4 shrink-0", item.active ? "text-primary" : "")} />
+                    <Icon className={cn("w-4 h-4 shrink-0", item.active ? "text-primary" : "text-muted-foreground/70")} />
                     <span className="text-xs truncate">{item.label}</span>
                   </div>
                   {item.shortcut && (
-                    <span className="text-[10px] text-muted-foreground/60 font-mono">
+                    <span className="text-[10px] text-muted-foreground/50 font-mono">
                       {item.shortcut}
                     </span>
                   )}
@@ -223,17 +222,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 key={item.id}
                 onClick={item.onClick}
                 className={cn(
-                  "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-150 relative group cursor-pointer",
+                  "w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-150 relative group cursor-pointer select-none",
                   item.active
-                    ? "bg-secondary text-foreground font-semibold shadow-xs"
+                    ? "neu-convex text-primary font-semibold border border-border/60"
                     : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
                 )}
                 title={`${item.label} ${item.shortcut ? `(${item.shortcut})` : ""}`}
               >
-                {item.active && (
-                  <div className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-primary" />
-                )}
-                <Icon className="w-4 h-4" />
+                <Icon className={cn("w-4 h-4", item.active ? "text-primary" : "")} />
               </button>
             );
           })}
@@ -241,9 +237,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Recent Session History Section (Expanded View) */}
         {isSidebarExpanded && (
-          <div className="flex flex-col min-h-0 flex-1 pt-2 border-t border-border/40">
+          <div className="flex flex-col min-h-0 flex-1 pt-2.5 border-t border-border/40">
             <div className="flex items-center justify-between px-1.5 pb-1.5 shrink-0">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/70">
+              <span className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">
                 Recent Sessions
               </span>
               <span className="text-[10px] text-muted-foreground/60 font-mono">
@@ -252,10 +248,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             {/* Scrollable Session List */}
-            <div className="flex-1 overflow-y-auto space-y-0.5 custom-scrollbar pr-0.5">
+            <div className="flex-1 overflow-y-auto space-y-1 custom-scrollbar pr-0.5">
               {filteredThreads.length === 0 ? (
-                <div className="text-center py-6 px-2 text-muted-foreground/50 text-[11px]">
-                  No past sessions yet. Start a conversation above!
+                <div className="text-center py-6 px-2 text-muted-foreground/45 text-[11px]">
+                  No past sessions yet.
                 </div>
               ) : (
                 filteredThreads.map((thread) => {
@@ -268,10 +264,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         if (onSelectThread) onSelectThread(thread.id);
                       }}
                       className={cn(
-                        "group w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between text-xs transition-colors cursor-pointer text-left",
+                        "group w-full px-2.5 py-1.5 rounded-xl flex items-center justify-between text-xs transition-all cursor-pointer text-left select-none",
                         isActive
-                          ? "bg-secondary text-foreground font-medium border border-border/60"
-                          : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
+                          ? "neu-inset-sm text-foreground font-semibold border border-border/40"
+                          : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
                       )}
                       title={thread.title}
                     >
@@ -279,7 +275,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <MessageSquare
                           className={cn(
                             "w-3.5 h-3.5 shrink-0",
-                            isActive ? "text-primary" : "text-muted-foreground/60"
+                            isActive ? "text-primary" : "text-muted-foreground/50"
                           )}
                         />
                         <span className="truncate text-xs">
@@ -290,7 +286,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <button
                         type="button"
                         onClick={(e) => handleDeleteThread(e, thread.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-destructive rounded transition-opacity shrink-0 ml-1 cursor-pointer"
+                        className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-rose-400 rounded transition-opacity shrink-0 ml-1 cursor-pointer"
                         title="Delete session"
                       >
                         <Trash2 className="w-3 h-3" />
@@ -304,19 +300,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </div>
 
-      {/* Bottom Section: Theme Toggle Button on Bottom Left */}
+      {/* Bottom Section: Theme Toggle Button */}
       <div className="pt-2 border-t border-border/40 w-full shrink-0">
         {isSidebarExpanded ? (
           <button
             type="button"
             onClick={toggleTheme}
-            className="w-full h-8 px-2.5 rounded-xl flex items-center gap-2.5 text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors cursor-pointer text-xs"
+            className="w-full h-8.5 px-3 rounded-xl flex items-center gap-2.5 text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-all cursor-pointer text-xs font-medium"
             title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
           >
             {theme === "dark" ? (
               <Sun className="w-4 h-4 text-amber-400 shrink-0" />
             ) : (
-              <Moon className="w-4 h-4 text-indigo-400 shrink-0" />
+              <Moon className="w-4 h-4 text-emerald-500 shrink-0" />
             )}
             <span className="truncate">
               {theme === "dark" ? "Light theme" : "Dark theme"}
@@ -326,13 +322,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <button
             type="button"
             onClick={toggleTheme}
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors cursor-pointer"
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-all cursor-pointer"
             title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
           >
             {theme === "dark" ? (
               <Sun className="w-4 h-4 text-amber-400" />
             ) : (
-              <Moon className="w-4 h-4 text-indigo-400" />
+              <Moon className="w-4 h-4 text-emerald-500" />
             )}
           </button>
         )}
@@ -340,3 +336,5 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </aside>
   );
 };
+
+

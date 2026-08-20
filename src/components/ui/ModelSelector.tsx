@@ -5,9 +5,8 @@ import {
   Check,
   Zap,
   Cpu,
-  Sparkles,
 } from "lucide-react";
-import { useChatStore, AVAILABLE_MODELS, ModelOption } from "../../client/store";
+import { useChatStore, AVAILABLE_MODELS } from "../../client/store";
 
 interface ModelSelectorProps {
   className?: string;
@@ -48,47 +47,47 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
 
   return (
     <div className={cn("relative inline-block text-left", className)} ref={dropdownRef}>
-      {/* ChatGPT-style Trigger Button */}
+      {/* Tactile Neumorphic Trigger Pill */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer select-none text-foreground/90 hover:text-foreground",
-          "bg-secondary/60 hover:bg-secondary/90 dark:bg-[#282828] dark:hover:bg-[#323232] border border-border/50 dark:border-[#383838]",
-          isOpen && "ring-1 ring-border border-border"
+          "inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer select-none text-foreground",
+          "neu-convex hover:brightness-105 active:scale-95",
+          isOpen && "ring-1 ring-primary/60 border-primary/50"
         )}
         title="Select AI Model"
       >
         {activeModel.provider === "groq" ? (
-          <Zap className="w-3 h-3 text-amber-400 fill-amber-400/20" />
+          <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400/20 shrink-0" />
         ) : (
-          <Cpu className="w-3 h-3 text-emerald-400" />
+          <Cpu className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
         )}
-        <span className="font-semibold truncate max-w-[110px] sm:max-w-none">
+        <span className="truncate max-w-[120px] sm:max-w-none text-xs">
           {activeModel.name}
         </span>
         <ChevronDown
           className={cn(
-            "w-3 h-3 text-muted-foreground transition-transform duration-150 ml-0.5",
-            isOpen && "rotate-180"
+            "w-3 h-3 text-muted-foreground transition-transform duration-200 ml-0.5",
+            isOpen && "rotate-180 text-foreground"
           )}
         />
       </button>
 
-      {/* ChatGPT-style Popup Menu */}
+      {/* Solid Opaque Neumorphic Floating Menu */}
       {isOpen && (
         <div
           className={cn(
-            "absolute z-50 w-64 rounded-2xl bg-[#1e1e1e] border border-[#333333] shadow-2xl p-1.5 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-xl text-xs",
+            "absolute z-50 w-68 rounded-2xl bg-popover neu-floating p-2 animate-in fade-in zoom-in-95 duration-150 text-xs border border-border/40 shadow-xl",
             align === "right" ? "right-0" : "left-0",
-            dropUp ? "bottom-full mb-2" : "top-full mt-2"
+            dropUp ? "bottom-full mb-2.5" : "top-full mt-2.5"
           )}
         >
           {/* Groq section */}
-          <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider">
-            Groq LPU (Ultra-Fast)
+          <div className="px-2.5 py-1 text-[10px] font-bold text-amber-500 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+            <Zap className="w-3 h-3" /> Groq LPU (Ultra-Fast)
           </div>
-          <div className="space-y-0.5">
+          <div className="space-y-1 mt-0.5">
             {groqModels.map((model) => (
               <button
                 key={model.id}
@@ -98,15 +97,14 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                   setIsOpen(false);
                 }}
                 className={cn(
-                  "w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl transition-colors cursor-pointer text-left",
+                  "w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all cursor-pointer text-left select-none",
                   selectedModel === model.id
-                    ? "bg-[#2c2c2c] text-white font-medium"
-                    : "text-[#cccccc] hover:bg-[#282828] hover:text-white"
+                    ? "neu-convex-primary text-white font-semibold shadow-xs"
+                    : "text-foreground hover:bg-secondary/70"
                 )}
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <Zap className="w-3 h-3 text-amber-400 shrink-0" />
-                  <span className="truncate">{model.name}</span>
+                  <span className="truncate font-medium">{model.name}</span>
                 </div>
                 {selectedModel === model.id && (
                   <Check className="w-3.5 h-3.5 text-white shrink-0 ml-2" />
@@ -115,13 +113,13 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
             ))}
           </div>
 
-          <div className="my-1 border-t border-[#2e2e2e]" />
+          <div className="my-1.5 border-t border-border/40" />
 
           {/* NVIDIA NIM section */}
-          <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider">
-            NVIDIA NIM (Enterprise)
+          <div className="px-2.5 py-1 text-[10px] font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+            <Cpu className="w-3 h-3" /> NVIDIA NIM (Enterprise)
           </div>
-          <div className="space-y-0.5">
+          <div className="space-y-1 mt-0.5">
             {nvidiaModels.map((model) => (
               <button
                 key={model.id}
@@ -131,15 +129,14 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                   setIsOpen(false);
                 }}
                 className={cn(
-                  "w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl transition-colors cursor-pointer text-left",
+                  "w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all cursor-pointer text-left select-none",
                   selectedModel === model.id
-                    ? "bg-[#2c2c2c] text-white font-medium"
-                    : "text-[#cccccc] hover:bg-[#282828] hover:text-white"
+                    ? "neu-convex-primary text-white font-semibold shadow-xs"
+                    : "text-foreground hover:bg-secondary/70"
                 )}
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <Cpu className="w-3 h-3 text-emerald-400 shrink-0" />
-                  <span className="truncate">{model.name}</span>
+                  <span className="truncate font-medium">{model.name}</span>
                 </div>
                 {selectedModel === model.id && (
                   <Check className="w-3.5 h-3.5 text-white shrink-0 ml-2" />
@@ -152,3 +149,4 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
     </div>
   );
 };
+
