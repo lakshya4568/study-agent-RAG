@@ -287,43 +287,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         )}
       </div>
-
-      {/* Bottom Section: Telemetry / Status Indicator & Expand Toggle */}
-      <div className="flex flex-col gap-2 pt-2 border-t border-border/40 w-full shrink-0">
-        {isSidebarExpanded ? (
-          <div className="flex items-center justify-between px-2 py-1.5 rounded-xl bg-secondary/50 border border-border/40">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 ring-2 ring-emerald-400/20 animate-pulse" />
-              <div className="flex flex-col min-w-0">
-                <span className="text-[11px] font-semibold text-foreground truncate">
-                  Groq & NVIDIA
-                </span>
-                <span className="text-[9px] text-muted-foreground font-mono truncate">
-                  Engines Active
-                </span>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={toggleSidebar}
-              className="p-1 text-muted-foreground hover:text-foreground rounded-lg transition-colors cursor-pointer"
-              title="Collapse sidebar"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors cursor-pointer relative"
-            title="Expand sidebar"
-          >
-            <PanelLeftOpen className="w-4 h-4" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-background" />
-          </button>
-        )}
-      </div>
     </aside>
   );
 };

@@ -1,18 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
   MessageSquare,
-  Brain,
   FlaskConical,
   Blocks,
   Settings2,
-  Plus,
-  History as HistoryIcon,
-  Sparkles,
 } from "lucide-react";
-import { MainLayout, Sidebar, TopBar } from "./components/layout";
-import { Badge, Button } from "./components/ui";
+import { MainLayout, Sidebar } from "./components/layout";
 import { Chat } from "./views/Chat";
-import { FlashcardsView } from "./views/FlashcardsView";
 import { ServerManager } from "./views/ServerManager";
 import { Settings } from "./views/Settings";
 import { RAGDashboard } from "./views/RAGDashboard";
@@ -94,30 +88,6 @@ export const App: React.FC = () => {
     },
   ];
 
-  const topBarActions = (
-    <div className="flex items-center gap-2">
-      {activeView === "chat" && (
-        <Button
-          variant="ghost"
-          size="sm"
-          icon={<Plus className="w-4 h-4" />}
-          onClick={() => chatActionsRef.current.createNewThread()}
-          className="rounded-full text-xs font-semibold px-3.5 bg-secondary hover:bg-secondary/80 border border-border shadow-xs cursor-pointer"
-        >
-          New Session
-        </Button>
-      )}
-
-      <Badge
-        variant="outline"
-        size="sm"
-        className="hidden sm:inline-flex gap-1 rounded-full text-primary border-primary/30 bg-primary/10 text-[11px] font-semibold"
-      >
-        <Sparkles className="w-3 h-3" /> Grounded Agent
-      </Badge>
-    </div>
-  );
-
   return (
     <MainLayout
       sidebar={
@@ -130,29 +100,6 @@ export const App: React.FC = () => {
           onSelectThread={() => {
             setActiveView("chat");
           }}
-        />
-      }
-      topBar={
-        <TopBar
-          title={
-            activeView === "chat"
-              ? "Study Session"
-              : activeView === "rag-dashboard"
-                ? "Vector Knowledge Studio"
-                : activeView === "servers"
-                  ? "MCP Tool Integrations"
-                  : "Control Studio"
-          }
-          subtitle={
-            activeView === "chat"
-              ? "Autonomous AI Tutor"
-              : activeView === "rag-dashboard"
-                ? "ChromaDB & NVIDIA NIM"
-                : activeView === "servers"
-                  ? "Local Protocol Servers"
-                  : "Configurations & Long-Term Memory"
-          }
-          actions={topBarActions}
         />
       }
     >
