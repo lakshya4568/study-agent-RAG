@@ -128,8 +128,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
               </details>
             )}
 
-            {/* Main AI Content Box (Obsidian Dark) */}
-            <div className="bg-card rounded-2xl rounded-tl-xs p-5 text-foreground border border-border shadow-xs">
+            {/* Main AI Content (ChatGPT / Gemini style: direct in window without card box) */}
+            <div className="w-full text-foreground text-sm leading-relaxed py-0.5">
               {flashcards && id ? (
                 <FlashcardViewer flashcards={flashcards} messageId={id} />
               ) : (

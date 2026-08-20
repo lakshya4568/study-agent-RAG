@@ -381,7 +381,6 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
   };
 
   const handleToolApprove = async (toolCallId: string) => {
-    if (!activeThreadId) return;
     try {
       await window.mcpClient.approveToolExecution(toolCallId);
       setPendingToolCalls((prev) => prev.filter((t) => t.id !== toolCallId));
@@ -391,7 +390,6 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
   };
 
   const handleToolDeny = async (toolCallId: string) => {
-    if (!activeThreadId) return;
     try {
       await window.mcpClient.denyToolExecution(toolCallId);
       setPendingToolCalls((prev) => prev.filter((t) => t.id !== toolCallId));

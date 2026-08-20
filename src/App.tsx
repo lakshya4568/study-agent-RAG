@@ -144,6 +144,9 @@ export const App: React.FC = () => {
             setActiveView("chat");
             chatActionsRef.current.openHistory();
           }}
+          onSelectThread={() => {
+            setActiveView("chat");
+          }}
         />
       }
       topBar={
