@@ -137,9 +137,15 @@ export const FlashcardsView: React.FC = () => {
             <Brain className="w-7 h-7 text-primary" />
             Active Recall & Flashcards
           </h1>
-          <p className="text-xs text-muted-foreground mt-1">
-            Grounded conceptual recall powered by spaced repetition
-          </p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-xs text-muted-foreground">
+              Grounded conceptual recall powered by spaced repetition
+            </p>
+            <span className="text-muted-foreground/40 hidden sm:inline">·</span>
+            <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.2 rounded-full font-semibold">
+              <Sparkles className="w-2.5 h-2.5" /> MCP Skills Active (16 Tools)
+            </span>
+          </div>
         </div>
 
         {/* Streak & Daily Goal Bento Cards */}

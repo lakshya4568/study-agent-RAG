@@ -166,12 +166,12 @@ export const Settings: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 p-1 rounded-2xl bg-muted/30 border border-border/30 w-fit">
+      <div className="flex items-center gap-1.5 p-1 rounded-xl bg-secondary border border-border w-fit">
         <button
           onClick={() => setActiveTab("keys")}
-          className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+          className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
             activeTab === "keys"
-              ? "bg-card text-foreground shadow-sm"
+              ? "bg-card text-foreground font-semibold shadow-xs"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
@@ -179,19 +179,19 @@ export const Settings: React.FC = () => {
         </button>
         <button
           onClick={() => setActiveTab("memory")}
-          className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
+          className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
             activeTab === "memory"
-              ? "bg-card text-primary shadow-sm"
+              ? "bg-card text-foreground font-semibold shadow-xs"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <Brain className="w-3.5 h-3.5" /> Long-Term Memory
+          <Brain className="w-3.5 h-3.5 text-primary" /> Long-Term Memory
         </button>
         <button
           onClick={() => setActiveTab("appearance")}
-          className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+          className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
             activeTab === "appearance"
-              ? "bg-card text-foreground shadow-sm"
+              ? "bg-card text-foreground font-semibold shadow-xs"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
@@ -200,93 +200,91 @@ export const Settings: React.FC = () => {
       </div>
 
       {error && (
-        <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-2xl text-destructive text-xs font-medium flex items-center gap-2">
+        <div className="p-3.5 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-xs font-medium flex items-center gap-2">
           <Activity className="w-4 h-4" />
           {error}
         </div>
       )}
 
       {successMessage && (
-        <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-400 text-xs font-medium flex items-center gap-2">
+        <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-xs font-medium flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4" />
           {successMessage}
         </div>
       )}
 
       {loadingStatus ? (
-        <div className="flex items-center justify-center h-64 rounded-3xl bg-card/30 border border-border/40">
+        <div className="flex items-center justify-center h-64 rounded-2xl bg-card border border-border">
           <LoadingSpinner size="lg" />
         </div>
       ) : activeTab === "keys" ? (
-        <form onSubmit={handleConfigSave} className="space-y-6">
-          <div className="double-bezel">
-            <div className="double-bezel-inner p-6 bg-card/70 space-y-4">
-              <div className="flex items-center gap-2 text-sm font-bold text-foreground">
-                <Key className="w-4 h-4 text-primary" />
-                <h3>AI Provider API Keys</h3>
-              </div>
-
-              <Input
-                label={
-                  <span className="flex items-center gap-2">
-                    NVIDIA API Key
-                    {isSet("NVIDIA_API_KEY") && (
-                      <span className="text-[10px] text-emerald-400 font-semibold">(Configured)</span>
-                    )}
-                  </span>
-                }
-                type="password"
-                value={configForm.NVIDIA_API_KEY}
-                onChange={(e) =>
-                  setConfigForm((prev) => ({ ...prev, NVIDIA_API_KEY: e.target.value }))
-                }
-                placeholder={isSet("NVIDIA_API_KEY") ? "••••••••••••••••" : "nvapi-..."}
-                className="rounded-xl"
-              />
-
-              <Input
-                label={
-                  <span className="flex items-center gap-2">
-                    Gemini API Key
-                    {isSet("GEMINI_API_KEY") && (
-                      <span className="text-[10px] text-emerald-400 font-semibold">(Configured)</span>
-                    )}
-                  </span>
-                }
-                type="password"
-                value={configForm.GEMINI_API_KEY}
-                onChange={(e) =>
-                  setConfigForm((prev) => ({ ...prev, GEMINI_API_KEY: e.target.value }))
-                }
-                placeholder={isSet("GEMINI_API_KEY") ? "••••••••••••••••" : "AIzaSy..."}
-                className="rounded-xl"
-              />
-
-              <Input
-                label={
-                  <span className="flex items-center gap-2">
-                    OpenAI API Key
-                    {isSet("OPENAI_API_KEY") && (
-                      <span className="text-[10px] text-emerald-400 font-semibold">(Configured)</span>
-                    )}
-                  </span>
-                }
-                type="password"
-                value={configForm.OPENAI_API_KEY}
-                onChange={(e) =>
-                  setConfigForm((prev) => ({ ...prev, OPENAI_API_KEY: e.target.value }))
-                }
-                placeholder={isSet("OPENAI_API_KEY") ? "••••••••••••••••" : "sk-..."}
-                className="rounded-xl"
-              />
+        <form onSubmit={handleConfigSave} className="space-y-5">
+          <div className="bg-card rounded-2xl border border-border p-6 shadow-sm space-y-4">
+            <div className="flex items-center gap-2 text-sm font-bold text-foreground pb-2 border-b border-border/50">
+              <Key className="w-4 h-4 text-primary" />
+              <h3>AI Provider API Keys</h3>
             </div>
+
+            <Input
+              label={
+                <span className="flex items-center gap-2">
+                  NVIDIA API Key
+                  {isSet("NVIDIA_API_KEY") && (
+                    <span className="text-[10px] text-emerald-400 font-semibold">(Configured)</span>
+                  )}
+                </span>
+              }
+              type="password"
+              value={configForm.NVIDIA_API_KEY}
+              onChange={(e) =>
+                setConfigForm((prev) => ({ ...prev, NVIDIA_API_KEY: e.target.value }))
+              }
+              placeholder={isSet("NVIDIA_API_KEY") ? "••••••••••••••••" : "nvapi-..."}
+              className="rounded-xl"
+            />
+
+            <Input
+              label={
+                <span className="flex items-center gap-2">
+                  Gemini API Key
+                  {isSet("GEMINI_API_KEY") && (
+                    <span className="text-[10px] text-emerald-400 font-semibold">(Configured)</span>
+                  )}
+                </span>
+              }
+              type="password"
+              value={configForm.GEMINI_API_KEY}
+              onChange={(e) =>
+                setConfigForm((prev) => ({ ...prev, GEMINI_API_KEY: e.target.value }))
+              }
+              placeholder={isSet("GEMINI_API_KEY") ? "••••••••••••••••" : "AIzaSy..."}
+              className="rounded-xl"
+            />
+
+            <Input
+              label={
+                <span className="flex items-center gap-2">
+                  OpenAI API Key
+                  {isSet("OPENAI_API_KEY") && (
+                    <span className="text-[10px] text-emerald-400 font-semibold">(Configured)</span>
+                  )}
+                </span>
+              }
+              type="password"
+              value={configForm.OPENAI_API_KEY}
+              onChange={(e) =>
+                setConfigForm((prev) => ({ ...prev, OPENAI_API_KEY: e.target.value }))
+              }
+              placeholder={isSet("OPENAI_API_KEY") ? "••••••••••••••••" : "sk-..."}
+              className="rounded-xl"
+            />
           </div>
 
           <div className="flex justify-end">
             <Button
               type="submit"
               loading={updatingConfig}
-              className="rounded-full px-8 font-semibold shadow-md"
+              className="rounded-full px-6 font-semibold shadow-xs"
               icon={<Save className="w-4 h-4" />}
             >
               Save Credentials
@@ -294,45 +292,43 @@ export const Settings: React.FC = () => {
           </div>
         </form>
       ) : activeTab === "memory" ? (
-        <div className="space-y-6">
-          <div className="double-bezel">
-            <div className="double-bezel-inner p-6 bg-card/70 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm font-bold text-foreground">
-                  <Brain className="w-4 h-4 text-primary" />
-                  <h3>Long-Term Memory Core (`Memory.md`)</h3>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleClearMemory}
-                  icon={<RotateCcw className="w-3.5 h-3.5" />}
-                  className="text-xs text-muted-foreground hover:text-destructive rounded-full"
-                >
-                  Reset
-                </Button>
+        <div className="space-y-5">
+          <div className="bg-card rounded-2xl border border-border p-6 shadow-sm space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-border/50">
+              <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+                <Brain className="w-4 h-4 text-primary" />
+                <h3>Long-Term Memory Core (`Memory.md`)</h3>
               </div>
-
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Your agent automatically updates this persistent markdown file with your study habits,
-                strengths, preferred learning styles, and recurring topic difficulties.
-              </p>
-
-              <textarea
-                value={memoryContent}
-                onChange={(e) => setMemoryContent(e.target.value)}
-                rows={10}
-                className="w-full p-4 rounded-2xl bg-zinc-950/80 border border-border/40 font-mono text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed resize-y custom-scrollbar"
-                placeholder="Agent long-term memory markdown content..."
-              />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClearMemory}
+                icon={<RotateCcw className="w-3.5 h-3.5" />}
+                className="text-xs text-muted-foreground hover:text-destructive rounded-full"
+              >
+                Reset
+              </Button>
             </div>
+
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Your agent automatically updates this persistent markdown file with your study habits,
+              strengths, preferred learning styles, and recurring topic difficulties.
+            </p>
+
+            <textarea
+              value={memoryContent}
+              onChange={(e) => setMemoryContent(e.target.value)}
+              rows={10}
+              className="w-full p-4 rounded-xl bg-secondary/80 border border-border font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed resize-y custom-scrollbar"
+              placeholder="Agent long-term memory markdown content..."
+            />
           </div>
 
           <div className="flex justify-end">
             <Button
               onClick={handleSaveMemory}
               loading={savingMemory}
-              className="rounded-full px-8 font-semibold shadow-md"
+              className="rounded-full px-6 font-semibold shadow-xs"
               icon={<Save className="w-4 h-4" />}
             >
               Save Memory Profile
@@ -340,48 +336,46 @@ export const Settings: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="double-bezel">
-          <div className="double-bezel-inner p-6 bg-card/70 space-y-5">
-            <h3 className="text-sm font-bold text-foreground">Theme & Interface Appearance</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setTheme("dark");
-                  document.documentElement.classList.remove("theme-light");
-                  document.documentElement.classList.add("dark");
-                }}
-                className={`p-4 rounded-2xl border text-left transition-all ${
-                  theme === "dark"
-                    ? "bg-primary/10 border-primary shadow-sm"
-                    : "bg-muted/30 border-border/40 hover:bg-muted/50"
-                }`}
-              >
-                <p className="text-sm font-bold text-foreground">Obsidian Dark</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Deep OLED blacks and emerald ambient lighting
-                </p>
-              </button>
+        <div className="bg-card rounded-2xl border border-border p-6 shadow-sm space-y-4">
+          <h3 className="text-sm font-bold text-foreground pb-2 border-b border-border/50">Theme & Interface Appearance</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <button
+              type="button"
+              onClick={() => {
+                setTheme("dark");
+                document.documentElement.classList.remove("theme-light");
+                document.documentElement.classList.add("dark");
+              }}
+              className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
+                theme === "dark"
+                  ? "bg-secondary border-primary shadow-xs"
+                  : "bg-card border-border hover:bg-secondary/60"
+              }`}
+            >
+              <p className="text-sm font-bold text-foreground">Obsidian Dark</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Deep Perplexity matte dark interface
+              </p>
+            </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setTheme("light");
-                  document.documentElement.classList.remove("dark");
-                  document.documentElement.classList.add("theme-light");
-                }}
-                className={`p-4 rounded-2xl border text-left transition-all ${
-                  theme === "light"
-                    ? "bg-primary/10 border-primary shadow-sm"
-                    : "bg-muted/30 border-border/40 hover:bg-muted/50"
-                }`}
-              >
-                <p className="text-sm font-bold text-foreground">Clean Light</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Soft neutral tones with high-contrast text
-                </p>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setTheme("light");
+                document.documentElement.classList.remove("dark");
+                document.documentElement.classList.add("theme-light");
+              }}
+              className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
+                theme === "light"
+                  ? "bg-secondary border-primary shadow-xs"
+                  : "bg-card border-border hover:bg-secondary/60"
+              }`}
+            >
+              <p className="text-sm font-bold text-foreground">Clean Light</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Soft neutral tones with high-contrast text
+              </p>
+            </button>
           </div>
         </div>
       )}

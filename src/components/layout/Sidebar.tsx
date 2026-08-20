@@ -9,6 +9,7 @@ import {
   Sparkles,
   Zap,
 } from "lucide-react";
+import mentorAvatar from "../../assets/study_mentor_avatar.jpg";
 
 interface SidebarProps {
   items: Array<{
@@ -54,15 +55,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </button>
 
-      {/* Header / Brand */}
+      {/* Header / Brand Logo */}
       <div
         className={cn(
           "p-4 pb-3 flex items-center",
           isCollapsed ? "justify-center" : "gap-3"
         )}
       >
-        <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-md shadow-primary/25 shrink-0">
-          <Sparkles className="w-5 h-5 text-white" />
+        <div className="w-9 h-9 rounded-xl overflow-hidden ring-1 ring-primary/40 shadow-md shadow-primary/20 shrink-0 bg-secondary flex items-center justify-center">
+          <img
+            src={mentorAvatar}
+            alt="AI Study Agent"
+            className="w-full h-full object-cover"
+          />
         </div>
 
         <AnimatePresence mode="wait">
@@ -76,14 +81,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
             >
               <div className="flex items-center gap-1.5">
                 <span className="font-bold text-sm tracking-tight text-foreground">
-                  Lumina Study
+                  Study Agent
                 </span>
-                <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
-                  AI
+                <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold uppercase tracking-wider bg-primary/15 text-primary border border-primary/25">
+                  PRO
                 </span>
               </div>
-              <p className="text-[11px] text-muted-foreground font-normal">
-                Cognitive Study OS
+              <p className="text-[10px] text-muted-foreground font-medium">
+                Cognitive Co-Pilot
               </p>
             </motion.div>
           )}

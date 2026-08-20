@@ -248,64 +248,98 @@ export const ServerManager: React.FC = () => {
 
       {/* Servers Listing */}
       {servers.length === 0 ? (
-        <div className="double-bezel text-center p-12">
-          <div className="double-bezel-inner p-8 flex flex-col items-center">
+        <div className="bg-card rounded-2xl border border-border text-center p-12 shadow-sm">
+          <div className="p-8 flex flex-col items-center max-w-md mx-auto">
             <Blocks className="w-12 h-12 text-muted-foreground/30 mb-3" />
             <h3 className="text-base font-bold text-foreground">No MCP Tool Servers Connected</h3>
-            <p className="text-xs text-muted-foreground mt-1 max-w-md leading-relaxed mb-4">
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed mb-5">
               Equip your study agent with external tools like filesystem access or web search by
               connecting an MCP server.
             </p>
             <Button
               onClick={() => setShowAddForm(true)}
               icon={<Plus className="w-4 h-4" />}
-              className="rounded-full"
+              className="rounded-full px-5"
             >
-              Add First Tool Server
+              Connect First Tool Server
             </Button>
           </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {servers.map((server) => (
-            <div key={server.config.id} className="double-bezel">
-              <div className="double-bezel-inner p-5 bg-card/60 flex flex-col justify-between h-full space-y-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className="text-base font-bold text-foreground truncate">
-                      {server.config.name}
-                    </h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span
-                        className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                          server.status === "connected"
-                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                            : "bg-muted text-muted-foreground border-border/40"
-                        }`}
-                      >
-                        <Zap className="w-2.5 h-2.5" />
-                        {server.status === "connected" ? "Connected" : server.status}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground font-mono">
-                        {server.config.command}
-                      </span>
+          {servers.map((server) => {
+            const hasTools = server.tools && server.tools.length > 0;
+            return (
+              <div key={server.config.id} className="bg-card rounded-2xl border border-border shadow-sm p-5 flex flex-col justify-between space-y-4">
+                <div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="text-base font-bold text-foreground truncate">
+                        {server.config.name}
+                      </h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span
+                          className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-0.5 rounded-full border ${
+                            server.status === "connected"
+                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                              : "bg-secondary text-muted-foreground border-border"
+                          }`}
+                        >
+                          <Zap className="w-2.5 h-2.5" />
+                          {server.status === "connected" ? "Connected" : server.status}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          {server.config.command} {server.config.args?.slice(0, 1).join(" ")}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="w-9 h-9 rounded-xl bg-secondary text-primary flex items-center justify-center shrink-0 border border-border">
+                      <Package className="w-4 h-4" />
                     </div>
                   </div>
 
-                  <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0">
-                    <Package className="w-4 h-4" />
+                  {/* Connected Tools Breakdown */}
+                  <div className="mt-4 space-y-2">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground font-medium pb-1 border-b border-border/50">
+                      <span>Exposed Tools ({server.tools?.length || 0})</span>
+                      <span className="text-[10px] font-mono text-emerald-400 font-semibold">Active in Graph</span>
+                    </div>
+
+                    {hasTools ? (
+                      <div className="space-y-1.5 max-h-56 overflow-y-auto custom-scrollbar pr-1">
+                        {server.tools.map((t: any, idx: number) => (
+                          <div
+                            key={t.name || idx}
+                            className="p-2 rounded-xl bg-secondary/50 border border-border/60 hover:bg-secondary transition-colors"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-mono text-xs font-semibold text-primary">
+                                {t.name}
+                              </span>
+                              {t.inputSchema?.properties && (
+                                <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-card text-muted-foreground border border-border">
+                                  {Object.keys(t.inputSchema.properties).length} params
+                                </span>
+                              )}
+                            </div>
+                            {t.description && (
+                              <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5 line-clamp-2">
+                                {t.description}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic py-2">
+                        No individual tool definitions reported.
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                {/* Available tools count */}
-                <div className="py-2 px-3 rounded-xl bg-muted/30 border border-border/30 flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Exposed Tool Skills</span>
-                  <span className="font-semibold text-foreground">
-                    {server.tools?.length || 0} Registered
-                  </span>
-                </div>
-
-                <div className="pt-2 border-t border-border/30 flex justify-end">
+                <div className="pt-3 border-t border-border/50 flex justify-end">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -317,8 +351,8 @@ export const ServerManager: React.FC = () => {
                   </Button>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </ContentContainer>
