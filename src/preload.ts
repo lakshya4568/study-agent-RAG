@@ -139,6 +139,8 @@ contextBridge.exposeInMainWorld("studyAgent", {
     threadId: string;
     message: string;
     messageId?: string;
+    model?: string;
+    provider?: "groq" | "nvidia" | "auto";
   }) => {
     return ipcRenderer.invoke("agent:sendMessage", payload);
   },

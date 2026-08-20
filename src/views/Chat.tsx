@@ -31,6 +31,7 @@ import {
   Badge,
   ToolCallApproval,
   PendingToolCall,
+  ModelSelector,
 } from "../components/ui";
 import { useChatStore, useAuthStore } from "../client/store";
 import heroBackdrop from "../assets/study_hero_backdrop.jpg";
@@ -274,10 +275,14 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
     try {
       if (!window.studyAgent) throw new Error("Study agent runtime is offline.");
 
+      const { selectedModel, selectedProvider } = useChatStore.getState();
+
       const result = await window.studyAgent.sendMessage({
         threadId: currentThreadId,
         message: userMessage.content,
         messageId: userMessage.id,
+        model: selectedModel,
+        provider: selectedProvider,
       });
 
       if (!result.success) {
@@ -695,9 +700,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-medium text-muted-foreground/80 bg-secondary/80 border border-border/50 px-2 py-0.5 rounded-lg hidden sm:inline">
-                    Groq / NVIDIA LPU ⌵
-                  </span>
+                  <ModelSelector dropUp align="right" />
 
                   <button
                     onClick={handleSend}

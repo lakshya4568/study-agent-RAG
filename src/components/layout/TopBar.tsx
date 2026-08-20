@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { cn } from "../../lib/utils";
 import { Sun, Moon, Sparkles, Cpu } from "lucide-react";
 import { useChatStore } from "../../client/store";
+import { ModelSelector } from "../ui/ModelSelector";
 
 interface TopBarProps {
   title?: string;
@@ -61,10 +62,9 @@ export const TopBar: React.FC<TopBarProps> = ({
       </div>
 
       <div className="flex items-center gap-2.5 shrink-0">
-        {/* Model telemetry pill */}
-        <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/40 border border-border/30 text-xs font-medium text-muted-foreground">
-          <Cpu className="w-3.5 h-3.5 text-primary" />
-          <span>NVIDIA Moonshot Kimi-k2</span>
+        {/* Interactive Model Selector */}
+        <div className="hidden md:block">
+          <ModelSelector dropUp={false} align="right" />
         </div>
 
         {/* Theme toggle */}

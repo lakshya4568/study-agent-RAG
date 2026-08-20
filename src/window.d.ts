@@ -70,6 +70,8 @@ declare global {
         threadId: string;
         message: string;
         messageId?: string;
+        model?: string;
+        provider?: "groq" | "nvidia" | "auto";
       }) => Promise<AgentInvocationResult>;
       getStatus: () => Promise<AgentStatus>;
       reloadDocuments: (documentPaths: string[]) => Promise<AgentStatus>;

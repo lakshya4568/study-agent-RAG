@@ -551,7 +551,7 @@ export class StudyAgentService {
   async invoke(
     userMessage: string,
     conversationHistory: BaseMessage[] = [],
-    options?: { threadId?: string }
+    options?: { threadId?: string; model?: string; provider?: "groq" | "nvidia" | "auto" }
   ): Promise<AgentInvocationResult> {
     const startTime = performance.now();
 
@@ -571,7 +571,9 @@ export class StudyAgentService {
         logger.warn("RAG service not connected - proceeding in direct LLM reasoning mode");
       }
 
-      logger.info(`Agent invoke: "${userMessage.substring(0, 100)}..."`);
+      logger.info(
+        `Agent invoke: "${userMessage.substring(0, 100)}..." [Requested Model: ${options?.model || "auto"}]`
+      );
 
       // Load persistent memory context
       let memoryContext = "";
@@ -593,6 +595,8 @@ export class StudyAgentService {
         route: "general",
         memoryContext,
         memoryCommand: "",
+        selectedModel: options?.model || "",
+        selectedProvider: options?.provider || "",
       };
 
       const invokeConfig: RunnableConfig = {

@@ -503,12 +503,19 @@ ipcMain.handle(
   "agent:sendMessage",
   async (
     _,
-    payload: { threadId: string; message: string; messageId?: string },
+    payload: {
+      threadId: string;
+      message: string;
+      messageId?: string;
+      model?: string;
+      provider?: "groq" | "nvidia" | "auto";
+    },
   ) => {
     logger.info("\n" + "─".repeat(60));
     logger.info("💬 New Agent Query Received");
     logger.info("─".repeat(60));
     logger.info(`Thread ID: ${payload.threadId}`);
+    logger.info(`Requested Model: ${payload.model || "Default"} (${payload.provider || "Auto"})`);
     logger.info(
       `Message: ${payload.message.substring(0, 100)}${payload.message.length > 100 ? "..." : ""}`,
     );
@@ -530,13 +537,17 @@ ipcMain.handle(
       });
     }
 
-    logger.info("🤖 Invoking Study Agent with NVIDIA Kimi-K2-Instruct...");
+    logger.info(`🤖 Invoking Study Agent (Model: ${payload.model || "Dynamic"})...`);
     const startTime = Date.now();
 
     const result = await studyAgentService.invoke(
       payload.message,
       conversationHistory,
-      { threadId: payload.threadId },
+      {
+        threadId: payload.threadId,
+        model: payload.model,
+        provider: payload.provider,
+      },
     );
 
     const duration = Date.now() - startTime;

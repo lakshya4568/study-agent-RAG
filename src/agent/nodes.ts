@@ -170,7 +170,12 @@ export async function routeNode(
     }
 
     // LLM-based routing with state awareness
-    const model = createNVIDIAOpenAIChat({ temperature: 0.1, maxTokens: 50 });
+    const model = createNVIDIAOpenAIChat({
+      model: state.selectedModel || undefined,
+      provider: (state.selectedProvider as any) || undefined,
+      temperature: 0.1,
+      maxTokens: 50,
+    });
     const prompt = `You are an intelligent intent router for the AI Study Agent.
 Decide the single best route for the user query.
 
@@ -309,7 +314,11 @@ export function createQueryNode(tools: StructuredTool[]) {
     state: StudyAgentStateType
   ): Promise<Partial<StudyAgentStateType>> {
     try {
-      const model = createNVIDIAOpenAIChat({ temperature: 0.3 });
+      const model = createNVIDIAOpenAIChat({
+        model: state.selectedModel || undefined,
+        provider: (state.selectedProvider as any) || undefined,
+        temperature: 0.3,
+      });
 
       const mcpTools: Tool[] = tools.map((tool) => ({
         name: tool.name,
@@ -352,7 +361,7 @@ export function createQueryNode(tools: StructuredTool[]) {
       );
 
       logger.info(
-        `[QueryNode] Assembled ${openAIMessages.length} message slots (RAG docs: ${state.documents?.length ?? 0})`
+        `[QueryNode] [Model: ${model.getModelName()} | Provider: ${model.getProvider()}] Assembled ${openAIMessages.length} message slots (RAG docs: ${state.documents?.length ?? 0})`
       );
 
       let responseContent: string;
@@ -420,7 +429,11 @@ export async function flashcardNode(
   state: StudyAgentStateType
 ): Promise<Partial<StudyAgentStateType>> {
   try {
-    const model = createNVIDIAOpenAIChat({ temperature: 0.2 });
+    const model = createNVIDIAOpenAIChat({
+      model: state.selectedModel || undefined,
+      provider: (state.selectedProvider as any) || undefined,
+      temperature: 0.2,
+    });
 
     const userMessages = state.messages.filter(
       (msg) => msg._getType?.() === "human" || (msg as { role?: string }).role === "user"
@@ -549,7 +562,11 @@ export function createMemoryNode(memoryManager: MemoryManager) {
         lowerQuery.includes("my memories")
       ) {
         const rawMemory = memoryManager.executeMemoryCommand("recall");
-        const model = createNVIDIAOpenAIChat({ temperature: 0.2 });
+        const model = createNVIDIAOpenAIChat({
+          model: state.selectedModel || undefined,
+          provider: (state.selectedProvider as any) || undefined,
+          temperature: 0.2,
+        });
         const memoryPrompt = `The user asked about their saved memories. Here is the raw memory file contents:
 
 ${rawMemory}
