@@ -506,7 +506,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                         setInput(action.prompt);
                         inputRef.current?.focus();
                       }}
-                      className="p-3.5 rounded-2xl bg-card/60 hover:bg-card border border-border/60 hover:border-primary/50 text-left transition-all duration-150 group shadow-sm hover:shadow-md active:scale-98 cursor-pointer"
+                      className="p-4 rounded-2xl bg-card hover:bg-secondary border border-border text-left transition-all duration-150 group shadow-sm hover:shadow-md active:scale-98 cursor-pointer"
                     >
                       <div className="flex items-center gap-2.5 mb-1.5">
                         <div className={`p-1.5 rounded-lg border ${action.color}`}>
@@ -553,7 +553,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                   <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary shrink-0 mt-1">
                     <Bot className="w-4 h-4" />
                   </div>
-                  <div className="p-4 rounded-2xl bg-card/80 border border-border/60 shadow-sm flex flex-col gap-2 min-w-[240px]">
+                  <div className="p-4 rounded-2xl bg-card border border-border shadow-sm flex flex-col gap-2 min-w-[240px]">
                     <div className="flex items-center gap-2 text-xs font-medium text-primary">
                       <div className="flex gap-1">
                         <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
@@ -575,7 +575,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
         </div>
 
         {/* Floating Adaptive Prompt Dock (Claude + Stitch Spec) */}
-        <div className="shrink-0 p-4 pt-1 z-20 flex justify-center bg-gradient-to-t from-background via-background/90 to-transparent">
+        <div className="shrink-0 p-4 pt-2 z-20 flex justify-center bg-background border-t border-border/40">
           <div className="w-full max-w-3xl space-y-2">
             {/* Context Pills & Attachment Preview Above Dock */}
             <div className="flex items-center gap-2 px-1">
@@ -595,7 +595,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
               ) : (
                 <button
                   onClick={handleFileUpload}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-card/80 hover:bg-card border border-border/60 text-muted-foreground hover:text-foreground text-xs font-normal transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary hover:bg-secondary/70 border border-border text-foreground text-xs font-medium transition-colors cursor-pointer"
                 >
                   <Paperclip className="w-3 h-3 text-primary" />
                   <span>Attach PDF Notes</span>
@@ -607,7 +607,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                   setInput("Create 5 practice exam questions with detailed answers based on my notes.");
                   inputRef.current?.focus();
                 }}
-                className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-card/80 hover:bg-card border border-border/60 text-muted-foreground hover:text-foreground text-xs transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-secondary hover:bg-secondary/70 border border-border text-foreground text-xs font-medium transition-colors cursor-pointer"
               >
                 <Sparkles className="w-3 h-3 text-amber-500" />
                 <span>Quiz Me</span>
@@ -651,7 +651,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
             </AnimatePresence>
 
             {/* Main Dock Input Box (Claude-Style) */}
-            <div className="doppelrand bg-card/90 dark:bg-card/95 rounded-2xl p-2.5 border border-border/80 shadow-xl focus-within:border-primary/60 transition-all">
+            <div className="bg-card rounded-2xl p-2.5 border border-border shadow-lg focus-within:border-primary/70 transition-all">
               <TextArea
                 ref={inputRef}
                 value={input}

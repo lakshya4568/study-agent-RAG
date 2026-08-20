@@ -144,7 +144,7 @@ export const FlashcardsView: React.FC = () => {
 
         {/* Streak & Daily Goal Bento Cards */}
         <div className="flex items-center gap-3">
-          <div className="doppelrand bg-card/80 rounded-2xl p-3 flex items-center gap-2.5">
+          <div className="doppelrand bg-card rounded-2xl p-3 flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center">
               <Flame className="w-4 h-4" />
             </div>
@@ -156,7 +156,7 @@ export const FlashcardsView: React.FC = () => {
             </div>
           </div>
 
-          <div className="doppelrand bg-card/80 rounded-2xl p-3 flex items-center gap-2.5 min-w-[140px]">
+          <div className="doppelrand bg-card rounded-2xl p-3 flex items-center gap-2.5 min-w-[140px]">
             <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
               <Target className="w-4 h-4" />
             </div>
@@ -179,7 +179,7 @@ export const FlashcardsView: React.FC = () => {
 
       {/* Filter Toolbar */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-1 p-1 rounded-xl bg-secondary/60 border border-border/40">
+        <div className="flex items-center gap-1 p-1 rounded-xl bg-secondary border border-border">
           <button
             onClick={() => {
               setFilter("all");

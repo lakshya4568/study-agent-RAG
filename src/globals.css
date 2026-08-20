@@ -144,15 +144,13 @@
     box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.25), 0 8px 24px -4px rgba(99, 102, 241, 0.08);
   }
 
-  /* Glass Panels */
+  /* Solid Panels */
   .frosted-glass {
-    background: rgba(24, 24, 27, 0.78);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: hsl(var(--card));
   }
 
   .theme-light .frosted-glass {
-    background: rgba(255, 255, 255, 0.85);
+    background: hsl(var(--card));
   }
 
   /* 3D Flip Card Styles for Active Recall */

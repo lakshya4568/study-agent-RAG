@@ -37,7 +37,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       animate={{ width: isCollapsed ? 76 : 240 }}
       transition={{ duration: 0.2, ease: [0.2, 0.8, 0.2, 1] }}
       className={cn(
-        "flex flex-col h-full bg-card/75 dark:bg-card/85 backdrop-blur-2xl border-r border-border/60 shadow-xl z-40 relative select-none",
+        "flex flex-col h-full bg-card border-r border-border shadow-md z-40 relative select-none",
         className
       )}
     >
@@ -95,7 +95,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <button
           onClick={onNewSession}
           className={cn(
-            "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl bg-secondary/80 hover:bg-secondary text-foreground font-medium text-xs transition-all border border-border/80 shadow-sm active:scale-98 group cursor-pointer",
+            "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl bg-secondary hover:bg-secondary/70 text-foreground font-medium text-xs transition-all border border-border shadow-sm active:scale-98 group cursor-pointer",
             isCollapsed ? "justify-center px-0" : ""
           )}
           title="New Study Session (⌘N)"

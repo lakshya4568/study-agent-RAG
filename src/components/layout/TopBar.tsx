@@ -36,7 +36,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   return (
     <header
       className={cn(
-        "flex items-center justify-between px-6 py-3.5 bg-card/40 backdrop-blur-xl border-b border-border/40 shadow-sm z-30",
+        "flex items-center justify-between px-6 py-3 bg-card border-b border-border shadow-xs z-30",
         className
       )}
     >
