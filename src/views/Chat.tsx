@@ -1,15 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowUp,
   Plus,
   Paperclip,
   Sparkles,
-  X,
-  CheckCircle2,
-  AlertCircle,
-  Bot,
-  Brain,
+  Layers,
+  Image as ImageIcon,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import {
@@ -41,33 +37,39 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
   const {
     activeThreadId,
     setActiveThreadId,
-    selectedDocument,
-    setSelectedDocument,
   } = useChatStore();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [pendingToolCalls, setPendingToolCalls] = useState<PendingToolCall[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<{
-    stage: string;
-    message: string;
-    fileName?: string;
-  } | null>(null);
-  const [uploadStatus, setUploadStatus] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
 
-  const [threads, setThreads] = useState<
+  const [, setThreads] = useState<
     Array<{ id: string; title: string; created_at: number }>
   >([]);
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const actionMenuRef = useRef<HTMLDivElement>(null);
   const isUserScrolledUp = useRef(false);
+
+  // Close action menu on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        actionMenuRef.current &&
+        !actionMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsActionMenuOpen(false);
+      }
+    };
+    if (isActionMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isActionMenuOpen]);
 
   // Load threads and messages
   const loadThreads = useCallback(async () => {
@@ -158,7 +160,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
     }
   }, [onRegisterActions, createNewThread]);
 
-  // Smart Auto-Scroll: only scroll if user hasn't scrolled up
+  // Smart Auto-Scroll
   useEffect(() => {
     if (!isUserScrolledUp.current) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -337,45 +339,23 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
     if (!window.studyAgent?.openFileDialog) return;
 
     try {
-      setUploading(true);
-      setUploadStatus(null);
-      setUploadProgress({
-        stage: "selecting",
-        message: "Selecting document...",
-      });
-
       const dialogResult = await window.studyAgent.openFileDialog();
       if (!dialogResult.success || dialogResult.filePaths.length === 0) {
-        setUploading(false);
-        setUploadProgress(null);
         return;
       }
 
       const filePaths = dialogResult.filePaths;
       const fileName = filePaths[0].split("/").pop() || "Document.pdf";
 
-      setUploadProgress({
-        stage: "chunking",
-        message: `Indexing ${fileName}...`,
-        fileName,
-      });
-
       const result = await window.studyAgent.addDocuments(filePaths);
 
       if (result.success) {
-        setUploadProgress({
-          stage: "complete",
-          message: `Indexed ${fileName}`,
-        });
-
-        setSelectedDocument(filePaths[0]);
-
         let currentThreadId = activeThreadId;
         if (!currentThreadId) {
           currentThreadId = crypto.randomUUID();
           await window.db.createThread(
             currentThreadId,
-            `Study Notes: ${fileName}`,
+            `Study: ${fileName}`,
             user?.id || "local-user"
           );
           setActiveThreadId(currentThreadId);
@@ -384,7 +364,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
         const successMsg: Message = {
           id: `msg-${Date.now()}`,
           role: "system",
-          content: `📄 **${fileName}** loaded into vector knowledge base (${result.addedCount} chunks indexed). You can now ask questions about this material!`,
+          content: `📎 Attached **${fileName}** to this study session. What would you like to explore or analyze in it?`,
           timestamp: new Date(),
         };
 
@@ -397,17 +377,11 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
           content: successMsg.content,
           timestamp: successMsg.timestamp.getTime(),
         });
-      } else {
-        throw new Error(result.errors.join(", ") || "Failed to parse document");
+
+        await loadThreads();
       }
     } catch (err) {
-      setUploadStatus({
-        type: "error",
-        message: err instanceof Error ? err.message : "Document upload failed",
-      });
-    } finally {
-      setUploading(false);
-      setTimeout(() => setUploadProgress(null), 2500);
+      console.error("File upload error:", err);
     }
   };
 
@@ -506,71 +480,52 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
         {/* Floating ChatGPT-Style Prompt Dock */}
         <div className="shrink-0 px-4 pb-3 pt-1 z-20 flex justify-center bg-background">
           <div className="w-full max-w-2xl space-y-2">
-            {/* Attachment preview if active */}
-            {selectedDocument && (
-              <div className="flex items-center gap-2 px-1">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary text-foreground text-xs font-medium border border-border">
-                  <Paperclip className="w-3 h-3 text-primary" />
-                  <span className="truncate max-w-[220px]">
-                    @{selectedDocument.split("/").pop()}
-                  </span>
-                  <button
-                    onClick={() => setSelectedDocument(null)}
-                    className="hover:bg-background rounded-full p-0.5 ml-1 cursor-pointer"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              </div>
-            )}
-
-            {/* Upload Feedback */}
-            <AnimatePresence>
-              {(uploadProgress || uploadStatus) && (
-                <motion.div
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 4 }}
-                  className="px-1"
-                >
-                  {uploadProgress && (
-                    <div className="p-2 rounded-xl bg-card border border-border flex items-center gap-2 text-xs text-foreground">
-                      <LoadingSpinner size="sm" />
-                      <span className="truncate">{uploadProgress.message}</span>
-                    </div>
-                  )}
-                  {uploadStatus && !uploadProgress && (
-                    <div
-                      className={cn(
-                        "p-2 rounded-xl text-xs flex items-center gap-2 border",
-                        uploadStatus.type === "success"
-                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                          : "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                      )}
-                    >
-                      {uploadStatus.type === "success" ? (
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                      ) : (
-                        <AlertCircle className="w-3.5 h-3.5" />
-                      )}
-                      <span>{uploadStatus.message}</span>
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-
             {/* Rounded Full Floating Pill Dock (ChatGPT Authentic Design) */}
-            <div className="w-full rounded-full bg-secondary/80 dark:bg-[#212121] border border-border dark:border-[#333333] px-3 py-1.5 flex items-center gap-2.5 shadow-lg focus-within:border-border/90 transition-all">
-              {/* + Attachment Button */}
-              <button
-                onClick={handleFileUpload}
-                disabled={uploading}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer shrink-0"
-                title="Attach PDF notes"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
+            <div className="w-full rounded-full bg-secondary/80 dark:bg-[#212121] border border-border dark:border-[#333333] px-3 py-1.5 flex items-center gap-2.5 shadow-lg focus-within:border-border/90 transition-all relative">
+              {/* + Action Menu Button */}
+              <div className="relative" ref={actionMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsActionMenuOpen(!isActionMenuOpen)}
+                  className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-all cursor-pointer shrink-0",
+                    isActionMenuOpen && "bg-secondary text-foreground rotate-45"
+                  )}
+                  title="Add attachments or create flashcards"
+                >
+                  <Plus className="w-4 h-4 transition-transform duration-150" />
+                </button>
+
+                {/* Dropdown Menu on + Click */}
+                {isActionMenuOpen && (
+                  <div className="absolute bottom-full left-0 mb-2 w-56 rounded-2xl bg-[#1e1e1e] border border-[#333333] shadow-2xl p-1.5 z-50 text-xs animate-in fade-in zoom-in-95 duration-150">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsActionMenuOpen(false);
+                        setInput("Create 10 high-yield study flashcards for: ");
+                        inputRef.current?.focus();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[#cccccc] hover:bg-[#282828] hover:text-white transition-colors cursor-pointer text-left"
+                    >
+                      <Layers className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span>Create flashcard</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsActionMenuOpen(false);
+                        handleFileUpload();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[#cccccc] hover:bg-[#282828] hover:text-white transition-colors cursor-pointer text-left"
+                    >
+                      <Paperclip className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span>Upload photos and files</span>
+                    </button>
+                  </div>
+                )}
+              </div>
 
               {/* Text Input */}
               <input
