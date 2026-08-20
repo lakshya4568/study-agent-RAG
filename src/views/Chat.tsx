@@ -171,6 +171,27 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
     }
   }, []);
 
+  // Listen for real-time tool approval requests from main process
+  useEffect(() => {
+    if (window.mcpClient?.onToolApprovalRequest) {
+      const unsubscribe = window.mcpClient.onToolApprovalRequest((request) => {
+        const req = request as PendingToolCall;
+        setPendingToolCalls((prev) => {
+          if (prev.some((p) => p.id === req.id)) return prev;
+          return [...prev, req];
+        });
+      });
+      return unsubscribe;
+    }
+  }, []);
+
+  // Poll for pending tool approvals while loading
+  useEffect(() => {
+    if (!loading) return;
+    const interval = setInterval(checkPendingTools, 500);
+    return () => clearInterval(interval);
+  }, [loading, checkPendingTools]);
+
   useEffect(() => {
     loadThreads();
     checkPendingTools();
@@ -667,32 +688,15 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                 disabled={loading}
               />
 
-              {/* Bottom Actions inside Dock (Perplexity Layout) */}
-              <div className="flex items-center justify-between pt-2.5 px-0.5 border-t border-border/40 mt-1">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <button
-                    onClick={handleFileUpload}
-                    disabled={uploading}
-                    className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors cursor-pointer"
-                    title="Upload study document"
-                  >
-                    <Paperclip className="w-3.5 h-3.5" />
-                  </button>
-
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-secondary text-foreground border border-border/60">
-                    <Search className="w-3 h-3 text-primary" />
-                    <span>Search RAG</span>
-                  </span>
-
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-secondary text-foreground border border-border/60">
-                    <Bot className="w-3 h-3 text-emerald-400" />
-                    <span>16 MCP Tools</span>
-                  </span>
+              {/* Bottom Actions inside Dock (Clean Minimal Layout) */}
+              <div className="flex items-center justify-between pt-2 px-1 border-t border-border/30 mt-1">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground/60 select-none">
+                  <span className="text-[11px]">Enter to send • Shift+Enter for new line</span>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] font-medium text-muted-foreground/80 bg-secondary/80 border border-border/50 px-2 py-0.5 rounded-lg hidden sm:inline">
-                    NVIDIA Llama 3.3 ⌵
+                    Groq / NVIDIA LPU ⌵
                   </span>
 
                   <button

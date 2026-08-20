@@ -234,6 +234,14 @@ app.on("ready", async () => {
   registerDatabaseHandlers();
   logger.info("🔌 IPC handlers registered");
 
+  // Broadcast tool execution approval requests to renderer window
+  mcpToolService.onApprovalRequest((request) => {
+    if (mainWindowInstance && !mainWindowInstance.isDestroyed()) {
+      logger.info(`[IPC] Forwarding tool approval request to UI: ${request.toolName}`);
+      mainWindowInstance.webContents.send("mcp:toolApprovalRequest", request);
+    }
+  });
+
   // Create window immediately so app appears instantly
   createWindow();
 

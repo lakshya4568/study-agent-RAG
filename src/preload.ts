@@ -113,6 +113,17 @@ contextBridge.exposeInMainWorld("mcpClient", {
   getPendingToolRequests: (): Promise<unknown[]> => {
     return ipcRenderer.invoke("mcp:getPendingToolRequests");
   },
+
+  /**
+   * Listen for incoming tool approval requests
+   */
+  onToolApprovalRequest: (callback: (request: unknown) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, request: unknown) => callback(request);
+    ipcRenderer.on("mcp:toolApprovalRequest", handler);
+    return () => {
+      ipcRenderer.removeListener("mcp:toolApprovalRequest", handler);
+    };
+  },
 });
 
 contextBridge.exposeInMainWorld("auth", {

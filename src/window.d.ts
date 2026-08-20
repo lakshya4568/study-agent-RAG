@@ -49,6 +49,7 @@ declare global {
       approveToolExecution: (requestId: string) => Promise<void>;
       denyToolExecution: (requestId: string) => Promise<void>;
       getPendingToolRequests: () => Promise<unknown[]>;
+      onToolApprovalRequest?: (callback: (request: unknown) => void) => () => void;
     };
     auth: {
       register: (data: {

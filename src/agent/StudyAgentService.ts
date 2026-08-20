@@ -460,6 +460,26 @@ export class StudyAgentService {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // Set of known safe, read-only study tools that execute immediately without blocking
+  private static readonly AUTO_EXECUTE_TOOLS = new Set([
+    "current_time",
+    "add_time",
+    "compare_time",
+    "convert_timezone",
+    "query-docs",
+    "resolve-library-id",
+    "get-form-details",
+    "fetch-form-responses",
+    "track_progress",
+    "generate_quiz",
+    "get_progress_report",
+    "search_notes",
+    "get_stats",
+    "list_tables",
+    "describe_table",
+  ]);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private wrapToolsWithApproval(tools: any[]): any[] {
     return tools.map((tool) => {
       const originalInvoke = tool.invoke.bind(tool);
@@ -467,7 +487,6 @@ export class StudyAgentService {
       const toolDescription = tool.description;
 
       // We need to preserve the tool's properties so LangChain can inspect them
-      // Proxy is good for this
       return new Proxy(tool, {
         get(target, prop, receiver) {
           if (prop === "invoke") {
@@ -476,9 +495,26 @@ export class StudyAgentService {
               const serverId = target.serverId || "unknown";
               const serverName = target.serverName || "unknown";
 
-              logger.info(`Requesting approval for tool: ${toolName}`);
+              // 1. If it's a safe study or query tool, execute immediately
+              const isSafeTool =
+                StudyAgentService.AUTO_EXECUTE_TOOLS.has(toolName) ||
+                toolName.startsWith("get_") ||
+                toolName.startsWith("query_") ||
+                toolName.startsWith("fetch_") ||
+                toolName.startsWith("list_");
 
-              // Request approval
+              if (isSafeTool) {
+                logger.info(`[Tool] Auto-executing safe study tool: ${toolName}`);
+                try {
+                  return await originalInvoke(input, config);
+                } catch (toolErr) {
+                  logger.error(`[Tool] Execution failed for ${toolName}:`, toolErr);
+                  return `Error executing tool ${toolName}: ${toolErr instanceof Error ? toolErr.message : String(toolErr)}`;
+                }
+              }
+
+              // 2. Otherwise, request user approval via MCPToolService
+              logger.info(`[Tool] Requesting approval for external tool: ${toolName}`);
               const request = await mcpToolService.requestToolExecution(
                 toolName,
                 serverId,
@@ -487,19 +523,18 @@ export class StudyAgentService {
                 toolDescription
               );
 
-              // Wait for approval
+              // Wait for user approval from UI
               const { approved, result } = await mcpToolService.waitForApproval(
                 request.id
               );
 
               if (!approved) {
-                logger.info(`Tool execution denied: ${toolName}`);
+                logger.info(`[Tool] Execution denied by user: ${toolName}`);
                 return "Tool execution denied by user.";
               }
 
-              logger.info(`Tool execution approved: ${toolName}`);
+              logger.info(`[Tool] Execution approved by user: ${toolName}`);
 
-              // If result is provided (e.g. mock result), return it
               if (result !== undefined) {
                 return result;
               }
