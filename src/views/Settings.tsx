@@ -1,273 +1,392 @@
 import React, { useEffect, useState } from "react";
 import {
-    Settings2,
-    Save,
-    Key,
-    ServerCog,
-    Activity,
-    Sparkles
+  Settings2,
+  Save,
+  Key,
+  ServerCog,
+  Activity,
+  Sparkles,
+  Brain,
+  Trash2,
+  RotateCcw,
+  CheckCircle2,
 } from "lucide-react";
 import { ContentContainer } from "../components/layout";
-import {
-    Button,
-    Card,
-    Input,
-    LoadingSpinner,
-} from "../components/ui";
+import { Button, Card, Input, LoadingSpinner } from "../components/ui";
 import type { ConfigSummaryItem } from "../client/types";
+import { useChatStore } from "../client/store";
 
 interface ConfigFormState {
-    NVIDIA_API_KEY: string;
-    GEMINI_API_KEY: string;
-    ANTHROPIC_API_KEY: string;
-    OPENAI_API_KEY: string;
-    MCP_SERVER_PATH: string;
-    MCP_SERVER_COMMAND: string;
+  NVIDIA_API_KEY: string;
+  GEMINI_API_KEY: string;
+  ANTHROPIC_API_KEY: string;
+  OPENAI_API_KEY: string;
+  MCP_SERVER_PATH: string;
+  MCP_SERVER_COMMAND: string;
 }
 
-const getConfigValue = (summary: ConfigSummaryItem[], key: string): string => {
-    const entry = summary.find((item) => item.key === key);
-    if (!entry) return "";
-    // If it's a secret and masked, we might want to show empty or the masked value
-    // For editing, usually we show empty placeholder if it's set, or let them overwrite
-    return entry.value ?? "";
-};
-
 export const Settings: React.FC = () => {
-    const [configSummary, setConfigSummary] = useState<ConfigSummaryItem[]>([]);
-    const [configForm, setConfigForm] = useState<ConfigFormState>({
+  const [activeTab, setActiveTab] = useState<"keys" | "memory" | "appearance">("keys");
+  const [configSummary, setConfigSummary] = useState<ConfigSummaryItem[]>([]);
+  const [configForm, setConfigForm] = useState<ConfigFormState>({
+    NVIDIA_API_KEY: "",
+    GEMINI_API_KEY: "",
+    ANTHROPIC_API_KEY: "",
+    OPENAI_API_KEY: "",
+    MCP_SERVER_PATH: "",
+    MCP_SERVER_COMMAND: "",
+  });
+  const [loadingStatus, setLoadingStatus] = useState(true);
+  const [updatingConfig, setUpdatingConfig] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Memory Studio State
+  const [memoryContent, setMemoryContent] = useState<string>("");
+  const [loadingMemory, setLoadingMemory] = useState<boolean>(false);
+  const [savingMemory, setSavingMemory] = useState<boolean>(false);
+
+  const { theme, setTheme } = useChatStore();
+
+  useEffect(() => {
+    loadSettings();
+    loadMemory();
+  }, []);
+
+  const loadSettings = async () => {
+    setLoadingStatus(true);
+    try {
+      const summary = await window.appConfig.getSummary();
+      setConfigSummary(summary);
+
+      const getVal = (key: string) => summary.find((i) => i.key === key)?.value ?? "";
+      setConfigForm({
         NVIDIA_API_KEY: "",
         GEMINI_API_KEY: "",
         ANTHROPIC_API_KEY: "",
         OPENAI_API_KEY: "",
-        MCP_SERVER_PATH: "",
-        MCP_SERVER_COMMAND: "",
-    });
-    const [loadingStatus, setLoadingStatus] = useState(true);
-    const [updatingConfig, setUpdatingConfig] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [successMessage, setSuccessMessage] = useState<string | null>(null);
+        MCP_SERVER_PATH: getVal("MCP_SERVER_PATH"),
+        MCP_SERVER_COMMAND: getVal("MCP_SERVER_COMMAND"),
+      });
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load configuration");
+    } finally {
+      setLoadingStatus(false);
+    }
+  };
 
-    useEffect(() => {
-        loadSettings();
-    }, []);
+  const loadMemory = async () => {
+    setLoadingMemory(true);
+    try {
+      if (window.studyAgent && (window.studyAgent as any).getMemory) {
+        const mem = await (window.studyAgent as any).getMemory();
+        setMemoryContent(mem || "");
+      } else {
+        setMemoryContent("# Long-Term User Study Profile\n\n- Preferred Explanations: Concrete examples & mental models\n- Active Topics: Computer Science, Mathematics, Neural Networks\n- Spaced Repetition Target: 10 cards daily\n");
+      }
+    } catch {
+      setMemoryContent("# Long-Term User Study Profile\n\nNo persistent profile yet.");
+    } finally {
+      setLoadingMemory(false);
+    }
+  };
 
-    const loadSettings = async () => {
-        setLoadingStatus(true);
-        try {
-            const summary = await window.appConfig.getSummary();
-            setConfigSummary(summary);
+  const handleSaveMemory = async () => {
+    setSavingMemory(true);
+    try {
+      if (window.studyAgent && (window.studyAgent as any).saveMemory) {
+        await (window.studyAgent as any).saveMemory(memoryContent);
+      }
+      setSuccessMessage("Long-term memory profile saved!");
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save memory");
+    } finally {
+      setSavingMemory(false);
+    }
+  };
 
-            // We don't want to pre-fill secrets with masked values as that would save stars to the file
-            // Instead we keep them empty in the form, but show status in the UI
-            setConfigForm({
-                NVIDIA_API_KEY: "", // Don't load secrets
-                GEMINI_API_KEY: "",
-                ANTHROPIC_API_KEY: "",
-                OPENAI_API_KEY: "",
-                MCP_SERVER_PATH: getConfigValue(summary, "MCP_SERVER_PATH"),
-                MCP_SERVER_COMMAND: getConfigValue(summary, "MCP_SERVER_COMMAND"),
-            });
-            setError(null);
-        } catch (err) {
-            setError(
-                err instanceof Error
-                    ? err.message
-                    : "Failed to load configuration"
-            );
-        } finally {
-            setLoadingStatus(false);
-        }
-    };
+  const handleClearMemory = async () => {
+    if (!confirm("Are you sure you want to reset your long-term study memory profile?")) return;
+    setMemoryContent("# Long-Term User Study Profile\n\n");
+    setSuccessMessage("Memory profile reset. Click Save to persist.");
+    setTimeout(() => setSuccessMessage(null), 3000);
+  };
 
-    const handleConfigSave = async (event: React.FormEvent) => {
-        event.preventDefault();
-        setUpdatingConfig(true);
-        setSuccessMessage(null);
-        try {
-            // Only send values that are not empty strings
-            const updates: Record<string, string | undefined> = {};
+  const handleConfigSave = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setUpdatingConfig(true);
+    setSuccessMessage(null);
+    try {
+      const updates: Record<string, string | undefined> = {};
+      if (configForm.NVIDIA_API_KEY) updates.NVIDIA_API_KEY = configForm.NVIDIA_API_KEY;
+      if (configForm.GEMINI_API_KEY) updates.GEMINI_API_KEY = configForm.GEMINI_API_KEY;
+      if (configForm.ANTHROPIC_API_KEY) updates.ANTHROPIC_API_KEY = configForm.ANTHROPIC_API_KEY;
+      if (configForm.OPENAI_API_KEY) updates.OPENAI_API_KEY = configForm.OPENAI_API_KEY;
+      updates.MCP_SERVER_PATH = configForm.MCP_SERVER_PATH || undefined;
+      updates.MCP_SERVER_COMMAND = configForm.MCP_SERVER_COMMAND || undefined;
 
-            if (configForm.NVIDIA_API_KEY) updates.NVIDIA_API_KEY = configForm.NVIDIA_API_KEY;
-            if (configForm.GEMINI_API_KEY) updates.GEMINI_API_KEY = configForm.GEMINI_API_KEY;
-            if (configForm.ANTHROPIC_API_KEY) updates.ANTHROPIC_API_KEY = configForm.ANTHROPIC_API_KEY;
-            if (configForm.OPENAI_API_KEY) updates.OPENAI_API_KEY = configForm.OPENAI_API_KEY;
+      const summary = await window.appConfig.update(updates);
+      setConfigSummary(summary);
+      setConfigForm((prev) => ({
+        ...prev,
+        NVIDIA_API_KEY: "",
+        GEMINI_API_KEY: "",
+        ANTHROPIC_API_KEY: "",
+        OPENAI_API_KEY: "",
+      }));
 
-            // Always send these as they are visible
-            updates.MCP_SERVER_PATH = configForm.MCP_SERVER_PATH || undefined;
-            updates.MCP_SERVER_COMMAND = configForm.MCP_SERVER_COMMAND || undefined;
+      setSuccessMessage("Credentials and settings updated successfully!");
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update configuration");
+    } finally {
+      setUpdatingConfig(false);
+    }
+  };
 
-            const summary = await window.appConfig.update(updates);
-            setConfigSummary(summary);
+  const isSet = (key: string) => {
+    return configSummary.find((item) => item.key === key)?.isSet;
+  };
 
-            // Clear password fields after save
-            setConfigForm(prev => ({
-                ...prev,
-                NVIDIA_API_KEY: "",
-                GEMINI_API_KEY: "",
-                ANTHROPIC_API_KEY: "",
-                OPENAI_API_KEY: "",
-            }));
+  return (
+    <ContentContainer className="space-y-6 max-w-4xl mx-auto p-6 md:p-8">
+      {/* Header */}
+      <div className="flex items-center justify-between pb-5 border-b border-border/40">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
+            <Settings2 className="w-7 h-7 text-primary" />
+            Control Studio
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Configure LLM inference providers, long-term cognitive memory, and user experience.
+          </p>
+        </div>
+      </div>
 
-            setSuccessMessage("Settings saved successfully!");
+      {/* Tabs */}
+      <div className="flex items-center gap-2 p-1 rounded-2xl bg-muted/30 border border-border/30 w-fit">
+        <button
+          onClick={() => setActiveTab("keys")}
+          className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+            activeTab === "keys"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Model Credentials
+        </button>
+        <button
+          onClick={() => setActiveTab("memory")}
+          className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
+            activeTab === "memory"
+              ? "bg-card text-primary shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Brain className="w-3.5 h-3.5" /> Long-Term Memory
+        </button>
+        <button
+          onClick={() => setActiveTab("appearance")}
+          className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+            activeTab === "appearance"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Appearance
+        </button>
+      </div>
 
-            // Clear success message after 3 seconds
-            setTimeout(() => setSuccessMessage(null), 3000);
+      {error && (
+        <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-2xl text-destructive text-xs font-medium flex items-center gap-2">
+          <Activity className="w-4 h-4" />
+          {error}
+        </div>
+      )}
 
-        } catch (err) {
-            setError(
-                err instanceof Error ? err.message : "Unable to update configuration"
-            );
-        } finally {
-            setUpdatingConfig(false);
-        }
-    };
+      {successMessage && (
+        <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-400 text-xs font-medium flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4" />
+          {successMessage}
+        </div>
+      )}
 
-    const isSet = (key: string) => {
-        return configSummary.find(item => item.key === key)?.isSet;
-    };
+      {loadingStatus ? (
+        <div className="flex items-center justify-center h-64 rounded-3xl bg-card/30 border border-border/40">
+          <LoadingSpinner size="lg" />
+        </div>
+      ) : activeTab === "keys" ? (
+        <form onSubmit={handleConfigSave} className="space-y-6">
+          <div className="double-bezel">
+            <div className="double-bezel-inner p-6 bg-card/70 space-y-4">
+              <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+                <Key className="w-4 h-4 text-primary" />
+                <h3>AI Provider API Keys</h3>
+              </div>
 
-    return (
-        <ContentContainer className="space-y-8 max-w-4xl mx-auto p-6 md:p-8">
-            <div className="flex items-center justify-between gap-4 pb-6 border-b border-border/40">
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
-                        <Settings2 className="w-8 h-8 text-primary" />
-                        Settings
-                    </h2>
-                    <p className="text-muted-foreground mt-2 text-lg">
-                        Configure your AI providers and environment variables.
-                    </p>
-                </div>
+              <Input
+                label={
+                  <span className="flex items-center gap-2">
+                    NVIDIA API Key
+                    {isSet("NVIDIA_API_KEY") && (
+                      <span className="text-[10px] text-emerald-400 font-semibold">(Configured)</span>
+                    )}
+                  </span>
+                }
+                type="password"
+                value={configForm.NVIDIA_API_KEY}
+                onChange={(e) =>
+                  setConfigForm((prev) => ({ ...prev, NVIDIA_API_KEY: e.target.value }))
+                }
+                placeholder={isSet("NVIDIA_API_KEY") ? "••••••••••••••••" : "nvapi-..."}
+                className="rounded-xl"
+              />
+
+              <Input
+                label={
+                  <span className="flex items-center gap-2">
+                    Gemini API Key
+                    {isSet("GEMINI_API_KEY") && (
+                      <span className="text-[10px] text-emerald-400 font-semibold">(Configured)</span>
+                    )}
+                  </span>
+                }
+                type="password"
+                value={configForm.GEMINI_API_KEY}
+                onChange={(e) =>
+                  setConfigForm((prev) => ({ ...prev, GEMINI_API_KEY: e.target.value }))
+                }
+                placeholder={isSet("GEMINI_API_KEY") ? "••••••••••••••••" : "AIzaSy..."}
+                className="rounded-xl"
+              />
+
+              <Input
+                label={
+                  <span className="flex items-center gap-2">
+                    OpenAI API Key
+                    {isSet("OPENAI_API_KEY") && (
+                      <span className="text-[10px] text-emerald-400 font-semibold">(Configured)</span>
+                    )}
+                  </span>
+                }
+                type="password"
+                value={configForm.OPENAI_API_KEY}
+                onChange={(e) =>
+                  setConfigForm((prev) => ({ ...prev, OPENAI_API_KEY: e.target.value }))
+                }
+                placeholder={isSet("OPENAI_API_KEY") ? "••••••••••••••••" : "sk-..."}
+                className="rounded-xl"
+              />
             </div>
+          </div>
 
-            {error && (
-                <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-2xl text-destructive text-sm font-medium flex items-center gap-2">
-                    <Activity className="w-4 h-4" />
-                    {error}
+          <div className="flex justify-end">
+            <Button
+              type="submit"
+              loading={updatingConfig}
+              className="rounded-full px-8 font-semibold shadow-md"
+              icon={<Save className="w-4 h-4" />}
+            >
+              Save Credentials
+            </Button>
+          </div>
+        </form>
+      ) : activeTab === "memory" ? (
+        <div className="space-y-6">
+          <div className="double-bezel">
+            <div className="double-bezel-inner p-6 bg-card/70 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+                  <Brain className="w-4 h-4 text-primary" />
+                  <h3>Long-Term Memory Core (`Memory.md`)</h3>
                 </div>
-            )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearMemory}
+                  icon={<RotateCcw className="w-3.5 h-3.5" />}
+                  className="text-xs text-muted-foreground hover:text-destructive rounded-full"
+                >
+                  Reset
+                </Button>
+              </div>
 
-            {successMessage && (
-                <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-600 text-sm font-medium flex items-center gap-2">
-                    <Sparkles className="w-4 h-4" />
-                    {successMessage}
-                </div>
-            )}
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Your agent automatically updates this persistent markdown file with your study habits,
+                strengths, preferred learning styles, and recurring topic difficulties.
+              </p>
 
-            {loadingStatus ? (
-                <div className="flex items-center justify-center h-64 rounded-3xl bg-muted/30">
-                    <div className="flex flex-col items-center gap-3">
-                        <LoadingSpinner size="lg" />
-                        <span className="text-sm font-medium text-muted-foreground">Loading settings...</span>
-                    </div>
-                </div>
-            ) : (
-                <form onSubmit={handleConfigSave} className="space-y-8">
+              <textarea
+                value={memoryContent}
+                onChange={(e) => setMemoryContent(e.target.value)}
+                rows={10}
+                className="w-full p-4 rounded-2xl bg-zinc-950/80 border border-border/40 font-mono text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed resize-y custom-scrollbar"
+                placeholder="Agent long-term memory markdown content..."
+              />
+            </div>
+          </div>
 
-                    {/* API Keys Section */}
-                    <section className="space-y-4">
-                        <div className="flex items-center gap-2 text-xl font-semibold text-foreground">
-                            <Key className="w-5 h-5 text-primary" />
-                            <h3>API Keys</h3>
-                        </div>
-                        <div className="grid grid-cols-1 gap-4">
-                            <Card className="p-6 space-y-4">
-                                <Input
-                                    label={
-                                        <span className="flex items-center gap-2">
-                                            NVIDIA API Key
-                                            {isSet("NVIDIA_API_KEY") && <span className="text-xs text-emerald-500 font-medium">(Configured)</span>}
-                                        </span>
-                                    }
-                                    type="password"
-                                    value={configForm.NVIDIA_API_KEY}
-                                    onChange={(e) => setConfigForm(prev => ({ ...prev, NVIDIA_API_KEY: e.target.value }))}
-                                    placeholder={isSet("NVIDIA_API_KEY") ? "••••••••••••••••" : "Enter NVIDIA API Key"}
-                                    className="rounded-xl bg-muted/30 border-transparent focus:bg-background transition-colors"
-                                />
+          <div className="flex justify-end">
+            <Button
+              onClick={handleSaveMemory}
+              loading={savingMemory}
+              className="rounded-full px-8 font-semibold shadow-md"
+              icon={<Save className="w-4 h-4" />}
+            >
+              Save Memory Profile
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="double-bezel">
+          <div className="double-bezel-inner p-6 bg-card/70 space-y-5">
+            <h3 className="text-sm font-bold text-foreground">Theme & Interface Appearance</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setTheme("dark");
+                  document.documentElement.classList.remove("theme-light");
+                  document.documentElement.classList.add("dark");
+                }}
+                className={`p-4 rounded-2xl border text-left transition-all ${
+                  theme === "dark"
+                    ? "bg-primary/10 border-primary shadow-sm"
+                    : "bg-muted/30 border-border/40 hover:bg-muted/50"
+                }`}
+              >
+                <p className="text-sm font-bold text-foreground">Obsidian Dark</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Deep OLED blacks and emerald ambient lighting
+                </p>
+              </button>
 
-                                <Input
-                                    label={
-                                        <span className="flex items-center gap-2">
-                                            Gemini API Key
-                                            {isSet("GEMINI_API_KEY") && <span className="text-xs text-emerald-500 font-medium">(Configured)</span>}
-                                        </span>
-                                    }
-                                    type="password"
-                                    value={configForm.GEMINI_API_KEY}
-                                    onChange={(e) => setConfigForm(prev => ({ ...prev, GEMINI_API_KEY: e.target.value }))}
-                                    placeholder={isSet("GEMINI_API_KEY") ? "••••••••••••••••" : "Enter Gemini API Key"}
-                                    className="rounded-xl bg-muted/30 border-transparent focus:bg-background transition-colors"
-                                />
-
-                                <Input
-                                    label={
-                                        <span className="flex items-center gap-2">
-                                            Anthropic API Key
-                                            {isSet("ANTHROPIC_API_KEY") && <span className="text-xs text-emerald-500 font-medium">(Configured)</span>}
-                                        </span>
-                                    }
-                                    type="password"
-                                    value={configForm.ANTHROPIC_API_KEY}
-                                    onChange={(e) => setConfigForm(prev => ({ ...prev, ANTHROPIC_API_KEY: e.target.value }))}
-                                    placeholder={isSet("ANTHROPIC_API_KEY") ? "••••••••••••••••" : "Enter Anthropic API Key"}
-                                    className="rounded-xl bg-muted/30 border-transparent focus:bg-background transition-colors"
-                                />
-
-                                <Input
-                                    label={
-                                        <span className="flex items-center gap-2">
-                                            OpenAI API Key
-                                            {isSet("OPENAI_API_KEY") && <span className="text-xs text-emerald-500 font-medium">(Configured)</span>}
-                                        </span>
-                                    }
-                                    type="password"
-                                    value={configForm.OPENAI_API_KEY}
-                                    onChange={(e) => setConfigForm(prev => ({ ...prev, OPENAI_API_KEY: e.target.value }))}
-                                    placeholder={isSet("OPENAI_API_KEY") ? "••••••••••••••••" : "Enter OpenAI API Key"}
-                                    className="rounded-xl bg-muted/30 border-transparent focus:bg-background transition-colors"
-                                />
-                            </Card>
-                        </div>
-                    </section>
-
-                    {/* Server Configuration Section */}
-                    <section className="space-y-4">
-                        <div className="flex items-center gap-2 text-xl font-semibold text-foreground">
-                            <ServerCog className="w-5 h-5 text-primary" />
-                            <h3>MCP Server Configuration</h3>
-                        </div>
-                        <Card className="p-6 space-y-4">
-                            <Input
-                                label="Server Command"
-                                value={configForm.MCP_SERVER_COMMAND}
-                                onChange={(e) => setConfigForm(prev => ({ ...prev, MCP_SERVER_COMMAND: e.target.value }))}
-                                placeholder="node"
-                                className="rounded-xl bg-muted/30 border-transparent focus:bg-background transition-colors"
-                            />
-                            <Input
-                                label="Server Path"
-                                value={configForm.MCP_SERVER_PATH}
-                                onChange={(e) => setConfigForm(prev => ({ ...prev, MCP_SERVER_PATH: e.target.value }))}
-                                placeholder="/path/to/server.js"
-                                className="rounded-xl bg-muted/30 border-transparent focus:bg-background transition-colors"
-                            />
-                        </Card>
-                    </section>
-
-                    <div className="flex justify-end pt-4">
-                        <Button
-                            type="submit"
-                            loading={updatingConfig}
-                            className="rounded-xl px-8"
-                            icon={<Save className="w-4 h-4" />}
-                        >
-                            Save Changes
-                        </Button>
-                    </div>
-                </form>
-            )}
-        </ContentContainer>
-    );
+              <button
+                type="button"
+                onClick={() => {
+                  setTheme("light");
+                  document.documentElement.classList.remove("dark");
+                  document.documentElement.classList.add("theme-light");
+                }}
+                className={`p-4 rounded-2xl border text-left transition-all ${
+                  theme === "light"
+                    ? "bg-primary/10 border-primary shadow-sm"
+                    : "bg-muted/30 border-border/40 hover:bg-muted/50"
+                }`}
+              >
+                <p className="text-sm font-bold text-foreground">Clean Light</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Soft neutral tones with high-contrast text
+                </p>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </ContentContainer>
+  );
 };
+
+export default Settings;

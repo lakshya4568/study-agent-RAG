@@ -351,7 +351,9 @@ class HybridRetriever:
 
         # Score semantic results
         for rank, (doc, _score) in enumerate(semantic_results):
-            key = doc.page_content[:200]  # Use content prefix as key
+            source = doc.metadata.get("source_name", doc.metadata.get("source", ""))
+            chunk_id = doc.metadata.get("chunk_id", "")
+            key = f"{source}:{chunk_id}:{doc.page_content[:150]}"
             rrf_score = semantic_weight / (rrf_k + rank + 1)
             if key in doc_scores:
                 existing_doc, existing_score = doc_scores[key]
@@ -361,7 +363,9 @@ class HybridRetriever:
 
         # Score keyword results
         for rank, (doc, _score) in enumerate(keyword_results):
-            key = doc.page_content[:200]
+            source = doc.metadata.get("source_name", doc.metadata.get("source", ""))
+            chunk_id = doc.metadata.get("chunk_id", "")
+            key = f"{source}:{chunk_id}:{doc.page_content[:150]}"
             rrf_score = keyword_weight / (rrf_k + rank + 1)
             if key in doc_scores:
                 existing_doc, existing_score = doc_scores[key]

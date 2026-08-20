@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { cn } from "../../lib/utils";
-import { User, Sparkles, Info } from "lucide-react";
+import { User, Copy, Check, Info, Bot } from "lucide-react";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { FlashcardViewer } from "./FlashcardViewer";
 import { Flashcard } from "../../client/types";
+import mentorAvatar from "../../assets/study_mentor_avatar.jpg";
 
 interface MessageBubbleProps {
   id?: string;
@@ -14,30 +15,31 @@ interface MessageBubbleProps {
   delay?: number;
 }
 
-export const MessageBubble: React.FC<MessageBubbleProps> = ({
+export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
   id,
   role,
   content,
   timestamp,
   delay = 0,
 }) => {
+  const [copied, setCopied] = useState(false);
   const isUser = role === "user";
   const isSystem = role === "system";
 
-  const icons = {
-    user: User,
-    assistant: Sparkles,
-    system: Info,
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // ignore
+    }
   };
-
-  const Icon = icons[role];
 
   // Try to detect flashcard JSON content
   let flashcards: Flashcard[] | null = null;
-  if (!isUser) {
+  if (!isUser && !isSystem) {
     let jsonContent = content.trim();
-
-    // Remove markdown code blocks if present
     const codeBlockRegex = /^```(?:json)?\s*([\s\S]*?)\s*```$/;
     const match = jsonContent.match(codeBlockRegex);
     if (match) {
@@ -50,75 +52,102 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         if (parsed.flashcards && Array.isArray(parsed.flashcards)) {
           flashcards = parsed.flashcards;
         }
-      } catch (e) {
-        // Not valid JSON or not flashcards, ignore
+      } catch {
+        // Not valid JSON
       }
     }
   }
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, type: "spring", stiffness: 300, damping: 30 }}
-      className={cn("flex gap-3 mb-4", isUser && "flex-row-reverse")}
+      transition={{ delay: Math.min(delay, 0.2), duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+      className={cn("flex gap-3.5 mb-5 group", isUser ? "flex-row-reverse" : "flex-row")}
     >
       {/* Avatar */}
-      <motion.div
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ delay: delay + 0.1, type: "spring", stiffness: 400 }}
-        className={cn(
-          "shrink-0 w-10 h-10 rounded-xl flex items-center justify-center shadow-lg",
-          isUser
-            ? "bg-linear-to-br from-blue-500 to-cyan-500"
-            : isSystem
-              ? "bg-linear-to-br from-gray-400 to-gray-600"
-              : "bg-linear-to-br from-purple-500 to-pink-500"
+      <div className="shrink-0 mt-0.5">
+        {isUser ? (
+          <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 ring-1 ring-white/10">
+            <User className="w-4 h-4" />
+          </div>
+        ) : isSystem ? (
+          <div className="w-9 h-9 rounded-2xl bg-muted/80 text-muted-foreground flex items-center justify-center border border-border/50">
+            <Info className="w-4 h-4" />
+          </div>
+        ) : (
+          <div className="w-9 h-9 rounded-2xl overflow-hidden ring-1 ring-primary/30 shadow-lg shadow-primary/10 relative group-hover:ring-primary/60 transition-all">
+            <img
+              src={mentorAvatar}
+              alt="AI Mentor"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                // Fallback to bot icon if image fails
+                (e.target as HTMLElement).style.display = "none";
+              }}
+            />
+            <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
+              <Bot className="w-4 h-4 text-primary" />
+            </div>
+          </div>
         )}
-      >
-        <Icon className="w-5 h-5 text-white" />
-      </motion.div>
+      </div>
 
-      {/* Message content */}
-      <div className={cn("flex flex-col max-w-[85%]", isUser && "items-end")}>
-        <motion.div
-          initial={{ scale: 0.9 }}
-          animate={{ scale: 1 }}
+      {/* Message Container */}
+      <div className={cn("flex flex-col max-w-[85%] min-w-0", isUser && "items-end")}>
+        {isUser ? (
+          <div className="rounded-3xl rounded-tr-sm px-5 py-3.5 bg-primary text-primary-foreground shadow-md shadow-primary/15 border border-primary/20 text-sm font-medium leading-relaxed">
+            <p className="whitespace-pre-wrap">{content}</p>
+          </div>
+        ) : isSystem ? (
+          <div className="rounded-2xl px-4 py-2.5 bg-muted/40 text-muted-foreground border border-border/40 text-xs font-medium leading-relaxed">
+            <MarkdownRenderer content={content} />
+          </div>
+        ) : (
+          <div className="double-bezel w-full">
+            <div className="double-bezel-inner p-5 text-foreground">
+              {flashcards && id ? (
+                <FlashcardViewer flashcards={flashcards} messageId={id} />
+              ) : (
+                <MarkdownRenderer content={content} />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Footer Meta & Actions */}
+        <div
           className={cn(
-            "rounded-2xl px-4 py-3 shadow-lg backdrop-blur-xl",
-            isUser
-              ? "bg-linear-to-br from-blue-500 to-cyan-500 text-white"
-              : isSystem
-                ? "bg-gray-100 text-gray-800 border border-gray-200"
-                : "bg-white/90 text-gray-800 border border-gray-200"
+            "flex items-center gap-2 mt-1.5 px-2 text-[11px] text-muted-foreground/60 transition-opacity",
+            isUser ? "flex-row-reverse" : "flex-row"
           )}
         >
-          {/* Render markdown for assistant and system messages, plain text for user */}
-          {isUser ? (
-            <p className="text-sm whitespace-pre-wrap leading-relaxed">
-              {content}
-            </p>
-          ) : flashcards && id ? (
-            <FlashcardViewer flashcards={flashcards} messageId={id} />
-          ) : (
-            <MarkdownRenderer content={content} className="text-sm" />
+          {timestamp && (
+            <span>
+              {timestamp.toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
           )}
-        </motion.div>
-        {timestamp && (
-          <motion.span
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: delay + 0.2 }}
-            className="text-xs text-gray-500 mt-1 px-2"
-          >
-            {timestamp.toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </motion.span>
-        )}
+          {!isSystem && !flashcards && (
+            <button
+              onClick={handleCopy}
+              className="opacity-0 group-hover:opacity-100 hover:text-foreground transition-opacity p-0.5"
+              title="Copy message"
+            >
+              {copied ? (
+                <span className="flex items-center gap-1 text-emerald-400">
+                  <Check className="w-3 h-3" /> Copied
+                </span>
+              ) : (
+                <Copy className="w-3 h-3" />
+              )}
+            </button>
+          )}
+        </div>
       </div>
     </motion.div>
   );
-};
+});
+

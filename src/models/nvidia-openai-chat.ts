@@ -42,26 +42,55 @@ export class NVIDIAOpenAIChat {
   }
 
   /**
+   * Helper to execute completions with exponential backoff on 429 rate limit or 5xx server errors
+   */
+  private async executeWithRetry<T>(
+    operation: () => Promise<T>,
+    maxRetries = 3,
+    initialDelayMs = 1500
+  ): Promise<T> {
+    let lastError: any;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (err: any) {
+        lastError = err;
+        const status = err?.status || err?.response?.status;
+        const isRateLimitOrServerErr =
+          status === 429 || (status >= 500 && status < 600) || err?.code === "ECONNRESET";
+
+        if (attempt < maxRetries && isRateLimitOrServerErr) {
+          const delay = initialDelayMs * Math.pow(2, attempt) + Math.random() * 500;
+          console.warn(
+            `[NVIDIA Chat] Request returned ${status || "network error"}, retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${maxRetries})...`
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        } else {
+          throw err;
+        }
+      }
+    }
+    throw lastError;
+  }
+
+  /**
    * Invoke the chat model with messages (no tools)
    */
   async invoke(messages: ChatCompletionMessageParam[]): Promise<string> {
-    const completion = await this.client.chat.completions.create({
-      model: this.model,
-      messages,
-      temperature: this.temperature,
-      max_tokens: this.maxTokens,
-    });
+    const completion = await this.executeWithRetry(() =>
+      this.client.chat.completions.create({
+        model: this.model,
+        messages,
+        temperature: this.temperature,
+        max_tokens: this.maxTokens,
+      })
+    );
 
-    return completion.choices[0].message.content || "";
+    return completion.choices[0]?.message?.content || "";
   }
 
   /**
    * Invoke the chat model with tools enabled
-   * This handles the complete tool-calling flow with recursion:
-   * 1. Send initial request with tools
-   * 2. If tool calls are made, execute them
-   * 3. Send results back to model
-   * 4. Repeat until model provides final answer
    */
   async invokeWithTools(
     messages: ChatCompletionMessageParam[],
@@ -77,24 +106,26 @@ export class NVIDIAOpenAIChat {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const allExecutedTools: Array<{ name: string; args: any; result: string }> =
       [];
-    const MAX_ITERATIONS = 5; // Prevent infinite loops
+    const MAX_ITERATIONS = 5;
     let iterations = 0;
 
     while (iterations < MAX_ITERATIONS) {
       iterations++;
 
-      const completion = await this.client.chat.completions.create({
-        model: this.model,
-        messages: conversationMessages,
-        tools,
-        tool_choice: "auto",
-        temperature: this.temperature,
-        max_tokens: this.maxTokens,
-      });
+      const completion = await this.executeWithRetry(() =>
+        this.client.chat.completions.create({
+          model: this.model,
+          messages: conversationMessages,
+          tools,
+          tool_choice: "auto",
+          temperature: this.temperature,
+          max_tokens: this.maxTokens,
+        })
+      );
 
       const choice = completion.choices[0];
       let toolCalls = choice.message?.tool_calls || [];
-      let content = choice.message.content || "";
+      let content = choice.message?.content || "";
 
       // Check for raw tool call tokens in content if no structured tool calls found
       if (
@@ -119,7 +150,7 @@ export class NVIDIAOpenAIChat {
       // Add assistant message with tool calls to history
       conversationMessages.push({
         role: "assistant",
-        content: content || "Calling tools...", // Ensure non-empty content
+        content: content || "Calling tools...",
         tool_calls: toolCalls,
       });
 
@@ -132,28 +163,25 @@ export class NVIDIAOpenAIChat {
           const rawArgs = toolCall.function.arguments;
           let parsed = JSON.parse(rawArgs);
 
-          // Handle double-encoded JSON (stringified JSON inside string)
           if (typeof parsed === "string") {
             try {
-              // Check if it looks like a JSON object or array
               if (
                 parsed.trim().startsWith("{") ||
                 parsed.trim().startsWith("[")
               ) {
                 parsed = JSON.parse(parsed);
               }
-            } catch (e) {
-              // Keep as string if second parse fails
+            } catch {
+              // Keep as string
             }
           }
 
           toolArgs = parsed;
-        } catch (e) {
-          // Fallback: Try to fix single quotes (common in some models)
+        } catch {
           try {
             const fixed = toolCall.function.arguments.replace(/'/g, '"');
             toolArgs = JSON.parse(fixed);
-          } catch (e2) {
+          } catch {
             console.error(
               `Failed to parse arguments for tool ${toolName}:`,
               toolCall.function.arguments
@@ -161,20 +189,13 @@ export class NVIDIAOpenAIChat {
           }
         }
 
-        // Ensure toolArgs is an object (unless the tool specifically accepts a string, but standard is object)
         if (typeof toolArgs !== "object" || toolArgs === null) {
-          // If it's a primitive, wrap it? Or just leave it and let validation fail?
-          // For now, let's assume it should be an object.
-          // If it's a string that wasn't JSON, maybe it's the value for the single argument?
-          // But we don't know the argument name.
-          // Let's just log a warning.
           console.warn(
             `Tool arguments for ${toolName} are not an object:`,
             toolArgs
           );
         }
 
-        // Execute the tool
         let toolResult = "";
         try {
           toolResult = await toolExecutor(toolName, toolArgs);
@@ -188,7 +209,6 @@ export class NVIDIAOpenAIChat {
           result: toolResult,
         });
 
-        // Add tool result to conversation
         conversationMessages.push({
           role: "tool",
           tool_call_id: toolCall.id,
@@ -197,13 +217,29 @@ export class NVIDIAOpenAIChat {
       }
     }
 
-    // If we hit max iterations, return what we have
+    // Synthesize response if iterations limit was reached
+    if (allExecutedTools.length > 0) {
+      try {
+        conversationMessages.push({
+          role: "user",
+          content: "Please summarize the results from the tools executed above into a helpful response.",
+        });
+        const summary = await this.invoke(conversationMessages);
+        return {
+          content: summary,
+          toolCalls: allExecutedTools,
+        };
+      } catch {
+        // Fallback to reporting tool execution count
+      }
+    }
+
     const lastMsg = conversationMessages[conversationMessages.length - 1];
     return {
       content:
         lastMsg.role === "assistant" && lastMsg.content
           ? String(lastMsg.content)
-          : "Max iterations reached without final response.",
+          : "Completed tool operations.",
       toolCalls: allExecutedTools,
     };
   }

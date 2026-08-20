@@ -206,6 +206,7 @@ class RAGPipeline:
     def query(
         self,
         question: str,
+        chat_history: Optional[List[Dict[str, str]]] = None,
         top_k: Optional[int] = None,
         stream: bool = False,
     ) -> Dict[str, Any]:
@@ -216,6 +217,7 @@ class RAGPipeline:
 
         Args:
             question: User question
+            chat_history: Optional list of previous turns
             top_k: Override retrieval count
             stream: If True, returns streaming response (use query_stream instead)
 
@@ -258,7 +260,9 @@ class RAGPipeline:
 
         # ── Generate ───────────────────────────────────────────────────────
         self.metrics.start_timer("generation")
-        result = self.generator.generate(question, reranked)
+        result = self.generator.generate(
+            question, reranked, chat_history=chat_history
+        )
         gen_metric = self.metrics.stop_timer(
             "generation", output_count=len(result.get("answer", ""))
         )
@@ -284,6 +288,7 @@ class RAGPipeline:
     async def query_stream(
         self,
         question: str,
+        chat_history: Optional[List[Dict[str, str]]] = None,
         top_k: Optional[int] = None,
     ) -> AsyncIterator[str]:
         """
@@ -291,6 +296,7 @@ class RAGPipeline:
 
         Args:
             question: User question
+            chat_history: Optional list of previous turns
             top_k: Override retrieval count
 
         Yields:
@@ -314,7 +320,9 @@ class RAGPipeline:
         reranked = self.reranker.rerank(question, retrieved)
 
         # Stream generation
-        async for chunk in self.generator.generate_stream(question, reranked):
+        async for chunk in self.generator.generate_stream(
+            question, reranked, chat_history=chat_history
+        ):
             yield chunk
 
     # ── Utility Methods ────────────────────────────────────────────────────────

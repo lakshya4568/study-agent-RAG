@@ -120,7 +120,7 @@ contextBridge.exposeInMainWorld("auth", {
     ipcRenderer.invoke("auth:register", data),
   login: (data: { email: string; password: string }) =>
     ipcRenderer.invoke("auth:login", data),
-  getUser: (id: number) => ipcRenderer.invoke("auth:get-user", { id }),
+  getUser: (id: string) => ipcRenderer.invoke("auth:get-user", { id }),
 });
 
 contextBridge.exposeInMainWorld("studyAgent", {

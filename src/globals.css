@@ -2,221 +2,88 @@
 
 @layer base {
   :root {
-    --radius: 1rem; /* Rounder corners for friendly vibe */
-  }
-
-  /* =========================================
-     THEME: VIBRANT (Default) - Warm & Friendly
-     ========================================= */
-  :root, .theme-vibrant {
-    --background: 30 50% 98%; /* Warm Cream/Peach */
-    --foreground: 260 20% 20%; /* Soft Dark Purple */
-    --card: 0 0% 100%;
-    --card-foreground: 260 20% 20%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 260 20% 20%;
-    --primary: 340 85% 65%; /* Vibrant Pink */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 280 30% 96%; /* Light Lavender */
-    --secondary-foreground: 260 20% 20%;
-    --muted: 30 30% 96%;
-    --muted-foreground: 260 10% 55%;
-    --accent: 340 85% 97%;
-    --accent-foreground: 340 85% 40%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 260 15% 90%;
-    --input: 260 15% 90%;
-    --ring: 340 85% 65%;
-    --radius: 1.5rem; /* Extra rounded for friendly vibe */
-  }
-
-  /* =========================================
-     THEME: OCEAN - Calming Blues
-     ========================================= */
-  .theme-ocean {
-    --background: 210 40% 98%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 217 91% 60%; /* Bright Blue */
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 217 91% 60%;
-  }
-
-  .dark .theme-ocean, .theme-ocean.dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
+    --radius: 1rem;
+    
+    /* Default Dark Mode (Ethereal OLED Obsidian) */
+    --background: 224 71% 4%;      /* #06080d */
+    --foreground: 210 40% 98%;      /* #f8fafc */
+    
+    --card: 222 47% 7%;            /* #0b0f19 */
     --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
+    
+    --popover: 222 47% 7%;
     --popover-foreground: 210 40% 98%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
+    
+    --primary: 158 64% 52%;        /* #2dd4bf / Emerald Mint */
+    --primary-foreground: 224 71% 4%;
+    
+    --secondary: 222 30% 14%;       /* #171d2b */
     --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
+    
+    --muted: 222 30% 12%;          /* #131824 */
+    --muted-foreground: 215 20% 65%;/* #94a3b8 */
+    
+    --accent: 158 64% 52%;
+    --accent-foreground: 224 71% 4%;
+    
+    --destructive: 0 72% 51%;       /* #ef4444 */
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 217 91% 60%;
+    
+    --border: 222 30% 16%;         /* #1e2638 */
+    --input: 222 30% 16%;
+    --ring: 158 64% 52%;
   }
 
-  /* =========================================
-     THEME: FOREST - Fresh Greens
-     ========================================= */
-  .theme-forest {
-    --background: 150 30% 98%;
-    --foreground: 160 50% 10%;
-    --card: 0 0% 100%;
-    --card-foreground: 160 50% 10%;
+  .theme-light {
+    --background: 210 40% 98%;      /* #f8fafc */
+    --foreground: 222 47% 11%;      /* #0f172a */
+    
+    --card: 0 0% 100%;             /* #ffffff */
+    --card-foreground: 222 47% 11%;
+    
     --popover: 0 0% 100%;
-    --popover-foreground: 160 50% 10%;
-    --primary: 142 76% 36%; /* Emerald Green */
-    --primary-foreground: 355 100% 97%;
-    --secondary: 150 30% 96%;
-    --secondary-foreground: 160 50% 10%;
-    --muted: 150 30% 96%;
-    --muted-foreground: 160 20% 45%;
-    --accent: 150 30% 96%;
-    --accent-foreground: 160 50% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 150 20% 90%;
-    --input: 150 20% 90%;
-    --ring: 142 76% 36%;
+    --popover-foreground: 222 47% 11%;
+    
+    --primary: 160 84% 39%;        /* #059669 */
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 210 40% 96%;       /* #f1f5f9 */
+    --secondary-foreground: 222 47% 11%;
+    
+    --muted: 210 40% 94%;          /* #e2e8f0 */
+    --muted-foreground: 215 16% 47%;/* #64748b */
+    
+    --accent: 160 84% 39%;
+    --accent-foreground: 0 0% 100%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 214 32% 91%;         /* #e2e8f0 */
+    --input: 214 32% 91%;
+    --ring: 160 84% 39%;
   }
 
-  .dark .theme-forest, .theme-forest.dark {
-    --background: 160 50% 5%;
-    --foreground: 150 30% 98%;
-    --card: 160 50% 5%;
-    --card-foreground: 150 30% 98%;
-    --popover: 160 50% 5%;
-    --popover-foreground: 150 30% 98%;
-    --primary: 142 70% 50%;
-    --primary-foreground: 160 50% 5%;
-    --secondary: 160 30% 15%;
-    --secondary-foreground: 150 30% 98%;
-    --muted: 160 30% 15%;
-    --muted-foreground: 160 20% 65%;
-    --accent: 160 30% 15%;
-    --accent-foreground: 150 30% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 160 30% 15%;
-    --input: 160 30% 15%;
-    --ring: 142 70% 50%;
-  }
-
-  /* =========================================
-     THEME: SUNSET - Warm Orange/Rose
-     ========================================= */
-  .theme-sunset {
-    --background: 20 50% 98%;
-    --foreground: 20 50% 10%;
-    --card: 0 0% 100%;
-    --card-foreground: 20 50% 10%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 20 50% 10%;
-    --primary: 10 80% 60%; /* Rose/Orange */
-    --primary-foreground: 20 50% 98%;
-    --secondary: 20 50% 96%;
-    --secondary-foreground: 20 50% 10%;
-    --muted: 20 50% 96%;
-    --muted-foreground: 20 20% 45%;
-    --accent: 20 50% 96%;
-    --accent-foreground: 20 50% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 20 30% 90%;
-    --input: 20 30% 90%;
-    --ring: 10 80% 60%;
-  }
-
-  .dark .theme-sunset, .theme-sunset.dark {
-    --background: 20 50% 5%;
-    --foreground: 20 50% 98%;
-    --card: 20 50% 5%;
-    --card-foreground: 20 50% 98%;
-    --popover: 20 50% 5%;
-    --popover-foreground: 20 50% 98%;
-    --primary: 10 80% 65%;
-    --primary-foreground: 20 50% 5%;
-    --secondary: 20 30% 15%;
-    --secondary-foreground: 20 50% 98%;
-    --muted: 20 30% 15%;
-    --muted-foreground: 20 20% 65%;
-    --accent: 20 30% 15%;
-    --accent-foreground: 20 50% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 20 30% 15%;
-    --input: 20 30% 15%;
-    --ring: 10 80% 65%;
-  }
-
-  /* =========================================
-     THEME: LAVENDER - Creative Purple
-     ========================================= */
-  .theme-lavender {
-    --background: 270 50% 99%;
-    --foreground: 270 50% 10%;
-    --card: 0 0% 100%;
-    --card-foreground: 270 50% 10%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 270 50% 10%;
-    --primary: 270 80% 60%; /* Purple */
-    --primary-foreground: 270 50% 98%;
-    --secondary: 270 50% 96%;
-    --secondary-foreground: 270 50% 10%;
-    --muted: 270 50% 96%;
-    --muted-foreground: 270 20% 45%;
-    --accent: 270 50% 96%;
-    --accent-foreground: 270 50% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 270 30% 90%;
-    --input: 270 30% 90%;
-    --ring: 270 80% 60%;
-  }
-
-  .dark .theme-lavender, .theme-lavender.dark {
-    --background: 270 50% 5%;
-    --foreground: 270 50% 98%;
-    --card: 270 50% 5%;
-    --card-foreground: 270 50% 98%;
-    --popover: 270 50% 5%;
-    --popover-foreground: 270 50% 98%;
-    --primary: 270 80% 70%;
-    --primary-foreground: 270 50% 5%;
-    --secondary: 270 30% 15%;
-    --secondary-foreground: 270 50% 98%;
-    --muted: 270 30% 15%;
-    --muted-foreground: 270 20% 65%;
-    --accent: 270 30% 15%;
-    --accent-foreground: 270 50% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 270 30% 15%;
-    --input: 270 30% 15%;
-    --ring: 270 80% 70%;
+  .theme-vibrant {
+    --background: 240 10% 4%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 7%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 7%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 263 70% 58%;        /* Electric Violet */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 10% 14%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 10% 12%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 263 70% 58%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 10% 18%;
+    --input: 240 10% 18%;
+    --ring: 263 70% 58%;
   }
 }
 
@@ -233,7 +100,7 @@
     margin: 0;
     padding: 0;
     overflow: hidden;
-    font-family: 'Outfit', 'Inter', sans-serif; /* Friendlier font stack */
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Outfit', 'Inter', system-ui, sans-serif;
   }
   
   body {
@@ -241,13 +108,20 @@
     color: hsl(var(--foreground));
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    user-select: none;
+  }
+
+  /* Allow text selection inside chat messages & code */
+  .markdown-content, pre, code, input, textarea {
+    user-select: text;
   }
 }
 
 @layer utilities {
+  /* Ultra-sleek custom scrollbar */
   .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-track {
@@ -255,39 +129,62 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted-foreground) / 0.3);
-    border-radius: 9999px; /* Fully rounded */
+    background: hsl(var(--muted-foreground) / 0.2);
+    border-radius: 9999px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground) / 0.5);
+    background: hsl(var(--muted-foreground) / 0.4);
   }
   
-  /* Friendly Glass Utilities */
-  .glass-panel {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
-  }
-  
-  .dark .glass-panel {
-    background: rgba(0, 0, 0, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+  /* Doppelrand / Double-Bezel Nested Architecture */
+  .double-bezel {
+    position: relative;
+    border-radius: 1.5rem;
+    padding: 2px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.02) 100%);
+    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.15);
   }
 
-  /* Bubbly Card */
-  .bubbly-card {
+  .double-bezel-inner {
+    border-radius: calc(1.5rem - 2px);
     background: hsl(var(--card));
-    border-radius: 1.5rem;
-    border: 1px solid hsl(var(--border));
-    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border: 1px solid hsl(var(--border) / 0.6);
   }
-  
-  .bubbly-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 30px -2px rgba(0, 0, 0, 0.1);
+
+  /* Ethereal Floating Glass */
+  .ethereal-glass {
+    background: rgba(11, 15, 25, 0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .theme-light .ethereal-glass {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+
+  /* Island Button with Nested Circle */
+  .island-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 9999px;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .island-btn:active {
+    transform: scale(0.97);
+  }
+
+  /* Subtle Ambient Glow */
+  .glow-emerald {
+    box-shadow: 0 0 25px -5px rgba(45, 212, 191, 0.35);
   }
 }

@@ -103,6 +103,9 @@ class TextLoadRequest(BaseModel):
 
 class QueryRequest(BaseModel):
     question: str = Field(..., description="User question")
+    chat_history: Optional[List[Dict[str, str]]] = Field(
+        default=None, description="Previous conversation turns"
+    )
     top_k: int = Field(default=10, description="Number of chunks to retrieve")
     stream: bool = Field(default=False, description="Enable streaming response")
 
@@ -202,7 +205,9 @@ async def query_rag(request: QueryRequest):
             async def generate() -> AsyncIterator[str]:
                 assert pipeline is not None
                 async for chunk in pipeline.query_stream(
-                    request.question, top_k=request.top_k
+                    request.question,
+                    chat_history=request.chat_history,
+                    top_k=request.top_k,
                 ):
                     yield chunk
 
@@ -216,7 +221,11 @@ async def query_rag(request: QueryRequest):
                 },
             )
         else:
-            result = pipeline.query(request.question, top_k=request.top_k)
+            result = pipeline.query(
+                request.question,
+                chat_history=request.chat_history,
+                top_k=request.top_k,
+            )
             return result
 
     except ValueError as e:

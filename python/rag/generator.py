@@ -102,8 +102,10 @@ class NVIDIAGenerator:
         max_chunks: int = 5,
     ) -> str:
         """Build context string from retrieved documents with source info."""
-        context_parts = []
+        if not documents:
+            return "No specific document passages retrieved."
 
+        context_parts = []
         for i, (doc, score) in enumerate(documents[:max_chunks]):
             source = doc.metadata.get("source_name", doc.metadata.get("source", "Unknown"))
             page = doc.metadata.get("page", "?")
@@ -114,10 +116,24 @@ class NVIDIAGenerator:
 
         return "\n\n---\n\n".join(context_parts)
 
+    def _format_history_text(
+        self, chat_history: Optional[List[Dict[str, str]]]
+    ) -> str:
+        """Format recent chat history turns."""
+        if not chat_history:
+            return ""
+        lines = ["\nRecent Conversation:"]
+        for turn in chat_history[-4:]:
+            role = "Student" if turn.get("role") in ("user", "human") else "Alex"
+            content = turn.get("content", "")
+            lines.append(f"{role}: {content}")
+        return "\n".join(lines) + "\n"
+
     def generate(
         self,
         query: str,
         documents: List[Tuple[Document, float]],
+        chat_history: Optional[List[Dict[str, str]]] = None,
         prompt_template: str = STUDY_ASSISTANT_PROMPT,
     ) -> dict:
         """
@@ -126,6 +142,7 @@ class NVIDIAGenerator:
         Args:
             query: User question
             documents: Retrieved (document, score) tuples
+            chat_history: Optional conversation history
             prompt_template: Prompt template with {context} and {question} placeholders
 
         Returns:
@@ -136,9 +153,11 @@ class NVIDIAGenerator:
 
         # Build context
         context = self._build_context(documents)
+        history_text = self._format_history_text(chat_history)
+        full_query = f"{history_text}\nCurrent Question: {query}" if history_text else query
 
         # Format prompt
-        prompt = prompt_template.format(context=context, question=query)
+        prompt = prompt_template.format(context=context, question=full_query)
 
         # Generate response
         response = self._llm.invoke(prompt)
@@ -157,6 +176,7 @@ class NVIDIAGenerator:
         self,
         query: str,
         documents: List[Tuple[Document, float]],
+        chat_history: Optional[List[Dict[str, str]]] = None,
         prompt_template: str = STUDY_ASSISTANT_PROMPT,
     ) -> AsyncIterator[str]:
         """
@@ -167,6 +187,7 @@ class NVIDIAGenerator:
         Args:
             query: User question
             documents: Retrieved (document, score) tuples
+            chat_history: Optional conversation history
             prompt_template: Prompt template
 
         Yields:
@@ -176,7 +197,9 @@ class NVIDIAGenerator:
             raise RuntimeError("Generator not initialized")
 
         context = self._build_context(documents)
-        prompt = prompt_template.format(context=context, question=query)
+        history_text = self._format_history_text(chat_history)
+        full_query = f"{history_text}\nCurrent Question: {query}" if history_text else query
+        prompt = prompt_template.format(context=context, question=full_query)
 
         try:
             async for chunk in self._llm_streaming.astream(prompt):

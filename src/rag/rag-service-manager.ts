@@ -276,6 +276,7 @@ export async function startRAGService(): Promise<void> {
       RAG_PORT: String(port),
       CHROMA_PERSIST_DIR: persistDir,
       TIKTOKEN_CACHE_DIR: tiktokenCacheDir,
+      PYTHONPATH: path.join(process.cwd(), "python"),
       PYTHONUNBUFFERED: "1", // Ensure immediate stdout/stderr output
     };
 

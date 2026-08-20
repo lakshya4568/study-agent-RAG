@@ -65,7 +65,20 @@ export class DatabaseManager {
   private dbPath: string;
 
   constructor() {
-    const userDataPath = app.getPath("userData");
+    let userDataPath = "";
+    try {
+      if (typeof app !== "undefined" && app && typeof app.getPath === "function") {
+        userDataPath = app.getPath("userData");
+      }
+    } catch {
+      userDataPath = "";
+    }
+
+    if (!userDataPath) {
+      userDataPath =
+        process.env.USER_DATA_DIR || path.join(process.cwd(), "userData");
+    }
+
     this.dbPath = path.join(userDataPath, "study-agent.db");
   }
 
@@ -79,6 +92,7 @@ export class DatabaseManager {
 
       this.db = new DatabaseConstructor(this.dbPath);
       this.db.pragma("journal_mode = WAL");
+      this.db.pragma("foreign_keys = ON");
       this.createTables();
     } catch (error) {
       console.error("Failed to initialize database:", error);
@@ -498,17 +512,26 @@ export class DatabaseManager {
     );
     const rows = stmt.all(messageId) as FlashcardRow[];
 
-    return rows.map((row) => ({
-      id: row.id,
-      set_id: row.set_id,
-      question: row.question,
-      answer: row.answer,
-      difficulty: row.difficulty as "easy" | "medium" | "hard",
-      tags: JSON.parse(row.tags),
-      is_mastered: row.is_mastered === 1,
-      created_at: row.created_at,
-      message_id: row.message_id,
-    }));
+    return rows.map((row) => {
+      let parsedTags: string[] = [];
+      try {
+        parsedTags = Array.isArray(row.tags) ? row.tags : JSON.parse(row.tags || "[]");
+      } catch {
+        parsedTags = [];
+      }
+
+      return {
+        id: row.id,
+        set_id: row.set_id,
+        question: row.question,
+        answer: row.answer,
+        difficulty: row.difficulty as "easy" | "medium" | "hard",
+        tags: parsedTags,
+        is_mastered: row.is_mastered === 1,
+        created_at: row.created_at,
+        message_id: row.message_id,
+      };
+    });
   }
 
   updateFlashcardStatus(id: string, isMastered: boolean) {

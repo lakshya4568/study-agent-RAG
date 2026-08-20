@@ -1,29 +1,26 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   MessageSquare,
+  Brain,
+  FlaskConical,
   Blocks,
   Settings2,
-  Zap,
   Plus,
   History as HistoryIcon,
-  FlaskConical,
+  Sparkles,
 } from "lucide-react";
 import { MainLayout, Sidebar, TopBar } from "./components/layout";
 import { Badge, Button } from "./components/ui";
 import { Chat } from "./views/Chat";
+import { FlashcardsView } from "./views/FlashcardsView";
 import { ServerManager } from "./views/ServerManager";
 import { Settings } from "./views/Settings";
 import { RAGDashboard } from "./views/RAGDashboard";
-import { Login } from "./views/Login";
-import { Signup } from "./views/Signup";
-import { useAuthStore } from "./client/store";
 
 export const App: React.FC = () => {
   const [activeView, setActiveView] = useState<
-    "chat" | "servers" | "settings" | "rag-dashboard"
+    "chat" | "flashcards" | "rag-dashboard" | "servers" | "settings"
   >("chat");
-  const [authView, setAuthView] = useState<"login" | "signup">("login");
-  const { isAuthenticated, logout } = useAuthStore();
 
   const chatActionsRef = useRef<{
     createNewThread: () => void;
@@ -33,84 +30,149 @@ export const App: React.FC = () => {
     openHistory: () => {},
   });
 
-  if (!isAuthenticated) {
-    return authView === "login" ? (
-      <Login onNavigateToSignup={() => setAuthView("signup")} />
-    ) : (
-      <Signup onNavigateToLogin={() => setAuthView("login")} />
-    );
-  }
+  // Global Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey) {
+        if (e.key === "1") {
+          e.preventDefault();
+          setActiveView("chat");
+        } else if (e.key === "2") {
+          e.preventDefault();
+          setActiveView("flashcards");
+        } else if (e.key === "3") {
+          e.preventDefault();
+          setActiveView("rag-dashboard");
+        } else if (e.key === "4") {
+          e.preventDefault();
+          setActiveView("servers");
+        } else if (e.key === "5") {
+          e.preventDefault();
+          setActiveView("settings");
+        } else if (e.key === "n" || e.key === "N") {
+          e.preventDefault();
+          chatActionsRef.current.createNewThread();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const sidebarItems = [
     {
       id: "chat",
       icon: MessageSquare,
       label: "Study Chat",
-      description: "AI Assistant",
+      description: "Cognitive Partner",
+      shortcut: "⌘1",
       onClick: () => setActiveView("chat"),
       active: activeView === "chat",
     },
     {
+      id: "flashcards",
+      icon: Brain,
+      label: "Active Recall",
+      description: "Flashcards Studio",
+      shortcut: "⌘2",
+      onClick: () => setActiveView("flashcards"),
+      active: activeView === "flashcards",
+    },
+    {
+      id: "rag-dashboard",
+      icon: FlaskConical,
+      label: "Vector Studio",
+      description: "RAG & Embeddings",
+      shortcut: "⌘3",
+      onClick: () => setActiveView("rag-dashboard"),
+      active: activeView === "rag-dashboard",
+    },
+    {
       id: "servers",
       icon: Blocks,
-      label: "Tools",
-      description: "Integrations",
+      label: "MCP Tools",
+      description: "Agent Skills",
+      shortcut: "⌘4",
       onClick: () => setActiveView("servers"),
       active: activeView === "servers",
     },
     {
       id: "settings",
       icon: Settings2,
-      label: "Settings",
-      description: "Configuration",
+      label: "Control Studio",
+      description: "Keys & Memory",
+      shortcut: "⌘5",
       onClick: () => setActiveView("settings"),
       active: activeView === "settings",
-    },
-    {
-      id: "rag-dashboard",
-      icon: FlaskConical,
-      label: "RAG Dev",
-      description: "Pipeline Inspector",
-      onClick: () => setActiveView("rag-dashboard"),
-      active: activeView === "rag-dashboard",
     },
   ];
 
   const topBarActions = (
-    <>
-      <Button
-        variant="ghost"
-        size="sm"
-        icon={<Plus className="w-4 h-4" />}
-        onClick={() => chatActionsRef.current.createNewThread()}
-        className="rounded-full bg-background/50 backdrop-blur-sm border border-border/50 shadow-sm hover:bg-background hover:shadow-md transition-all duration-200"
-      >
-        New Chat
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        icon={<HistoryIcon className="w-4 h-4" />}
-        onClick={() => chatActionsRef.current.openHistory()}
-        className="rounded-full bg-background/50 backdrop-blur-sm border border-border/50 shadow-sm hover:bg-background hover:shadow-md transition-all duration-200"
-      >
-        History
-      </Button>
+    <div className="flex items-center gap-2">
+      {activeView === "chat" && (
+        <>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={<Plus className="w-4 h-4" />}
+            onClick={() => chatActionsRef.current.createNewThread()}
+            className="rounded-full text-xs font-semibold px-3.5 bg-card/60 border border-border/40 hover:bg-card shadow-sm"
+          >
+            New Session
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={<HistoryIcon className="w-3.5 h-3.5" />}
+            onClick={() => chatActionsRef.current.openHistory()}
+            className="rounded-full text-xs font-medium px-3 bg-card/60 border border-border/40 hover:bg-card shadow-sm"
+          >
+            History
+          </Button>
+        </>
+      )}
+
       <Badge
         variant="outline"
         size="sm"
-        className="gap-1.5 bg-background/50 backdrop-blur-sm rounded-full"
+        className="hidden sm:inline-flex gap-1 rounded-full text-primary border-primary/30 bg-primary/5 text-[11px] font-semibold"
       >
-        <Zap className="w-3 h-3 text-yellow-500" />
-        Pro Plan
+        <Sparkles className="w-3 h-3" /> Grounded Agent
       </Badge>
-    </>
+    </div>
   );
 
   return (
     <MainLayout
-      sidebar={<Sidebar items={sidebarItems} onLogout={logout} />}
-      topBar={<TopBar title="StudyBuddy" actions={topBarActions} />}
+      sidebar={<Sidebar items={sidebarItems} />}
+      topBar={
+        <TopBar
+          title={
+            activeView === "chat"
+              ? "Study Session"
+              : activeView === "flashcards"
+                ? "Active Recall Studio"
+                : activeView === "rag-dashboard"
+                  ? "Vector Knowledge Studio"
+                  : activeView === "servers"
+                    ? "MCP Tool Integrations"
+                    : "Control Studio"
+          }
+          subtitle={
+            activeView === "chat"
+              ? "Autonomous AI Tutor"
+              : activeView === "flashcards"
+                ? "Interactive Spaced Repetition"
+                : activeView === "rag-dashboard"
+                  ? "ChromaDB & NVIDIA NIM"
+                  : activeView === "servers"
+                    ? "Local Protocol Servers"
+                    : "Configurations & Long-Term Memory"
+          }
+          actions={topBarActions}
+        />
+      }
     >
       {activeView === "chat" && (
         <Chat
@@ -119,9 +181,12 @@ export const App: React.FC = () => {
           }}
         />
       )}
+      {activeView === "flashcards" && <FlashcardsView />}
+      {activeView === "rag-dashboard" && <RAGDashboard />}
       {activeView === "servers" && <ServerManager />}
       {activeView === "settings" && <Settings />}
-      {activeView === "rag-dashboard" && <RAGDashboard />}
     </MainLayout>
   );
 };
+
+export default App;

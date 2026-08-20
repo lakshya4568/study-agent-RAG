@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
+import { Check, Copy } from "lucide-react";
 import "katex/dist/katex.min.css";
 import "./markdown.css";
 
@@ -13,19 +14,55 @@ interface MarkdownRendererProps {
   className?: string;
 }
 
-/**
- * Beautiful Markdown Renderer Component
- *
- * Features:
- * - GitHub Flavored Markdown (tables, strikethrough, task lists)
- * - LaTeX math equations support (inline and display)
- * - Enhanced line breaks
- * - Syntax highlighted code blocks
- * - Custom styled tables with hover effects
- * - Professional typography with Inter and Work Sans fonts
- * - Native emoji support (renders Unicode emojis naturally)
- */
-export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
+const CodeBlock: React.FC<{ language?: string; value: string; className?: string }> = ({
+  language,
+  value,
+  className,
+}) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // ignore
+    }
+  };
+
+  return (
+    <div className="code-block-wrapper my-3 rounded-2xl overflow-hidden border border-border/40 bg-zinc-950 shadow-xl">
+      <div className="code-block-header px-4 py-2 bg-zinc-900/80 border-b border-border/30 flex items-center justify-between">
+        <span className="code-language text-[11px] font-mono font-medium text-muted-foreground uppercase tracking-wider">
+          {language || "code"}
+        </span>
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg hover:bg-white/10 transition-colors"
+          title="Copy code"
+        >
+          {copied ? (
+            <>
+              <Check className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="text-[11px] text-emerald-400 font-medium">Copied!</span>
+            </>
+          ) : (
+            <>
+              <Copy className="w-3.5 h-3.5" />
+              <span className="text-[11px]">Copy</span>
+            </>
+          )}
+        </button>
+      </div>
+      <pre className="code-block p-4 overflow-x-auto text-xs font-mono leading-relaxed text-zinc-200">
+        <code className={className}>{value}</code>
+      </pre>
+    </div>
+  );
+};
+
+export const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(({
   content,
   className = "",
 }) => {
@@ -35,79 +72,66 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         remarkPlugins={[remarkGfm, remarkMath, remarkBreaks]}
         rehypePlugins={[rehypeKatex, rehypeRaw]}
         components={{
-          // Tables with beautiful styling
           table: ({ ...props }) => (
-            <table className="markdown-table" {...props} />
+            <div className="overflow-x-auto my-4 rounded-xl border border-border/40 shadow-sm">
+              <table className="markdown-table m-0 w-full" {...props} />
+            </div>
           ),
-
-          // Table headers with gradient background
-          th: ({ ...props }) => <th className="markdown-th" {...props} />,
-
-          // Table cells with hover effects
-          td: ({ ...props }) => <td className="markdown-td" {...props} />,
-
-          // Code blocks with syntax highlighting
+          th: ({ ...props }) => (
+            <th
+              className="bg-muted/60 text-foreground px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider border-b border-border/50"
+              {...props}
+            />
+          ),
+          td: ({ ...props }) => (
+            <td className="px-4 py-2.5 text-sm border-b border-border/30" {...props} />
+          ),
           code: ({ className, children, ...props }) => {
             const match = /language-(\w+)/.exec(className || "");
             const language = match ? match[1] : "";
-
-            // Check if this is inline code (no language class)
             const isInline = !className || !className.includes("language-");
+            const codeString = String(children).replace(/\n$/, "");
 
             return isInline ? (
-              <code className="inline-code" {...props}>
+              <code
+                className="inline-code bg-muted/60 text-foreground px-1.5 py-0.5 rounded-md text-[13px] font-mono border border-border/40"
+                {...props}
+              >
                 {children}
               </code>
             ) : (
-              <div className="code-block-wrapper">
-                {language && (
-                  <div className="code-block-header">
-                    <span className="code-language">{language}</span>
-                  </div>
-                )}
-                <pre className="code-block">
-                  <code className={className} {...props}>
-                    {children}
-                  </code>
-                </pre>
-              </div>
+              <CodeBlock language={language} value={codeString} className={className} />
             );
           },
-
-          // Headers with enhanced styling
-          h1: ({ ...props }) => <h1 className="markdown-h1" {...props} />,
-          h2: ({ ...props }) => <h2 className="markdown-h2" {...props} />,
-          h3: ({ ...props }) => <h3 className="markdown-h3" {...props} />,
-          h4: ({ ...props }) => <h4 className="markdown-h4" {...props} />,
-
-          // Links with hover effects
+          h1: ({ ...props }) => (
+            <h1 className="text-xl font-bold text-foreground mt-4 mb-2 tracking-tight" {...props} />
+          ),
+          h2: ({ ...props }) => (
+            <h2 className="text-lg font-bold text-foreground mt-3 mb-2 tracking-tight" {...props} />
+          ),
+          h3: ({ ...props }) => (
+            <h3 className="text-base font-semibold text-foreground mt-2 mb-1 tracking-tight" {...props} />
+          ),
+          p: ({ ...props }) => (
+            <p className="text-sm leading-relaxed mb-2.5 last:mb-0 text-foreground/90" {...props} />
+          ),
+          ul: ({ ...props }) => <ul className="list-disc pl-5 my-2 space-y-1 text-sm" {...props} />,
+          ol: ({ ...props }) => <ol className="list-decimal pl-5 my-2 space-y-1 text-sm" {...props} />,
+          li: ({ ...props }) => <li className="leading-relaxed" {...props} />,
+          blockquote: ({ ...props }) => (
+            <blockquote
+              className="border-l-2 border-primary/50 bg-primary/5 pl-4 py-1.5 my-3 rounded-r-xl text-sm italic text-muted-foreground"
+              {...props}
+            />
+          ),
+          hr: ({ ...props }) => <hr className="border-border/40 my-4" {...props} />,
           a: ({ ...props }) => (
             <a
-              className="markdown-link"
+              className="text-primary font-medium hover:underline inline-flex items-center gap-0.5"
               target="_blank"
               rel="noopener noreferrer"
               {...props}
             />
-          ),
-
-          // Blockquotes with left border accent
-          blockquote: ({ ...props }) => (
-            <blockquote className="markdown-blockquote" {...props} />
-          ),
-
-          // Lists with proper spacing
-          ul: ({ ...props }) => <ul className="markdown-ul" {...props} />,
-          ol: ({ ...props }) => <ol className="markdown-ol" {...props} />,
-
-          // Horizontal rules with gradient
-          hr: ({ ...props }) => <hr className="markdown-hr" {...props} />,
-
-          // Images with responsive sizing
-          img: ({ ...props }) => <img className="markdown-img" {...props} />,
-
-          // Task lists (GitHub style checkboxes)
-          input: ({ ...props }) => (
-            <input className="markdown-checkbox" {...props} />
           ),
         }}
       >
@@ -115,6 +139,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       </ReactMarkdown>
     </div>
   );
-};
+});
 
 export default MarkdownRenderer;
+

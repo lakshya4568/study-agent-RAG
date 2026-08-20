@@ -3,7 +3,13 @@ import type { CompiledStateGraph } from "@langchain/langgraph";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 import type { StudyAgentStateType } from "./state";
 import { StudyAgentState } from "./state";
-import { createQueryNode, retrieveNode, routeNode, flashcardNode, createMemoryNode } from "./nodes";
+import {
+  createQueryNode,
+  retrieveNode,
+  routeNode,
+  flashcardNode,
+  createMemoryNode,
+} from "./nodes";
 import type { MemoryManager } from "./MemoryManager";
 
 export async function createStudyMentorGraph(
@@ -34,42 +40,10 @@ export async function createStudyMentorGraph(
     memory: "memory",
   });
 
-  // If we came to flashcard via a direct route but wanted content, maybe we should have gone through RAG first?
-  // Actually, let's make the flashcard node smarter or route via RAG if needed.
-  // For now, let's assume the router detects "flashcard" intent.
-  // If the user wants flashcards FROM a document, the router might need to know that.
-  // A better flow might be: Router -> RAG -> Flashcard OR Router -> Flashcard.
-  // To support RAG context for flashcards, we can change the routing logic slightly
-  // or let the flashcard node be the destination after RAG if the intent was flashcards.
-  // But to keep it simple per requirements:
-  // "Update the graph workflow... Create edge: router → flashcard → END"
-
-  workflow.addEdge("flashcard", END);
-
-  // Memory commands end immediately after the memory node
-  workflow.addEdge("memory", END);
-
   workflow.addEdge("retrieve", "query");
-
-  workflow.addConditionalEdges(
-    "query",
-    (state) => {
-      const lastMsg = state.messages[state.messages.length - 1];
-      const hasToolCalls =
-        typeof lastMsg === "object" &&
-        lastMsg !== null &&
-        "tool_calls" in lastMsg &&
-        Array.isArray((lastMsg as { tool_calls?: unknown }).tool_calls) &&
-        ((lastMsg as { tool_calls?: unknown[] }).tool_calls?.length ?? 0) > 0;
-      return hasToolCalls ? "tools" : END;
-    },
-    {
-      tools: "tools",
-      [END]: END,
-    }
-  );
-
-  workflow.addEdge("tools", "query");
+  workflow.addEdge("query", END);
+  workflow.addEdge("flashcard", END);
+  workflow.addEdge("memory", END);
 
   const checkpointer = new MemorySaver();
   return workflow.compile({ checkpointer }) as CompiledStateGraph<
@@ -77,3 +51,4 @@ export async function createStudyMentorGraph(
     Partial<StudyAgentStateType>
   >;
 }
+

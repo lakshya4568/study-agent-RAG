@@ -1,9 +1,12 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { cn } from '../../lib/utils';
+import React from "react";
+import { motion } from "framer-motion";
+import { cn } from "../../lib/utils";
+import { Sun, Moon, Sparkles, Cpu } from "lucide-react";
+import { useChatStore } from "../../client/store";
 
 interface TopBarProps {
   title?: string;
+  subtitle?: string;
   actions?: React.ReactNode;
   breadcrumbs?: React.ReactNode;
   className?: string;
@@ -11,42 +14,75 @@ interface TopBarProps {
 
 export const TopBar: React.FC<TopBarProps> = ({
   title,
+  subtitle,
   actions,
   breadcrumbs,
   className,
 }) => {
+  const { theme, setTheme } = useChatStore();
+
+  const toggleTheme = () => {
+    if (theme === "dark") {
+      setTheme("light");
+      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("theme-light");
+    } else {
+      setTheme("dark");
+      document.documentElement.classList.remove("theme-light");
+      document.documentElement.classList.add("dark");
+    }
+  };
+
   return (
-    <motion.header
-      initial={{ y: -80, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+    <header
       className={cn(
-        'flex items-center justify-between px-8 py-4 bg-white/80 backdrop-blur-xl border-b border-gray-200 shadow-sm',
+        "flex items-center justify-between px-6 py-3.5 bg-card/40 backdrop-blur-xl border-b border-border/40 shadow-sm z-30",
         className
       )}
     >
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 min-w-0">
         {breadcrumbs && (
-          <div className="text-sm text-gray-600">
+          <div className="text-xs text-muted-foreground font-medium flex items-center gap-1">
             {breadcrumbs}
           </div>
         )}
         {title && (
-          <motion.h1
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent"
-          >
-            {title}
-          </motion.h1>
+          <div className="flex items-center gap-2 min-w-0">
+            <h1 className="text-base font-bold text-foreground tracking-tight truncate">
+              {title}
+            </h1>
+            {subtitle && (
+              <span className="text-xs text-muted-foreground font-medium hidden sm:inline truncate">
+                · {subtitle}
+              </span>
+            )}
+          </div>
         )}
       </div>
-      {actions && (
-        <div className="flex items-center gap-2">
-          {actions}
+
+      <div className="flex items-center gap-2.5 shrink-0">
+        {/* Model telemetry pill */}
+        <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/40 border border-border/30 text-xs font-medium text-muted-foreground">
+          <Cpu className="w-3.5 h-3.5 text-primary" />
+          <span>NVIDIA Moonshot Kimi-k2</span>
         </div>
-      )}
-    </motion.header>
+
+        {/* Theme toggle */}
+        <button
+          onClick={toggleTheme}
+          className="w-9 h-9 rounded-full bg-card border border-border/60 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all active:scale-95 shadow-sm"
+          title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+        >
+          {theme === "dark" ? (
+            <Sun className="w-4 h-4 text-amber-400" />
+          ) : (
+            <Moon className="w-4 h-4 text-indigo-400" />
+          )}
+        </button>
+
+        {actions && <div className="flex items-center gap-2">{actions}</div>}
+      </div>
+    </header>
   );
 };
+

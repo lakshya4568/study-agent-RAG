@@ -1,6 +1,5 @@
 import React from "react";
 import { cn } from "../../lib/utils";
-import studyBackground from "../../assets/study_background.png";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -18,33 +17,31 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   return (
     <div
       className={cn(
-        "h-screen w-screen overflow-hidden flex flex-col bg-background/80 text-foreground selection:bg-primary/20 relative",
+        "h-screen w-screen overflow-hidden flex flex-col bg-background text-foreground selection:bg-primary/25 relative",
         className
       )}
     >
-      {/* Background Image */}
-      <div className="absolute inset-0 z-[-1]">
-        <img
-          src={studyBackground}
-          alt=""
-          className="w-full h-full object-cover object-center opacity-90"
-        />
-        <div className="absolute inset-0 bg-white/30 backdrop-blur-[1px]" />
+      {/* High-Performance Ambient Radial Accents */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute -top-32 -left-32 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 -right-48 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl" />
+        <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-teal-500/5 rounded-full blur-3xl" />
       </div>
 
       {/* Top Bar */}
-      {topBar && <div className="shrink-0 z-20">{topBar}</div>}
+      {topBar && <div className="shrink-0 z-30">{topBar}</div>}
 
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden relative z-10">
         {/* Sidebar */}
         {sidebar && <div className="shrink-0 z-20">{sidebar}</div>}
 
-        {/* Content */}
-        <main className="flex-1 overflow-hidden relative z-0">
+        {/* Dynamic View Canvas */}
+        <main className="flex-1 overflow-hidden relative z-10 flex flex-col">
           {children}
         </main>
       </div>
     </div>
   );
 };
+

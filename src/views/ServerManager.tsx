@@ -1,7 +1,17 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Blocks, Trash2, AlertCircle, Terminal, Package, Command, Plug } from "lucide-react";
+import {
+  Plus,
+  Blocks,
+  Trash2,
+  AlertCircle,
+  Package,
+  Command,
+  Plug,
+  CheckCircle2,
+  Sparkles,
+  Zap,
+} from "lucide-react";
 import { ContentContainer } from "../components/layout";
 import { Button, Card, Input, Badge } from "../components/ui";
 
@@ -96,7 +106,7 @@ export const ServerManager: React.FC = () => {
   };
 
   const handleRemoveServer = async (serverId: string) => {
-    if (!confirm("Remove this tool?")) return;
+    if (!confirm("Disconnect and remove this tool server?")) return;
 
     try {
       await window.mcpClient.removeServer(serverId);
@@ -106,253 +116,213 @@ export const ServerManager: React.FC = () => {
     }
   };
 
-  const getStatusVariant = (
-    status: string
-  ): "success" | "warning" | "error" | "default" => {
-    switch (status) {
-      case "connected":
-        return "success";
-      case "connecting":
-        return "warning";
-      case "error":
-        return "error";
-      default:
-        return "default";
-    }
-  };
-
   return (
-    <ContentContainer className="max-w-5xl mx-auto p-6 md:p-8">
-      {/* Header with Add Button */}
-      <div className="flex items-center justify-between mb-8 pb-6">
+    <ContentContainer className="max-w-5xl mx-auto p-6 md:p-8 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4 pb-5 border-b border-border/40">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
-            <Blocks className="w-8 h-8 text-primary" />
-            Tools & Integrations
+          <h2 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
+            <Blocks className="w-7 h-7 text-primary" />
+            MCP Tool Integrations
           </h2>
-          <p className="text-muted-foreground mt-2 text-lg">
-            Connect external apps to supercharge your study buddy.
+          <p className="text-sm text-muted-foreground mt-1">
+            Connect Model Context Protocol (MCP) servers to equip your AI agent with filesystem and
+            API skills.
           </p>
         </div>
         <Button
           icon={showAddForm ? undefined : <Plus className="w-4 h-4" />}
           onClick={() => setShowAddForm(!showAddForm)}
           variant={showAddForm ? "ghost" : "primary"}
-          className="rounded-full"
+          className="rounded-full px-5 text-xs font-semibold"
         >
-          {showAddForm ? "Cancel" : "Add New Tool"}
+          {showAddForm ? "Cancel" : "Connect Tool Server"}
         </Button>
       </div>
 
-      {/* Add Server Form */}
+      {/* Add Server Modal Form */}
       <AnimatePresence>
         {showAddForm && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="mb-8 overflow-hidden"
+            className="overflow-hidden"
           >
-            <Card className="bubbly-card p-6 border-primary/20 bg-primary/5">
-              <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-                <Plug className="w-6 h-6 text-primary" />
-                Connect New Tool
-              </h3>
-              <form onSubmit={handleAddServer} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Input
-                    label="Tool Name"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                    placeholder="e.g. Google Drive"
-                    required
-                    className="bg-background rounded-xl"
-                  />
+            <div className="double-bezel mb-6">
+              <div className="double-bezel-inner p-6 bg-card/80 space-y-5">
+                <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                  <Plug className="w-5 h-5 text-primary" /> Connect New MCP Server
+                </h3>
 
-                  <Input
-                    label="ID (Optional)"
-                    value={formData.id}
-                    onChange={(e) =>
-                      setFormData({ ...formData, id: e.target.value })
-                    }
-                    placeholder="Auto-generated"
-                    className="bg-background rounded-xl"
-                  />
-                </div>
+                <form onSubmit={handleAddServer} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      label="Integration Name"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="e.g. Local Filesystem"
+                      required
+                      className="rounded-xl"
+                    />
+                    <Input
+                      label="Server Identifier (Optional)"
+                      value={formData.id}
+                      onChange={(e) => setFormData({ ...formData, id: e.target.value })}
+                      placeholder="auto-generated"
+                      className="rounded-xl"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Type
-                  </label>
-                  <div className="relative">
+                  <div>
+                    <label className="block text-xs font-medium text-foreground mb-1.5">
+                      Runtime Type
+                    </label>
                     <select
                       value={formData.command}
-                      onChange={(e) =>
-                        setFormData({ ...formData, command: e.target.value })
-                      }
-                      className="w-full px-4 py-2.5 rounded-xl border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 appearance-none"
+                      onChange={(e) => setFormData({ ...formData, command: e.target.value })}
+                      className="w-full px-3.5 py-2 rounded-xl border border-border/60 bg-muted/30 text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary"
                       required
                     >
-                      <option value="node">Node.js Script</option>
-                      <option value="npx">NPX Package</option>
-                      <option value="python">Python Script</option>
+                      <option value="node">Node.js Binary</option>
+                      <option value="npx">NPX Package Execution</option>
+                      <option value="python">Python Interpreter</option>
                     </select>
-                    <Command className="absolute right-3 top-3 w-4 h-4 text-muted-foreground pointer-events-none" />
                   </div>
-                </div>
 
-                {formData.command === "npx" ? (
-                  <>
+                  {formData.command === "npx" ? (
+                    <div className="space-y-4">
+                      <Input
+                        label="NPX Package"
+                        value={formData.npxPackage}
+                        onChange={(e) => setFormData({ ...formData, npxPackage: e.target.value })}
+                        placeholder="@modelcontextprotocol/server-filesystem"
+                        required
+                        className="rounded-xl"
+                      />
+                      <Input
+                        label="Allowed Directory / Arguments"
+                        value={formData.additionalArgs}
+                        onChange={(e) => setFormData({ ...formData, additionalArgs: e.target.value })}
+                        placeholder="/Users/username/Desktop/Notes"
+                        className="rounded-xl"
+                      />
+                    </div>
+                  ) : (
                     <Input
-                      label="Package Name"
-                      value={formData.npxPackage}
-                      onChange={(e) =>
-                        setFormData({ ...formData, npxPackage: e.target.value })
-                      }
-                      placeholder="@modelcontextprotocol/server-filesystem"
+                      label="Executable Script Path"
+                      value={formData.serverPath}
+                      onChange={(e) => setFormData({ ...formData, serverPath: e.target.value })}
+                      placeholder="/absolute/path/to/server.js"
                       required
-                      className="bg-background rounded-xl"
+                      className="rounded-xl"
                     />
-                    <Input
-                      label="Arguments (Optional)"
-                      value={formData.additionalArgs}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          additionalArgs: e.target.value,
-                        })
-                      }
-                      placeholder="e.g. /path/to/allowed/dir"
-                      className="bg-background rounded-xl"
-                    />
-                  </>
-                ) : (
-                  <Input
-                    label="Script Path"
-                    value={formData.serverPath}
-                    onChange={(e) =>
-                      setFormData({ ...formData, serverPath: e.target.value })
-                    }
-                    placeholder="/absolute/path/to/server.js"
-                    required
-                    className="bg-background rounded-xl"
-                  />
-                )}
+                  )}
 
-                {error && (
-                  <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                    <span>{error}</span>
+                  {error && (
+                    <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-xs flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{error}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setShowAddForm(false)}
+                      className="rounded-xl"
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" loading={loading} className="rounded-xl px-6">
+                      Launch & Connect
+                    </Button>
                   </div>
-                )}
-
-                <div className="flex gap-3 pt-2">
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    loading={loading}
-                    className="flex-1 rounded-xl"
-                  >
-                    Connect Tool
-                  </Button>
-                </div>
-              </form>
-            </Card>
+                </form>
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Servers Grid */}
+      {/* Servers Listing */}
       {servers.length === 0 ? (
-        <Card className="text-center py-16 border-dashed border-2 bg-muted/5 rounded-3xl">
-          <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mx-auto mb-6">
-            <Blocks className="w-10 h-10 text-muted-foreground" />
+        <div className="double-bezel text-center p-12">
+          <div className="double-bezel-inner p-8 flex flex-col items-center">
+            <Blocks className="w-12 h-12 text-muted-foreground/30 mb-3" />
+            <h3 className="text-base font-bold text-foreground">No MCP Tool Servers Connected</h3>
+            <p className="text-xs text-muted-foreground mt-1 max-w-md leading-relaxed mb-4">
+              Equip your study agent with external tools like filesystem access or web search by
+              connecting an MCP server.
+            </p>
+            <Button
+              onClick={() => setShowAddForm(true)}
+              icon={<Plus className="w-4 h-4" />}
+              className="rounded-full"
+            >
+              Add First Tool Server
+            </Button>
           </div>
-          <h3 className="text-xl font-bold text-foreground mb-2">
-            No Tools Connected
-          </h3>
-          <p className="text-muted-foreground mb-8 text-base max-w-md mx-auto">
-            Add a tool to give your study buddy more capabilities, like reading files or searching the web.
-          </p>
-          <Button
-            onClick={() => setShowAddForm(true)}
-            icon={<Plus className="w-4 h-4" />}
-            className="rounded-full"
-          >
-            Add First Tool
-          </Button>
-        </Card>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <AnimatePresence>
-            {servers.map((server, index) => (
-              <motion.div
-                key={server.config.id}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <Card hoverable className="h-full flex flex-col border-border shadow-sm hover:shadow-lg transition-all group bubbly-card p-5">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1 min-w-0 pr-3">
-                      <h3 className="text-lg font-bold text-foreground truncate">
-                        {server.config.name}
-                      </h3>
-                      <div className="mt-1">
-                        <Badge
-                          variant={getStatusVariant(server.status)}
-                          size="sm"
-                          className="rounded-full px-2"
-                        >
-                          {server.status === "connected" ? "Active" : server.status}
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                      <Package className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 text-sm text-muted-foreground mb-6 flex-1">
-                    <div className="flex justify-between items-center py-1 border-b border-border/30">
-                      <span className="text-xs font-medium">Type</span>
-                      <span className="text-xs opacity-70">
-                        {server.config.command === "node" ? "Node.js" : server.config.command === "npx" ? "NPX" : "Python"}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {servers.map((server) => (
+            <div key={server.config.id} className="double-bezel">
+              <div className="double-bezel-inner p-5 bg-card/60 flex flex-col justify-between h-full space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="text-base font-bold text-foreground truncate">
+                      {server.config.name}
+                    </h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span
+                        className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                          server.status === "connected"
+                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                            : "bg-muted text-muted-foreground border-border/40"
+                        }`}
+                      >
+                        <Zap className="w-2.5 h-2.5" />
+                        {server.status === "connected" ? "Connected" : server.status}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        {server.config.command}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center py-1">
-                      <span className="text-xs font-medium">Capabilities</span>
-                      <Badge variant="outline" size="sm" className="rounded-full">
-                        {server.tools.length} skills
-                      </Badge>
-                    </div>
                   </div>
 
-                  {server.error && (
-                    <div className="mb-4 p-2 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-xs flex items-start gap-2">
-                      <AlertCircle className="w-3 h-3 shrink-0 mt-0.5" />
-                      <span className="break-all">{server.error}</span>
-                    </div>
-                  )}
+                  <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0">
+                    <Package className="w-4 h-4" />
+                  </div>
+                </div>
 
+                {/* Available tools count */}
+                <div className="py-2 px-3 rounded-xl bg-muted/30 border border-border/30 flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Exposed Tool Skills</span>
+                  <span className="font-semibold text-foreground">
+                    {server.tools?.length || 0} Registered
+                  </span>
+                </div>
+
+                <div className="pt-2 border-t border-border/30 flex justify-end">
                   <Button
                     variant="ghost"
                     size="sm"
-                    icon={<Trash2 className="w-4 h-4" />}
                     onClick={() => handleRemoveServer(server.config.id)}
-                    className="w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl"
+                    className="text-xs text-destructive hover:bg-destructive/10 rounded-xl"
+                    icon={<Trash2 className="w-3.5 h-3.5" />}
                   >
                     Disconnect
                   </Button>
-                </Card>
-              </motion.div>
-            ))}
-          </AnimatePresence>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </ContentContainer>
   );
 };
+
+export default ServerManager;

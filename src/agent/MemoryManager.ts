@@ -130,7 +130,21 @@ export class MemoryManager {
   private temporaryMode = false;
 
   constructor() {
-    const userDataPath = app.getPath("userData");
+    let userDataPath = "";
+    try {
+      if (typeof app !== "undefined" && app && typeof app.getPath === "function") {
+        userDataPath = app.getPath("userData");
+      }
+    } catch {
+      userDataPath = "";
+    }
+
+    if (!userDataPath) {
+      userDataPath =
+        process.env.USER_DATA_DIR ||
+        path.join(process.cwd(), "userData");
+    }
+
     this.memoryDir = path.join(userDataPath, "memory");
     this.memoryPath = path.join(this.memoryDir, "Memory.md");
     this.chatHistoryPath = path.join(this.memoryDir, "Chat_History_Summary.md");
@@ -236,15 +250,20 @@ export class MemoryManager {
       return;
     }
 
+    if (!process.env.NVIDIA_API_KEY) {
+      logger.debug("[Memory] NVIDIA_API_KEY not configured — skipping background memory analysis");
+      return;
+    }
+
     try {
       const currentMemory = this.loadMemory();
 
       const prompt = MEMORY_ANALYSIS_PROMPT.replace(
         "{CURRENT_MEMORY}",
-        currentMemory || "(empty)"
+        () => currentMemory || "(empty)"
       )
-        .replace("{USER_MESSAGE}", userMessage)
-        .replace("{ASSISTANT_RESPONSE}", assistantResponse);
+        .replace("{USER_MESSAGE}", () => userMessage)
+        .replace("{ASSISTANT_RESPONSE}", () => assistantResponse);
 
       const model = createNVIDIAOpenAIChat({ temperature: 0.1, maxTokens: 1000 });
       const raw = await model.invoke([{ role: "user", content: prompt }]);
@@ -264,7 +283,7 @@ export class MemoryManager {
       }
 
       // Apply memory updates
-      if (analysis.memoryUpdates.length > 0) {
+      if (analysis.memoryUpdates && analysis.memoryUpdates.length > 0) {
         this.applyMemoryUpdates(analysis.memoryUpdates);
         logger.info(
           `[Memory] Applied ${analysis.memoryUpdates.length} update(s) to Memory.md`

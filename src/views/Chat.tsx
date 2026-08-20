@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Send,
@@ -11,105 +11,86 @@ import {
   Calendar,
   PenTool,
   Trash2,
-  Upload,
-  CheckCircle,
-  AlertCircle,
+  Paperclip,
+  Sparkles,
   X,
   History,
   MessageSquare,
-  Smile,
-  Paperclip,
-  Sparkles,
-  Plus,
+  Search,
+  CheckCircle2,
+  AlertCircle,
+  Cpu,
 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { Drawer } from "../components/ui/Drawer";
 import { cn } from "../lib/utils";
 import {
   Button,
   TextArea,
-  QuickActionCard,
   MessageBubble,
   LoadingSpinner,
   Badge,
   ToolCallApproval,
   PendingToolCall,
-  FlashcardViewer,
 } from "../components/ui";
 import { useChatStore, useAuthStore } from "../client/store";
-import { ThemeSelector } from "../components/ui/ThemeSelector";
+import heroBackdrop from "../assets/study_hero_backdrop.jpg";
 
 interface Message {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: Date;
-  toolCalls?: ToolCall[];
+  toolCalls?: unknown[];
 }
 
-interface ToolCall {
-  toolName: string;
-  serverId: string;
-  args?: Record<string, unknown>;
-  result?: unknown;
-  error?: string;
-}
-
-interface Tool {
-  name: string;
-  description?: string;
-  serverId: string;
-}
-
-const quickActions = [
+const studyAccelerators = [
   {
     id: "summarize",
     Icon: FileText,
-    title: "Summarize",
-    description: "Create a summary of your document",
-    prompt: "I need help summarizing a document. What should I do?",
-    gradient: "from-blue-400 to-blue-600",
+    title: "Executive Synthesis",
+    description: "Distill key principles from active study documents",
+    prompt: "Please provide an executive summary of the main arguments in our study documents.",
+    color: "text-blue-400 bg-blue-500/10 border-blue-500/20",
   },
   {
     id: "flashcards",
     Icon: Brain,
-    title: "Flashcards",
-    description: "Generate study flashcards",
-    prompt: "Can you help me create flashcards for studying?",
-    gradient: "from-purple-400 to-purple-600",
+    title: "Active Recall Deck",
+    description: "Generate 10 structured conceptual flashcards",
+    prompt: "Create 10 high-yield study flashcards based on the uploaded material.",
+    color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+  },
+  {
+    id: "feynman",
+    Icon: Lightbulb,
+    title: "Feynman Breakdown",
+    description: "Explain difficult mechanisms using intuitive mental models",
+    prompt: "Break down the most complex concept from the documents using the Feynman technique.",
+    color: "text-amber-400 bg-amber-500/10 border-amber-500/20",
   },
   {
     id: "quiz",
     Icon: BookOpen,
-    title: "Create Quiz",
-    description: "Generate a quiz to test knowledge",
-    prompt: "I want to create a quiz to test my knowledge.",
-    gradient: "from-pink-400 to-pink-600",
-  },
-  {
-    id: "explain",
-    Icon: Lightbulb,
-    title: "Explain",
-    description: "Get explanations for complex topics",
-    prompt: "Can you explain a concept to me in simple terms?",
-    gradient: "from-yellow-400 to-orange-500",
+    title: "Practice Exam",
+    description: "Test mastery with multiple-choice and short-answer prompts",
+    prompt: "Generate a rigorous 5-question test with step-by-step solutions to assess my understanding.",
+    color: "text-rose-400 bg-rose-500/10 border-rose-500/20",
   },
   {
     id: "schedule",
     Icon: Calendar,
-    title: "Study Plan",
-    description: "Create a study schedule",
-    prompt: "Help me create an effective study schedule.",
-    gradient: "from-green-400 to-emerald-600",
+    title: "Mastery Roadmap",
+    description: "Build an optimized multi-day revision schedule",
+    prompt: "Help me design a spaced repetition study schedule to master this topic in 7 days.",
+    color: "text-teal-400 bg-teal-500/10 border-teal-500/20",
   },
   {
     id: "practice",
     Icon: PenTool,
-    title: "Practice",
-    description: "Practice with exercises",
-    prompt: "I want to practice with some exercises.",
-    gradient: "from-indigo-400 to-violet-600",
+    title: "Problem Solver",
+    description: "Walk through step-by-step problem sets",
+    prompt: "Give me an applied problem related to our topic and guide me through the solution.",
+    color: "text-violet-400 bg-violet-500/10 border-violet-500/20",
   },
 ];
 
@@ -121,20 +102,14 @@ interface ChatProps {
 }
 
 export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
-  const {
-    activeThreadId,
-    setActiveThreadId,
-    selectedDocument,
-    setSelectedDocument,
-  } = useChatStore();
+  const { activeThreadId, setActiveThreadId, selectedDocument, setSelectedDocument } =
+    useChatStore();
   const { user } = useAuthStore();
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [tools, setTools] = useState<Tool[]>([]);
-  const [pendingToolCalls, setPendingToolCalls] = useState<PendingToolCall[]>(
-    []
-  );
+  const [pendingToolCalls, setPendingToolCalls] = useState<PendingToolCall[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{
     stage: string;
@@ -145,69 +120,69 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
     type: "success" | "error";
     message: string;
   } | null>(null);
+
   const [showHistory, setShowHistory] = useState(false);
+  const [historySearch, setHistorySearch] = useState("");
   const [threads, setThreads] = useState<
-    Array<{
-      id: string;
-      title: string;
-      created_at: number;
-    }>
+    Array<{ id: string; title: string; created_at: number }>
   >([]);
+
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const isUserScrolledUp = useRef(false);
+
+  // Load threads and messages
+  const loadThreads = useCallback(async () => {
+    try {
+      const result = await window.db.getThreads(user?.id || "local-user");
+      if (result.success && result.threads) {
+        setThreads(result.threads);
+      }
+    } catch (err) {
+      console.error("Failed to load threads:", err);
+    }
+  }, [user?.id]);
+
+  const loadMessages = useCallback(async (threadId: string) => {
+    try {
+      const result = await window.db.getMessages(threadId);
+      if (result.success && result.messages) {
+        setMessages(
+          result.messages.map((msg) => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            timestamp: new Date(msg.timestamp),
+          }))
+        );
+      }
+    } catch (err) {
+      console.error("Failed to load messages:", err);
+    }
+  }, []);
+
+  const checkPendingTools = useCallback(async () => {
+    try {
+      const pending = await window.mcpClient.getPendingToolRequests();
+      setPendingToolCalls((pending || []) as PendingToolCall[]);
+    } catch {
+      // ignore
+    }
+  }, []);
 
   useEffect(() => {
-    loadTools();
     loadThreads();
+    checkPendingTools();
     if (activeThreadId) {
       loadMessages(activeThreadId);
     } else {
       setMessages([]);
     }
+  }, [activeThreadId, loadThreads, loadMessages, checkPendingTools]);
 
-    const pollInterval = setInterval(loadPendingToolCalls, 2000);
-    return () => clearInterval(pollInterval);
-  }, [activeThreadId]);
-
-  const deriveTitle = (
-    msgs: Array<{ role: string; content: string }>
-  ): string => {
-    const firstUser = msgs.find((m) => m.role === "user" && m.content.trim());
-    if (!firstUser) return "New Chat";
-    const compact = firstUser.content.trim().replace(/\s+/g, " ");
-    return compact.length > 40 ? `${compact.slice(0, 40)}...` : compact;
-  };
-
-  const loadThreads = async () => {
-    if (!user) return;
-    const result = await window.db.getThreads(user.id);
-    if (!(result.success && result.threads)) return;
-
-    const hydrated: typeof threads = [];
-    for (const thread of result.threads) {
-      const messages = await window.db.getMessages(thread.id);
-      if (
-        messages.success &&
-        messages.messages &&
-        messages.messages.length > 0
-      ) {
-        const newTitle = deriveTitle(
-          messages.messages.map((m) => ({ role: m.role, content: m.content }))
-        );
-        if (newTitle !== thread.title) {
-          await window.db.updateThreadTitle(thread.id, newTitle);
-          hydrated.push({ ...thread, title: newTitle });
-          continue;
-        }
-      }
-      hydrated.push(thread);
-    }
-
-    setThreads(hydrated);
-  };
-
-  // Register functions with parent
-  React.useEffect(() => {
+  // Register parent actions
+  useEffect(() => {
     if (onRegisterActions) {
       onRegisterActions({
         createNewThread,
@@ -216,96 +191,27 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
     }
   }, [onRegisterActions]);
 
-  const loadMessages = async (threadId: string) => {
-    const result = await window.db.getMessages(threadId);
-    if (result.success && result.messages) {
-      setMessages(
-        result.messages.map((msg) => ({
-          id: msg.id,
-          role: msg.role,
-          content: msg.content,
-          timestamp: new Date(msg.timestamp),
-        }))
-      );
-    }
-  };
-
-  const loadTools = async () => {
-    try {
-      const availableTools = await window.mcpClient.getAllTools();
-      setTools(availableTools);
-    } catch (err) {
-      console.error("Failed to load tools:", err);
-    }
-  };
-
-  const loadPendingToolCalls = async () => {
-    try {
-      const pending = await window.mcpClient.getPendingToolRequests();
-      setPendingToolCalls(pending as PendingToolCall[]);
-    } catch (err) {
-      console.error("Failed to load pending tool calls:", err);
-    }
-  };
-
-  const handleToolApprove = async (toolCallId: string) => {
-    if (!activeThreadId) return;
-    try {
-      await window.mcpClient.approveToolExecution(toolCallId);
-      setPendingToolCalls((prev) => prev.filter((t) => t.id !== toolCallId));
-
-      const systemMsg: Message = {
-        id: `msg-${Date.now()}`,
-        role: "system",
-        content: `✅ Tool approved`,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, systemMsg]);
-
-      await window.db.saveMessage({
-        id: systemMsg.id,
-        threadId: activeThreadId,
-        role: systemMsg.role,
-        content: systemMsg.content,
-        timestamp: systemMsg.timestamp.getTime(),
-      });
-    } catch (err) {
-      console.error("Failed to approve tool:", err);
-    }
-  };
-
-  const handleToolDeny = async (toolCallId: string) => {
-    if (!activeThreadId) return;
-    try {
-      await window.mcpClient.denyToolExecution(toolCallId);
-      setPendingToolCalls((prev) => prev.filter((t) => t.id !== toolCallId));
-
-      const systemMsg: Message = {
-        id: `msg-${Date.now()}`,
-        role: "system",
-        content: `🚫 Tool denied`,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, systemMsg]);
-
-      await window.db.saveMessage({
-        id: systemMsg.id,
-        threadId: activeThreadId,
-        role: systemMsg.role,
-        content: systemMsg.content,
-        timestamp: systemMsg.timestamp.getTime(),
-      });
-    } catch (err) {
-      console.error("Failed to deny tool:", err);
-    }
-  };
-
+  // Smart Auto-Scroll: only scroll if user hasn't scrolled up
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (!isUserScrolledUp.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, loading]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const handleScroll = () => {
+    if (!messagesContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+    // If distance from bottom is greater than 150px, mark as scrolled up
+    isUserScrolledUp.current = scrollHeight - scrollTop - clientHeight > 150;
+  };
+
+  const createNewThread = async () => {
+    const id = crypto.randomUUID();
+    const title = "New Study Session";
+    await window.db.createThread(id, title, user.id);
+    setActiveThreadId(id);
+    setMessages([]);
+    await loadThreads();
   };
 
   const handleSend = async () => {
@@ -313,16 +219,8 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
 
     let currentThreadId = activeThreadId;
     if (!currentThreadId) {
-      if (!user) {
-        alert("Please log in to start a chat.");
-        return;
-      }
       currentThreadId = crypto.randomUUID();
-      await window.db.createThread(
-        currentThreadId,
-        "New Conversation",
-        user.id
-      );
+      await window.db.createThread(currentThreadId, "New Study Session", user.id);
       setActiveThreadId(currentThreadId);
     }
 
@@ -336,6 +234,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setLoading(true);
+    isUserScrolledUp.current = false;
 
     await window.db.saveMessage({
       id: userMessage.id,
@@ -345,17 +244,14 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
       timestamp: userMessage.timestamp.getTime(),
     });
 
-    // Derive a title from the user's first message
+    // Derive a clean thread title from first message
     const candidateTitle = userMessage.content.trim().replace(/\s+/g, " ");
     const newTitle =
-      candidateTitle.length > 40
-        ? `${candidateTitle.slice(0, 40)}...`
-        : candidateTitle || "New Chat";
+      candidateTitle.length > 35 ? `${candidateTitle.slice(0, 35)}...` : candidateTitle;
     await window.db.updateThreadTitle(currentThreadId, newTitle);
 
     try {
-      if (!window.studyAgent)
-        throw new Error("Study agent runtime is unavailable.");
+      if (!window.studyAgent) throw new Error("Study agent runtime is offline.");
 
       const result = await window.studyAgent.sendMessage({
         threadId: currentThreadId,
@@ -364,7 +260,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
       });
 
       if (!result.success) {
-        throw new Error(result.error ?? "Unknown issue");
+        throw new Error(result.error ?? "Unknown error during response generation");
       }
 
       if (result.messages) {
@@ -373,7 +269,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
           .map((msg, idx) => ({
             id: `tool-${Date.now()}-${idx}`,
             role: "system" as const,
-            content: `🔧 ${msg.name ?? "Tool"}: ${msg.content}`,
+            content: `⚡ **${msg.name ?? "Tool"}**: ${msg.content}`,
             timestamp: new Date(),
           }));
         if (toolMessages.length) {
@@ -384,13 +280,12 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
       const assistantMessage: Message = {
         id: `msg-${Date.now()}`,
         role: "assistant",
-        content: result.finalMessage ?? "I'm not sure how to respond to that.",
+        content: result.finalMessage ?? "I am ready to assist with your studies.",
         timestamp: new Date(),
       };
 
-      // Check for flashcards content and save them BEFORE updating state
+      // Check for flashcards JSON format
       let potentialJson = assistantMessage.content.trim();
-      // Remove markdown code blocks if present
       const codeBlockRegex = /^```(?:json)?\s*([\s\S]*?)\s*```$/;
       const match = potentialJson.match(codeBlockRegex);
       if (match) {
@@ -401,22 +296,18 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
         try {
           const parsed = JSON.parse(potentialJson);
           if (parsed.flashcards && Array.isArray(parsed.flashcards)) {
-            // Assign new UUIDs and ensure structure matches Flashcard type
-            const enrichedFlashcards = parsed.flashcards.map((card: any) => ({
+            const enrichedFlashcards = parsed.flashcards.map((card: any, idx: number) => ({
               ...card,
-              id: `fc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              id: `fc-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 6)}`,
               set_id: `set-${Date.now()}`,
               is_mastered: false,
               created_at: Date.now(),
               message_id: assistantMessage.id,
             }));
 
-            // Update content with enriched flashcards so UI uses the correct IDs immediately
-            // We need to reconstruct the JSON with the new IDs
             parsed.flashcards = enrichedFlashcards;
             assistantMessage.content = JSON.stringify(parsed);
 
-            // Save assistant message to database FIRST (to satisfy FK constraints)
             await window.db.saveMessage({
               id: assistantMessage.id,
               threadId: currentThreadId,
@@ -425,18 +316,16 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
               timestamp: assistantMessage.timestamp.getTime(),
             });
 
-            // Save each flashcard
             for (const card of enrichedFlashcards) {
               await window.db.saveFlashcard(card);
             }
 
-            // Update UI state
             setMessages((prev) => [...prev, assistantMessage]);
-            return; // Exit after successful flashcard processing
+            await loadThreads();
+            return;
           }
-        } catch (e) {
-          console.error("Failed to parse/save flashcards:", e);
-          // Continue to standard message saving if flashcard processing fails
+        } catch {
+          // Not flashcard JSON, continue standard save
         }
       }
 
@@ -449,67 +338,52 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
         content: assistantMessage.content,
         timestamp: assistantMessage.timestamp.getTime(),
       });
+
+      await loadThreads();
     } catch (err) {
       const errorMessage: Message = {
         id: `msg-${Date.now()}`,
         role: "system",
-        content: `Oops! Something went wrong: ${err instanceof Error ? err.message : "Unknown error"}`,
+        content: `⚠️ Encountered an issue: ${err instanceof Error ? err.message : "Service timeout"}`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setLoading(false);
+      checkPendingTools();
     }
   };
 
-  const handleQuickAction = (prompt: string) => {
-    setInput(prompt);
-    inputRef.current?.focus();
-  };
-
-  const createNewThread = async () => {
-    if (!user) return;
-    const id = crypto.randomUUID();
-    const title = "New Chat";
-    await window.db.createThread(id, title, user.id);
-    setActiveThreadId(id);
-    loadThreads();
-  };
-
-  const handleClearChat = async () => {
+  const handleToolApprove = async (toolCallId: string) => {
     if (!activeThreadId) return;
-    if (confirm("Start a fresh conversation?")) {
-      await window.db.clearMessages(activeThreadId);
-      setMessages([
-        {
-          id: "welcome",
-          role: "system",
-          content: "👋 Chat cleared! Ready for a fresh start.",
-          timestamp: new Date(),
-        },
-      ]);
+    try {
+      await window.mcpClient.approveToolExecution(toolCallId);
+      setPendingToolCalls((prev) => prev.filter((t) => t.id !== toolCallId));
+    } catch (err) {
+      console.error("Failed to approve tool:", err);
+    }
+  };
+
+  const handleToolDeny = async (toolCallId: string) => {
+    if (!activeThreadId) return;
+    try {
+      await window.mcpClient.denyToolExecution(toolCallId);
+      setPendingToolCalls((prev) => prev.filter((t) => t.id !== toolCallId));
+    } catch (err) {
+      console.error("Failed to deny tool:", err);
     }
   };
 
   const handleDeleteThread = async (threadId: string) => {
-    if (!user) return;
-    const confirmed = confirm("Delete this chat? This cannot be undone.");
-    if (!confirmed) return;
-
-    await window.db.deleteThread(threadId);
-
-    if (activeThreadId === threadId) {
-      setActiveThreadId(null);
-      setMessages([]);
-    }
-
-    loadThreads();
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
+    try {
+      await window.db.deleteThread(threadId);
+      if (activeThreadId === threadId) {
+        setActiveThreadId(null);
+        setMessages([]);
+      }
+      await loadThreads();
+    } catch (err) {
+      console.error("Failed to delete thread:", err);
     }
   };
 
@@ -518,16 +392,8 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
 
     let currentThreadId = activeThreadId;
     if (!currentThreadId) {
-      if (!user) {
-        alert("Please log in to upload documents.");
-        return;
-      }
       currentThreadId = crypto.randomUUID();
-      await window.db.createThread(
-        currentThreadId,
-        "New Conversation",
-        user.id
-      );
+      await window.db.createThread(currentThreadId, "New Study Session", user.id);
       setActiveThreadId(currentThreadId);
     }
 
@@ -536,11 +402,10 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
       setUploadStatus(null);
       setUploadProgress({
         stage: "selecting",
-        message: "Picking a file...",
+        message: "Selecting document...",
       });
 
       const dialogResult = await window.studyAgent.openFileDialog();
-
       if (!dialogResult.success || dialogResult.filePaths.length === 0) {
         setUploading(false);
         setUploadProgress(null);
@@ -548,38 +413,29 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
       }
 
       const filePaths = dialogResult.filePaths;
-      const fileName = filePaths[0].split("/").pop() || "document";
+      const fileName = filePaths[0].split("/").pop() || "Document.pdf";
 
       setUploadProgress({
-        stage: "loading",
-        message: `Reading ${fileName}...`,
+        stage: "chunking",
+        message: `Tokenizing and indexing ${fileName}...`,
         fileName,
       });
-
-      await new Promise((resolve) => setTimeout(resolve, 500));
 
       const result = await window.studyAgent.addDocuments(filePaths);
 
       if (result.success) {
         setUploadProgress({
           stage: "complete",
-          message: "✅ Done!",
+          message: `Indexed ${fileName}`,
           fileName,
         });
 
-        setUploadStatus({
-          type: "success",
-          message: `Added ${fileName} to your library!`,
-        });
-
-        if (filePaths.length > 0) {
-          setSelectedDocument(filePaths[0]);
-        }
+        setSelectedDocument(filePaths[0]);
 
         const successMsg: Message = {
           id: `msg-${Date.now()}`,
           role: "system",
-          content: `📄 I've read **${fileName}**. Ask me anything about it!`,
+          content: `📄 **${fileName}** is indexed in the vector database with semantic chunking. You can now ask questions, extract concepts, or generate flashcards from it.`,
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, successMsg]);
@@ -592,186 +448,137 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
           timestamp: successMsg.timestamp.getTime(),
         });
       } else {
-        throw new Error(result.errors.join(", ") || "Upload failed");
+        throw new Error(result.errors.join(", ") || "Failed to parse document");
       }
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : "Unknown error";
       setUploadStatus({
         type: "error",
-        message: `Couldn't upload: ${errorMsg}`,
+        message: err instanceof Error ? err.message : "Document upload failed",
       });
     } finally {
       setUploading(false);
-      setTimeout(() => setUploadProgress(null), 2000);
-      setTimeout(() => setUploadStatus(null), 5000);
+      setTimeout(() => setUploadProgress(null), 2500);
     }
   };
 
-  return (
-    <div className="flex h-full w-full overflow-hidden bg-background/50">
-      <div className="flex flex-col h-full p-0 flex-1 min-w-0 relative">
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 custom-scrollbar">
-          {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center space-y-8 mt-10">
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.5 }}
-                className="relative"
-              >
-                <div className="w-24 h-24 rounded-3xl bg-primary/10 flex items-center justify-center mb-4 mx-auto shadow-xl rotate-3">
-                  <Bot className="w-12 h-12 text-primary" />
-                </div>
-                <h2 className="text-3xl font-bold text-foreground mb-2">
-                  Hello there! 👋
-                </h2>
-                <p className="text-muted-foreground max-w-md text-lg">
-                  I'm your study buddy. What are we learning today?
-                </p>
-              </motion.div>
+  const filteredThreads = threads.filter((t) =>
+    t.title.toLowerCase().includes(historySearch.toLowerCase())
+  );
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 w-full max-w-4xl px-4">
-                {quickActions.map((action, index) => (
-                  <motion.button
-                    key={index}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 + 0.2 }}
-                    onClick={() => handleQuickAction(action.prompt)}
-                    className="flex flex-col items-center p-4 rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50 hover:border-primary/50 hover:shadow-md transition-all duration-200 text-center group"
-                  >
-                    <div
-                      className={`p-3 rounded-xl bg-linear-to-br ${action.gradient} text-white mb-3 shadow-sm group-hover:scale-110 transition-transform`}
-                    >
-                      <action.Icon className="w-6 h-6" />
+  return (
+    <div className="flex h-full w-full overflow-hidden bg-background">
+      <div className="flex flex-col h-full p-0 flex-1 min-w-0 relative">
+        {/* Message Viewport */}
+        <div
+          ref={messagesContainerRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 custom-scrollbar"
+        >
+          {messages.length === 0 ? (
+            /* High-End Hero Empty State */
+            <div className="max-w-4xl mx-auto py-6 space-y-8">
+              {/* Hero Banner with Generated 3D Asset */}
+              <div className="double-bezel overflow-hidden">
+                <div className="double-bezel-inner p-8 md:p-10 relative overflow-hidden bg-card/60">
+                  {/* Subtle Background Art */}
+                  <div className="absolute right-0 top-0 bottom-0 w-1/2 opacity-25 pointer-events-none overflow-hidden">
+                    <img
+                      src={heroBackdrop}
+                      alt="Study Hero"
+                      className="w-full h-full object-cover object-left"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-r from-card via-card/70 to-transparent" />
+                  </div>
+
+                  <div className="relative z-10 max-w-lg space-y-3">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
+                      <Sparkles className="w-3.5 h-3.5" /> Autonomous Study Partner
                     </div>
-                    <h3 className="font-semibold text-foreground">
-                      {action.title}
-                    </h3>
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                      {action.description}
+                    <h2 className="text-3xl font-extrabold text-foreground tracking-tight">
+                      Master Any Topic with Grounded AI
+                    </h2>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Upload textbook PDFs, lecture notes, or syllabus docs. Your agent indexes
+                      chunks into a local vector store to generate explanations, flashcards, and
+                      practice quizzes.
                     </p>
-                  </motion.button>
-                ))}
+                    <div className="pt-2 flex items-center gap-3">
+                      <Button
+                        onClick={handleFileUpload}
+                        icon={<Paperclip className="w-4 h-4" />}
+                        className="rounded-full px-5 shadow-lg shadow-primary/20"
+                      >
+                        Upload Study PDF
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          setInput("Explain the most important principles of our subject.");
+                          inputRef.current?.focus();
+                        }}
+                        className="rounded-full px-4"
+                      >
+                        Quick Start
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Study Accelerators Grid */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                    Study Accelerators
+                  </span>
+                  <span className="text-xs text-muted-foreground/60">Click to run prompt</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  {studyAccelerators.map((action) => {
+                    const Icon = action.Icon;
+                    return (
+                      <button
+                        key={action.id}
+                        onClick={() => {
+                          setInput(action.prompt);
+                          inputRef.current?.focus();
+                        }}
+                        className="p-4 rounded-2xl bg-card/40 hover:bg-card/80 border border-border/40 hover:border-primary/40 text-left transition-all duration-200 group flex items-start gap-3.5 shadow-sm hover:shadow-md active:scale-[0.99]"
+                      >
+                        <div
+                          className={`p-2.5 rounded-xl border ${action.color} shrink-0 group-hover:scale-105 transition-transform`}
+                        >
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                            {action.title}
+                          </h3>
+                          <p className="text-xs text-muted-foreground/80 mt-0.5 leading-relaxed line-clamp-2">
+                            {action.description}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           ) : (
-            <div className="space-y-6">
-              {messages.map((msg, idx) => (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={cn(
-                    "flex gap-3",
-                    msg.role === "user" ? "flex-row-reverse" : "flex-row"
-                  )}
-                >
-                  <div
-                    className={cn(
-                      "w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm mt-1",
-                      msg.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-white dark:bg-zinc-800 border border-border text-primary"
-                    )}
-                  >
-                    {msg.role === "user" ? (
-                      <User className="w-4 h-4" />
-                    ) : (
-                      <Bot className="w-5 h-5" />
-                    )}
-                  </div>
-                  <div
-                    className={cn(
-                      "max-w-[75%] shadow-sm text-sm leading-relaxed relative group",
-                      msg.role === "user"
-                        ? "p-4 bg-primary text-primary-foreground rounded-2xl rounded-tr-sm"
-                        : "bg-card/70 backdrop-blur-md border border-green-100/40 dark:border-green-900/30 text-foreground rounded-2xl rounded-tl-sm"
-                    )}
-                  >
-                    {(() => {
-                      // Check if content is flashcard JSON
-                      try {
-                        const parsed = JSON.parse(msg.content);
-                        if (
-                          parsed.flashcards &&
-                          Array.isArray(parsed.flashcards)
-                        ) {
-                          return (
-                            <FlashcardViewer
-                              flashcards={parsed.flashcards}
-                              messageId={msg.id}
-                            />
-                          );
-                        }
-                      } catch (e) {
-                        // Not JSON, render as markdown
-                      }
-                      return (
-                        <div className="p-4">
-                          <div className="prose prose-sm dark:prose-invert max-w-none wrap-break-word">
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm]}
-                              components={{
-                                p: ({ ...props }) => (
-                                  <p className="mb-2 last:mb-0" {...props} />
-                                ),
-                                ul: ({ ...props }) => (
-                                  <ul
-                                    className="list-disc pl-4 mb-2"
-                                    {...props}
-                                  />
-                                ),
-                                ol: ({ ...props }) => (
-                                  <ol
-                                    className="list-decimal pl-4 mb-2"
-                                    {...props}
-                                  />
-                                ),
-                                li: ({ ...props }) => (
-                                  <li className="mb-1" {...props} />
-                                ),
-                                a: ({ ...props }) => (
-                                  <a
-                                    className="text-primary hover:underline"
-                                    {...props}
-                                  />
-                                ),
-                                code: ({ ...props }) => (
-                                  <code
-                                    className="bg-muted px-1 py-0.5 rounded text-xs font-mono"
-                                    {...props}
-                                  />
-                                ),
-                                pre: ({ ...props }) => (
-                                  <pre
-                                    className="bg-muted p-2 rounded-lg overflow-x-auto my-2 text-xs"
-                                    {...props}
-                                  />
-                                ),
-                              }}
-                            >
-                              {msg.content}
-                            </ReactMarkdown>
-                          </div>
-                        </div>
-                      );
-                    })()}
-                    <div
-                      className={cn(
-                        "text-[10px] mt-1 opacity-0 group-hover:opacity-50 transition-opacity absolute -bottom-5",
-                        msg.role === "user" ? "right-0" : "left-0"
-                      )}
-                    >
-                      {new Date(msg.timestamp).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </div>
-                  </div>
-                </motion.div>
+            /* Active Message Timeline */
+            <div className="max-w-4xl mx-auto space-y-4">
+              {messages.map((msg) => (
+                <MessageBubble
+                  key={msg.id}
+                  id={msg.id}
+                  role={msg.role}
+                  content={msg.content}
+                  timestamp={msg.timestamp}
+                />
               ))}
 
+              {/* Pending Tool Execution Approval Cards */}
               {pendingToolCalls.map((toolCall) => (
                 <ToolCallApproval
                   key={toolCall.id}
@@ -781,269 +588,217 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                 />
               ))}
 
+              {/* Thinking / Streaming Indicator */}
               {loading && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex gap-3"
-                >
-                  <div className="w-8 h-8 rounded-full bg-white dark:bg-zinc-800 border border-border flex items-center justify-center shrink-0 mt-1">
-                    <Bot className="w-5 h-5 text-primary" />
+                <div className="flex gap-3.5 items-center">
+                  <div className="w-9 h-9 rounded-2xl bg-muted/60 border border-border/50 flex items-center justify-center text-primary">
+                    <Bot className="w-4 h-4" />
                   </div>
-                  <div className="bg-card border border-border px-4 py-3 rounded-2xl rounded-tl-sm shadow-sm flex items-center gap-2">
-                    <div className="flex gap-1">
-                      <motion.div
-                        animate={{ scale: [1, 1.2, 1] }}
-                        transition={{ repeat: Infinity, duration: 1, delay: 0 }}
-                        className="w-2 h-2 bg-primary/40 rounded-full"
-                      />
-                      <motion.div
-                        animate={{ scale: [1, 1.2, 1] }}
-                        transition={{
-                          repeat: Infinity,
-                          duration: 1,
-                          delay: 0.2,
-                        }}
-                        className="w-2 h-2 bg-primary/40 rounded-full"
-                      />
-                      <motion.div
-                        animate={{ scale: [1, 1.2, 1] }}
-                        transition={{
-                          repeat: Infinity,
-                          duration: 1,
-                          delay: 0.4,
-                        }}
-                        className="w-2 h-2 bg-primary/40 rounded-full"
-                      />
+                  <div className="double-bezel">
+                    <div className="double-bezel-inner px-4 py-3 flex items-center gap-2.5 text-xs text-muted-foreground">
+                      <div className="flex gap-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" />
+                      </div>
+                      <span className="font-medium">Synthesizing response...</span>
                     </div>
-                    <span className="text-xs text-muted-foreground font-medium ml-2">
-                      Thinking...
-                    </span>
                   </div>
-                </motion.div>
+                </div>
               )}
+
               <div ref={messagesEndRef} />
             </div>
           )}
         </div>
 
-        {/* Input Area */}
-        <div className="shrink-0 px-4 py-4 z-20 flex justify-center bg-linear-to-t from-background via-background/80 to-transparent">
-          <div className="w-full max-w-full">
-            {/* Upload Progress & Status */}
+        {/* Floating Input Dock */}
+        <div className="shrink-0 p-4 pt-2 z-20 flex justify-center bg-gradient-to-t from-background via-background/95 to-transparent">
+          <div className="w-full max-w-4xl space-y-2">
+            {/* Upload Feedback Banner */}
             <AnimatePresence>
               {(uploadProgress || uploadStatus) && (
                 <motion.div
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  className="mb-3 mx-2"
+                  exit={{ opacity: 0, y: 6 }}
+                  className="px-2"
                 >
                   {uploadProgress && (
-                    <div className="bg-card border border-border p-3 rounded-xl shadow-lg flex items-center gap-3">
+                    <div className="p-3 rounded-2xl bg-card border border-border/60 shadow-lg flex items-center gap-3">
                       <LoadingSpinner size="sm" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-foreground truncate">
                           {uploadProgress.message}
                         </p>
-                        <div className="h-1 bg-muted rounded-full mt-1.5 overflow-hidden">
-                          <motion.div
-                            className="h-full bg-primary"
-                            initial={{ width: "0%" }}
-                            animate={{ width: "100%" }} // Simplified for demo
-                            transition={{ duration: 2 }}
-                          />
-                        </div>
                       </div>
                     </div>
                   )}
                   {uploadStatus && !uploadProgress && (
                     <div
                       className={cn(
-                        "p-3 rounded-xl flex items-center gap-2 text-sm font-medium shadow-lg",
+                        "p-3 rounded-2xl text-xs font-medium flex items-center gap-2 shadow-lg border",
                         uploadStatus.type === "success"
-                          ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
-                          : "bg-red-50 text-red-600 border border-red-200"
+                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                          : "bg-rose-500/10 text-rose-400 border-rose-500/20"
                       )}
                     >
                       {uploadStatus.type === "success" ? (
-                        <CheckCircle className="w-4 h-4" />
+                        <CheckCircle2 className="w-4 h-4" />
                       ) : (
                         <AlertCircle className="w-4 h-4" />
                       )}
-                      {uploadStatus.message}
+                      <span>{uploadStatus.message}</span>
                     </div>
                   )}
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* Selected File Chip */}
+            {/* Active Document Attachment Chip */}
             {selectedDocument && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="mx-2 mb-2 inline-flex items-center gap-2 px-3 py-1.5 bg-card/80 backdrop-blur-sm text-primary rounded-full text-xs font-medium border border-primary/20 shadow-sm"
-              >
-                <Paperclip className="w-3 h-3" />
-                <span className="max-w-[150px] truncate">
-                  {selectedDocument.split("/").pop()}
+              <div className="px-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium shadow-sm">
+                  <Paperclip className="w-3 h-3" />
+                  <span className="truncate max-w-[200px]">
+                    {selectedDocument.split("/").pop()}
+                  </span>
+                  <button
+                    onClick={() => setSelectedDocument(null)}
+                    className="hover:bg-primary/20 rounded-full p-0.5 ml-1"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
                 </span>
-                <button
-                  onClick={() => setSelectedDocument(null)}
-                  className="hover:bg-primary/20 rounded-full p-0.5 ml-1"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </motion.div>
+              </div>
             )}
 
-            <div className="relative flex items-center gap-2 bg-brown-200/40 backdrop-blur-2xl border-2 border-brown-300/30 shadow-[0_8px_32px_0_rgba(139,69,19,0.15)] rounded-4xl p-2 pl-4 transition-all hover:bg-brown-200/50 hover:shadow-[0_8px_40px_0_rgba(139,69,19,0.2)] hover:border-brown-300/40">
-              <button
-                onClick={handleFileUpload}
-                disabled={uploading}
-                className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full transition-colors"
-                title="Upload file"
-              >
-                <Paperclip className="w-5 h-5" />
-              </button>
-
-              <TextArea
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyPress}
-                placeholder="Type a message..."
-                className="flex-1 min-h-9 max-h-[120px] bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground/60 resize-none py-2 px-2 font-medium text-base"
-                disabled={loading}
-              />
-
-              <div className="flex items-center gap-1 pr-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full w-9 h-9"
+            {/* Input Capsule with Nested CTA */}
+            <div className="double-bezel">
+              <div className="double-bezel-inner p-2 pl-3 flex items-center gap-2 bg-card/90">
+                <button
+                  onClick={handleFileUpload}
+                  disabled={uploading}
+                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors active:scale-95"
+                  title="Attach study document"
                 >
-                  <Sparkles className="w-5 h-5" />
-                </Button>
+                  <Paperclip className="w-4 h-4" />
+                </button>
+
+                <TextArea
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  placeholder="Ask a question, request flashcards, or synthesize document..."
+                  className="flex-1 min-h-[38px] max-h-[120px] bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground/50 resize-none py-1.5 px-2 text-sm leading-relaxed"
+                  disabled={loading}
+                />
 
                 <Button
                   onClick={handleSend}
                   disabled={!input.trim() || loading}
-                  size="icon"
-                  className={cn(
-                    "rounded-full h-10 w-10 transition-all duration-200 shadow-sm",
-                    input.trim()
-                      ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105"
-                      : "bg-muted text-muted-foreground"
-                  )}
+                  size="sm"
+                  className="rounded-full h-9 px-4 font-semibold shadow-md"
                 >
                   {loading ? (
-                    <LoadingSpinner size="sm" className="text-current" />
+                    <LoadingSpinner size="sm" />
                   ) : (
-                    <Send className="w-5 h-5 ml-0.5" />
+                    <>
+                      <span>Send</span>
+                      <Send className="w-3.5 h-3.5 ml-1" />
+                    </>
                   )}
                 </Button>
               </div>
-            </div>
-
-            <div className="mt-2 text-center">
-              <p className="text-[10px] text-muted-foreground/60 font-medium">
-                AI make mistakes. Check important info.
-              </p>
             </div>
           </div>
         </div>
       </div>
 
+      {/* History Slide-Over Drawer */}
       <Drawer
         isOpen={showHistory}
         onClose={() => setShowHistory(false)}
-        title="Your History"
+        title="Session History"
         position="left"
-        width="300px"
+        width="340px"
       >
-        <div className="space-y-4 p-2">
-          {activeThreadId && (
-            <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10">
-              <h3 className="text-xs font-bold text-primary uppercase tracking-wider mb-2">
-                Active Session
-              </h3>
-              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <MessageSquare className="w-4 h-4 text-primary" />
-                <span>Current Chat</span>
-              </div>
-            </div>
-          )}
+        <div className="p-4 space-y-4">
+          {/* Search bar */}
+          <div className="relative">
+            <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={historySearch}
+              onChange={(e) => setHistorySearch(e.target.value)}
+              placeholder="Search chat history..."
+              className="w-full pl-9 pr-4 py-2 rounded-xl bg-muted/40 border border-border/40 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
 
-          <div>
-            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 px-2">
-              Recent Chats
-            </h3>
-            <div className="space-y-1">
-              {threads.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground text-sm">
-                  <History className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                  <p>No chat history yet</p>
-                </div>
-              ) : (
-                threads.map((thread) => (
-                  <div className="relative" key={thread.id}>
-                    <button
-                      onClick={() => {
-                        setActiveThreadId(thread.id);
-                        setShowHistory(false);
-                      }}
+          <div className="space-y-1.5">
+            {filteredThreads.length === 0 ? (
+              <div className="text-center py-10 text-muted-foreground text-xs">
+                <History className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                <p>No chat history matching search</p>
+              </div>
+            ) : (
+              filteredThreads.map((thread) => (
+                <div
+                  key={thread.id}
+                  className={cn(
+                    "p-3 rounded-2xl flex items-center justify-between group transition-colors cursor-pointer",
+                    activeThreadId === thread.id
+                      ? "bg-primary/15 border border-primary/30"
+                      : "hover:bg-muted/40 border border-transparent"
+                  )}
+                  onClick={() => {
+                    setActiveThreadId(thread.id);
+                    setShowHistory(false);
+                  }}
+                >
+                  <div className="min-w-0 flex-1 pr-2">
+                    <p
                       className={cn(
-                        "w-full text-left p-3 rounded-xl hover:bg-muted transition-colors group pr-10",
-                        activeThreadId === thread.id
-                          ? "bg-primary/10 border border-primary/20"
-                          : ""
+                        "text-xs font-semibold truncate",
+                        activeThreadId === thread.id ? "text-primary" : "text-foreground"
                       )}
                     >
-                      <div className="flex items-start gap-3">
-                        <MessageSquare
-                          className={cn(
-                            "w-4 h-4 mt-0.5 transition-colors",
-                            activeThreadId === thread.id
-                              ? "text-primary"
-                              : "text-muted-foreground group-hover:text-primary"
-                          )}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p
-                            className={cn(
-                              "text-sm font-medium transition-colors truncate",
-                              activeThreadId === thread.id
-                                ? "text-primary"
-                                : "text-foreground group-hover:text-primary"
-                            )}
-                          >
-                            {thread.title}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {new Date(thread.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteThread(thread.id);
-                      }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                      title="Delete chat"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                      {thread.title}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                      {new Date(thread.created_at).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
                   </div>
-                ))
-              )}
-            </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteThread(thread.id);
+                    }}
+                    className="p-1.5 rounded-lg text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-all"
+                    title="Delete session"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </Drawer>
     </div>
   );
 };
+
+export default Chat;
