@@ -4,24 +4,24 @@
   :root {
     --radius: 0.75rem;
     
-    /* Google Dark Mode / Obsidian Working Deck */
-    --background: 225 6% 13%;        /* #202124 / Google Dark canvas */
-    --foreground: 0 0% 96%;          /* #f4f4f5 */
+    /* Sleek Obsidian Dark Mode (Perplexity & Drive style) */
+    --background: 240 6% 9%;         /* #141416 / Deep matte canvas */
+    --foreground: 0 0% 98%;          /* #f8f8f8 / Crisp text */
     
-    --card: 220 5% 17%;              /* #292a2d / Google Dark Card */
-    --card-foreground: 0 0% 96%;
+    --card: 240 5% 12%;              /* #1c1c20 / Sleek panel */
+    --card-foreground: 0 0% 98%;
     
-    --popover: 220 5% 17%;
-    --popover-foreground: 0 0% 96%;
+    --popover: 240 5% 12%;
+    --popover-foreground: 0 0% 98%;
     
-    --primary: 239 64% 56%;          /* #4f46e5 / #4648d4 */
+    --primary: 239 64% 56%;          /* #4f46e5 / Vibrant indigo */
     --primary-foreground: 0 0% 100%;
     
-    --secondary: 220 5% 20%;         /* #303134 / Google Dark Secondary */
-    --secondary-foreground: 0 0% 94%;
+    --secondary: 240 5% 16%;         /* #26262b / Subtle secondary */
+    --secondary-foreground: 0 0% 95%;
     
-    --muted: 220 5% 19%;
-    --muted-foreground: 220 5% 65%;  /* #9aa0a6 */
+    --muted: 240 5% 14%;
+    --muted-foreground: 240 5% 65%;  /* #9e9ea7 */
     
     --accent: 239 64% 56%;
     --accent-foreground: 0 0% 100%;
@@ -29,8 +29,8 @@
     --destructive: 346 87% 60%;      /* Coral #f43f5e */
     --destructive-foreground: 0 0% 100%;
     
-    --border: 220 5% 26%;           /* #3c4043 / Google Dark Defined Border */
-    --input: 220 5% 26%;
+    --border: 240 5% 18%;           /* #2a2a30 / Crisp 1px border */
+    --input: 240 5% 18%;
     --ring: 239 64% 56%;
 
     /* Stitch Palette Colors */
@@ -135,16 +135,16 @@
     background: hsl(var(--muted-foreground) / 0.45);
   }
   
-  /* Google Dark Mode Working Deck Shadow & Borders */
+  /* Crisp 1px Borders & Sleek Deck Shadows */
   .doppelrand,
   .deck-card {
-    border: 1.5px solid hsl(var(--border));
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 4px 12px 2px rgba(0, 0, 0, 0.25);
+    border: 1px solid hsl(var(--border));
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2), 0 4px 12px -2px rgba(0, 0, 0, 0.15);
   }
 
   .doppelrand-ai {
-    border: 1.5px solid rgba(99, 102, 241, 0.4);
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 6px 18px -2px rgba(99, 102, 241, 0.2);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2), 0 6px 16px -2px rgba(99, 102, 241, 0.15);
   }
 
   /* Solid Panels */

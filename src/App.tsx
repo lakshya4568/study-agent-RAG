@@ -140,6 +140,10 @@ export const App: React.FC = () => {
             setActiveView("chat");
             chatActionsRef.current.createNewThread();
           }}
+          onOpenHistory={() => {
+            setActiveView("chat");
+            chatActionsRef.current.openHistory();
+          }}
         />
       }
       topBar={

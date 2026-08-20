@@ -17,20 +17,20 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   return (
     <div
       className={cn(
-        "h-screen w-screen overflow-hidden flex flex-col bg-background text-foreground selection:bg-primary/30 relative",
+        "h-screen w-screen overflow-hidden flex bg-background text-foreground selection:bg-primary/30 relative",
         className
       )}
     >
-      {/* Top Bar */}
-      {topBar && <div className="shrink-0 z-30">{topBar}</div>}
+      {/* Full-Height Sidebar on the Left (Matching Image 2) */}
+      {sidebar && <div className="shrink-0 h-full z-30">{sidebar}</div>}
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden relative z-10">
-        {/* Sidebar */}
-        {sidebar && <div className="shrink-0 z-20">{sidebar}</div>}
+      {/* Main Workspace Area on the Right */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
+        {/* Top Bar */}
+        {topBar && <div className="shrink-0 z-20">{topBar}</div>}
 
         {/* Dynamic View Canvas */}
-        <main className="flex-1 overflow-hidden relative z-10 flex flex-col bg-background">
+        <main className="flex-1 overflow-hidden relative flex flex-col bg-background">
           {children}
         </main>
       </div>

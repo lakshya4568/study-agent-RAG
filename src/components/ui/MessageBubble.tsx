@@ -128,8 +128,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
               </details>
             )}
 
-            {/* Main AI Content Box (Google Dark Working Deck) */}
-            <div className="bg-card rounded-2xl rounded-tl-xs p-5 text-foreground border-[1.5px] border-border shadow-[0_2px_8px_rgba(0,0,0,0.35)]">
+            {/* Main AI Content Box (Obsidian Dark) */}
+            <div className="bg-card rounded-2xl rounded-tl-xs p-5 text-foreground border border-border shadow-xs">
               {flashcards && id ? (
                 <FlashcardViewer flashcards={flashcards} messageId={id} />
               ) : (
