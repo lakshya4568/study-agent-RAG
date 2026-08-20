@@ -19,7 +19,7 @@ import { RAGDashboard } from "./views/RAGDashboard";
 
 export const App: React.FC = () => {
   const [activeView, setActiveView] = useState<
-    "chat" | "flashcards" | "rag-dashboard" | "servers" | "settings"
+    "chat" | "rag-dashboard" | "servers" | "settings"
   >("chat");
 
   const chatActionsRef = useRef<{
@@ -39,14 +39,11 @@ export const App: React.FC = () => {
           setActiveView("chat");
         } else if (e.key === "2") {
           e.preventDefault();
-          setActiveView("flashcards");
+          setActiveView("rag-dashboard");
         } else if (e.key === "3") {
           e.preventDefault();
-          setActiveView("rag-dashboard");
-        } else if (e.key === "4") {
-          e.preventDefault();
           setActiveView("servers");
-        } else if (e.key === "5") {
+        } else if (e.key === "4") {
           e.preventDefault();
           setActiveView("settings");
         } else if (e.key === "n" || e.key === "N") {
@@ -71,20 +68,11 @@ export const App: React.FC = () => {
       active: activeView === "chat",
     },
     {
-      id: "flashcards",
-      icon: Brain,
-      label: "Active Recall",
-      description: "Flashcards Studio",
-      shortcut: "⌘2",
-      onClick: () => setActiveView("flashcards"),
-      active: activeView === "flashcards",
-    },
-    {
       id: "rag-dashboard",
       icon: FlaskConical,
       label: "Vector Studio",
       description: "RAG & Embeddings",
-      shortcut: "⌘3",
+      shortcut: "⌘2",
       onClick: () => setActiveView("rag-dashboard"),
       active: activeView === "rag-dashboard",
     },
@@ -93,7 +81,7 @@ export const App: React.FC = () => {
       icon: Blocks,
       label: "MCP Tools",
       description: "Agent Skills",
-      shortcut: "⌘4",
+      shortcut: "⌘3",
       onClick: () => setActiveView("servers"),
       active: activeView === "servers",
     },
@@ -102,7 +90,7 @@ export const App: React.FC = () => {
       icon: Settings2,
       label: "Control Studio",
       description: "Keys & Memory",
-      shortcut: "⌘5",
+      shortcut: "⌘4",
       onClick: () => setActiveView("settings"),
       active: activeView === "settings",
     },
@@ -117,7 +105,7 @@ export const App: React.FC = () => {
             size="sm"
             icon={<Plus className="w-4 h-4" />}
             onClick={() => chatActionsRef.current.createNewThread()}
-            className="rounded-full text-xs font-semibold px-3.5 bg-card/60 border border-border/40 hover:bg-card shadow-sm"
+            className="rounded-full text-xs font-semibold px-3.5 bg-secondary hover:bg-secondary/80 border border-border shadow-xs cursor-pointer"
           >
             New Session
           </Button>
@@ -126,7 +114,7 @@ export const App: React.FC = () => {
             size="sm"
             icon={<HistoryIcon className="w-3.5 h-3.5" />}
             onClick={() => chatActionsRef.current.openHistory()}
-            className="rounded-full text-xs font-medium px-3 bg-card/60 border border-border/40 hover:bg-card shadow-sm"
+            className="rounded-full text-xs font-medium px-3 bg-secondary hover:bg-secondary/80 border border-border shadow-xs cursor-pointer"
           >
             History
           </Button>
@@ -136,7 +124,7 @@ export const App: React.FC = () => {
       <Badge
         variant="outline"
         size="sm"
-        className="hidden sm:inline-flex gap-1 rounded-full text-primary border-primary/30 bg-primary/5 text-[11px] font-semibold"
+        className="hidden sm:inline-flex gap-1 rounded-full text-primary border-primary/30 bg-primary/10 text-[11px] font-semibold"
       >
         <Sparkles className="w-3 h-3" /> Grounded Agent
       </Badge>
@@ -159,24 +147,20 @@ export const App: React.FC = () => {
           title={
             activeView === "chat"
               ? "Study Session"
-              : activeView === "flashcards"
-                ? "Active Recall Studio"
-                : activeView === "rag-dashboard"
-                  ? "Vector Knowledge Studio"
-                  : activeView === "servers"
-                    ? "MCP Tool Integrations"
-                    : "Control Studio"
+              : activeView === "rag-dashboard"
+                ? "Vector Knowledge Studio"
+                : activeView === "servers"
+                  ? "MCP Tool Integrations"
+                  : "Control Studio"
           }
           subtitle={
             activeView === "chat"
               ? "Autonomous AI Tutor"
-              : activeView === "flashcards"
-                ? "Interactive Spaced Repetition"
-                : activeView === "rag-dashboard"
-                  ? "ChromaDB & NVIDIA NIM"
-                  : activeView === "servers"
-                    ? "Local Protocol Servers"
-                    : "Configurations & Long-Term Memory"
+              : activeView === "rag-dashboard"
+                ? "ChromaDB & NVIDIA NIM"
+                : activeView === "servers"
+                  ? "Local Protocol Servers"
+                  : "Configurations & Long-Term Memory"
           }
           actions={topBarActions}
         />
@@ -189,7 +173,6 @@ export const App: React.FC = () => {
           }}
         />
       )}
-      {activeView === "flashcards" && <FlashcardsView />}
       {activeView === "rag-dashboard" && <RAGDashboard />}
       {activeView === "servers" && <ServerManager />}
       {activeView === "settings" && <Settings />}

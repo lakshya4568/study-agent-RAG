@@ -506,7 +506,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                         setInput(action.prompt);
                         inputRef.current?.focus();
                       }}
-                      className="p-4 rounded-2xl bg-card hover:bg-secondary border border-border text-left transition-all duration-150 group shadow-sm hover:shadow-md active:scale-98 cursor-pointer"
+                      className="p-4 rounded-2xl bg-card hover:bg-secondary border-[1.5px] border-border text-left transition-all duration-150 group shadow-[0_2px_8px_rgba(0,0,0,0.35)] active:scale-98 cursor-pointer"
                     >
                       <div className="flex items-center gap-2.5 mb-1.5">
                         <div className={`p-1.5 rounded-lg border ${action.color}`}>
@@ -651,7 +651,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
             </AnimatePresence>
 
             {/* Main Dock Input Box (Perplexity-Style) */}
-            <div className="bg-card rounded-2xl p-3 border border-border shadow-md focus-within:border-primary/60 transition-all">
+            <div className="bg-card rounded-2xl p-3 border-[1.5px] border-border shadow-[0_4px_16px_rgba(0,0,0,0.4)] focus-within:border-primary/80 transition-all">
               <TextArea
                 ref={inputRef}
                 value={input}
