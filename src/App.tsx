@@ -145,7 +145,15 @@ export const App: React.FC = () => {
 
   return (
     <MainLayout
-      sidebar={<Sidebar items={sidebarItems} />}
+      sidebar={
+        <Sidebar
+          items={sidebarItems}
+          onNewSession={() => {
+            setActiveView("chat");
+            chatActionsRef.current.createNewThread();
+          }}
+        />
+      }
       topBar={
         <TopBar
           title={

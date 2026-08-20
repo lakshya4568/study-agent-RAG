@@ -475,99 +475,58 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
           className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 custom-scrollbar"
         >
           {messages.length === 0 ? (
-            /* High-End Hero Empty State */
-            <div className="max-w-4xl mx-auto py-6 space-y-8">
-              {/* Hero Banner with Generated 3D Asset */}
-              <div className="double-bezel overflow-hidden">
-                <div className="double-bezel-inner p-8 md:p-10 relative overflow-hidden bg-card/60">
-                  {/* Subtle Background Art */}
-                  <div className="absolute right-0 top-0 bottom-0 w-1/2 opacity-25 pointer-events-none overflow-hidden">
-                    <img
-                      src={heroBackdrop}
-                      alt="Study Hero"
-                      className="w-full h-full object-cover object-left"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-r from-card via-card/70 to-transparent" />
-                  </div>
-
-                  <div className="relative z-10 max-w-lg space-y-3">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
-                      <Sparkles className="w-3.5 h-3.5" /> Autonomous Study Partner
-                    </div>
-                    <h2 className="text-3xl font-extrabold text-foreground tracking-tight">
-                      Master Any Topic with Grounded AI
-                    </h2>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      Upload textbook PDFs, lecture notes, or syllabus docs. Your agent indexes
-                      chunks into a local vector store to generate explanations, flashcards, and
-                      practice quizzes.
-                    </p>
-                    <div className="pt-2 flex items-center gap-3">
-                      <Button
-                        onClick={handleFileUpload}
-                        icon={<Paperclip className="w-4 h-4" />}
-                        className="rounded-full px-5 shadow-lg shadow-primary/20"
-                      >
-                        Upload Study PDF
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        onClick={() => {
-                          setInput("Explain the most important principles of our subject.");
-                          inputRef.current?.focus();
-                        }}
-                        className="rounded-full px-4"
-                      >
-                        Quick Start
-                      </Button>
-                    </div>
-                  </div>
+            /* Claude + Lumina Empty State Hero */
+            <div className="max-w-3xl mx-auto flex flex-col items-center justify-center min-h-[60vh] text-center px-4 space-y-8 stagger-enter">
+              {/* Warm Sun Asterisk & Greeting (Claude Aesthetic) */}
+              <div className="space-y-3">
+                <div className="inline-flex items-center justify-center gap-3 text-foreground">
+                  <span className="text-3xl text-amber-500 animate-spin-slow">✹</span>
+                  <h1 className="text-3xl md:text-4xl font-serif tracking-tight font-medium">
+                    {(() => {
+                      const hour = new Date().getHours();
+                      if (hour < 12) return "Good morning, how can I help you study?";
+                      if (hour < 17) return "Good afternoon, what are we mastering today?";
+                      return "Evening, ready to dive into your notes?";
+                    })()}
+                  </h1>
                 </div>
+                <p className="text-sm text-muted-foreground max-w-lg mx-auto leading-relaxed">
+                  Your cognitive study partner. Upload documents to search vector indices, generate active recall decks, or break down complex mechanisms.
+                </p>
               </div>
 
-              {/* Study Accelerators Grid */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between px-1">
-                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                    Study Accelerators
-                  </span>
-                  <span className="text-xs text-muted-foreground/60">Click to run prompt</span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                  {studyAccelerators.map((action) => {
-                    const Icon = action.Icon;
-                    return (
-                      <button
-                        key={action.id}
-                        onClick={() => {
-                          setInput(action.prompt);
-                          inputRef.current?.focus();
-                        }}
-                        className="p-4 rounded-2xl bg-card/40 hover:bg-card/80 border border-border/40 hover:border-primary/40 text-left transition-all duration-200 group flex items-start gap-3.5 shadow-sm hover:shadow-md active:scale-[0.99]"
-                      >
-                        <div
-                          className={`p-2.5 rounded-xl border ${action.color} shrink-0 group-hover:scale-105 transition-transform`}
-                        >
-                          <Icon className="w-4 h-4" />
+              {/* Study Accelerators Bento */}
+              <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-3 text-left pt-2">
+                {studyAccelerators.slice(0, 3).map((action) => {
+                  const Icon = action.Icon;
+                  return (
+                    <button
+                      key={action.id}
+                      onClick={() => {
+                        setInput(action.prompt);
+                        inputRef.current?.focus();
+                      }}
+                      className="p-3.5 rounded-2xl bg-card/60 hover:bg-card border border-border/60 hover:border-primary/50 text-left transition-all duration-150 group shadow-sm hover:shadow-md active:scale-98 cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2.5 mb-1.5">
+                        <div className={`p-1.5 rounded-lg border ${action.color}`}>
+                          <Icon className="w-3.5 h-3.5" />
                         </div>
-                        <div className="min-w-0">
-                          <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
-                            {action.title}
-                          </h3>
-                          <p className="text-xs text-muted-foreground/80 mt-0.5 leading-relaxed line-clamp-2">
-                            {action.description}
-                          </p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
+                        <h3 className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
+                          {action.title}
+                        </h3>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2">
+                        {action.description}
+                      </p>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ) : (
             /* Active Message Timeline */
-            <div className="max-w-4xl mx-auto space-y-4">
+            <div className="max-w-3xl mx-auto space-y-5 pb-6">
               {messages.map((msg) => (
                 <MessageBubble
                   key={msg.id}
@@ -590,19 +549,22 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
 
               {/* Thinking / Streaming Indicator */}
               {loading && (
-                <div className="flex gap-3.5 items-center">
-                  <div className="w-9 h-9 rounded-2xl bg-muted/60 border border-border/50 flex items-center justify-center text-primary">
+                <div className="flex gap-3.5 items-start stagger-enter">
+                  <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary shrink-0 mt-1">
                     <Bot className="w-4 h-4" />
                   </div>
-                  <div className="double-bezel">
-                    <div className="double-bezel-inner px-4 py-3 flex items-center gap-2.5 text-xs text-muted-foreground">
+                  <div className="p-4 rounded-2xl bg-card/80 border border-border/60 shadow-sm flex flex-col gap-2 min-w-[240px]">
+                    <div className="flex items-center gap-2 text-xs font-medium text-primary">
                       <div className="flex gap-1">
                         <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
                         <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
                         <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" />
                       </div>
-                      <span className="font-medium">Synthesizing response...</span>
+                      <span>Thinking & Synthesizing...</span>
                     </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Searching vector embeddings and reasoning through study context.
+                    </p>
                   </div>
                 </div>
               )}
@@ -612,41 +574,74 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
           )}
         </div>
 
-        {/* Floating Input Dock */}
-        <div className="shrink-0 p-4 pt-2 z-20 flex justify-center bg-gradient-to-t from-background via-background/95 to-transparent">
-          <div className="w-full max-w-4xl space-y-2">
-            {/* Upload Feedback Banner */}
+        {/* Floating Adaptive Prompt Dock (Claude + Stitch Spec) */}
+        <div className="shrink-0 p-4 pt-1 z-20 flex justify-center bg-gradient-to-t from-background via-background/90 to-transparent">
+          <div className="w-full max-w-3xl space-y-2">
+            {/* Context Pills & Attachment Preview Above Dock */}
+            <div className="flex items-center gap-2 px-1">
+              {selectedDocument ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/25 text-primary text-xs font-medium shadow-sm">
+                  <Paperclip className="w-3 h-3" />
+                  <span className="truncate max-w-[220px]">
+                    @{selectedDocument.split("/").pop()}
+                  </span>
+                  <button
+                    onClick={() => setSelectedDocument(null)}
+                    className="hover:bg-primary/20 rounded-full p-0.5 ml-1 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ) : (
+                <button
+                  onClick={handleFileUpload}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-card/80 hover:bg-card border border-border/60 text-muted-foreground hover:text-foreground text-xs font-normal transition-colors cursor-pointer"
+                >
+                  <Paperclip className="w-3 h-3 text-primary" />
+                  <span>Attach PDF Notes</span>
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  setInput("Create 5 practice exam questions with detailed answers based on my notes.");
+                  inputRef.current?.focus();
+                }}
+                className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-card/80 hover:bg-card border border-border/60 text-muted-foreground hover:text-foreground text-xs transition-colors cursor-pointer"
+              >
+                <Sparkles className="w-3 h-3 text-amber-500" />
+                <span>Quiz Me</span>
+              </button>
+            </div>
+
+            {/* Upload Feedback */}
             <AnimatePresence>
               {(uploadProgress || uploadStatus) && (
                 <motion.div
-                  initial={{ opacity: 0, y: 6 }}
+                  initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 6 }}
-                  className="px-2"
+                  exit={{ opacity: 0, y: 4 }}
+                  className="px-1"
                 >
                   {uploadProgress && (
-                    <div className="p-3 rounded-2xl bg-card border border-border/60 shadow-lg flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-card border border-border flex items-center gap-2.5 text-xs text-foreground">
                       <LoadingSpinner size="sm" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-foreground truncate">
-                          {uploadProgress.message}
-                        </p>
-                      </div>
+                      <span className="truncate">{uploadProgress.message}</span>
                     </div>
                   )}
                   {uploadStatus && !uploadProgress && (
                     <div
                       className={cn(
-                        "p-3 rounded-2xl text-xs font-medium flex items-center gap-2 shadow-lg border",
+                        "p-2.5 rounded-xl text-xs flex items-center gap-2 border",
                         uploadStatus.type === "success"
                           ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                           : "bg-rose-500/10 text-rose-400 border-rose-500/20"
                       )}
                     >
                       {uploadStatus.type === "success" ? (
-                        <CheckCircle2 className="w-4 h-4" />
+                        <CheckCircle2 className="w-3.5 h-3.5" />
                       ) : (
-                        <AlertCircle className="w-4 h-4" />
+                        <AlertCircle className="w-3.5 h-3.5" />
                       )}
                       <span>{uploadStatus.message}</span>
                     </div>
@@ -655,66 +650,60 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
               )}
             </AnimatePresence>
 
-            {/* Active Document Attachment Chip */}
-            {selectedDocument && (
-              <div className="px-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium shadow-sm">
-                  <Paperclip className="w-3 h-3" />
-                  <span className="truncate max-w-[200px]">
-                    {selectedDocument.split("/").pop()}
-                  </span>
+            {/* Main Dock Input Box (Claude-Style) */}
+            <div className="doppelrand bg-card/90 dark:bg-card/95 rounded-2xl p-2.5 border border-border/80 shadow-xl focus-within:border-primary/60 transition-all">
+              <TextArea
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder="Type / for skills, ask anything about your study notes, or generate flashcards..."
+                className="w-full min-h-[48px] max-h-[160px] bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground/60 resize-none px-2 py-1 text-sm leading-relaxed"
+                disabled={loading}
+              />
+
+              {/* Bottom Actions inside Dock */}
+              <div className="flex items-center justify-between pt-2 px-1 border-t border-border/40 mt-1">
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setSelectedDocument(null)}
-                    className="hover:bg-primary/20 rounded-full p-0.5 ml-1"
+                    onClick={handleFileUpload}
+                    disabled={uploading}
+                    className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/80 rounded-lg transition-colors cursor-pointer"
+                    title="Upload study document"
                   >
-                    <X className="w-3 h-3" />
+                    <Paperclip className="w-4 h-4" />
                   </button>
-                </span>
-              </div>
-            )}
 
-            {/* Input Capsule with Nested CTA */}
-            <div className="double-bezel">
-              <div className="double-bezel-inner p-2 pl-3 flex items-center gap-2 bg-card/90">
-                <button
-                  onClick={handleFileUpload}
-                  disabled={uploading}
-                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors active:scale-95"
-                  title="Attach study document"
-                >
-                  <Paperclip className="w-4 h-4" />
-                </button>
+                  <div className="h-4 w-[1px] bg-border/60 mx-0.5" />
 
-                <TextArea
-                  ref={inputRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSend();
-                    }
-                  }}
-                  placeholder="Ask a question, request flashcards, or synthesize document..."
-                  className="flex-1 min-h-[38px] max-h-[120px] bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground/50 resize-none py-1.5 px-2 text-sm leading-relaxed"
-                  disabled={loading}
-                />
+                  <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-secondary text-muted-foreground">
+                    Cognitive Tutor
+                  </span>
+                </div>
 
-                <Button
-                  onClick={handleSend}
-                  disabled={!input.trim() || loading}
-                  size="sm"
-                  className="rounded-full h-9 px-4 font-semibold shadow-md"
-                >
-                  {loading ? (
-                    <LoadingSpinner size="sm" />
-                  ) : (
-                    <>
-                      <span>Send</span>
-                      <Send className="w-3.5 h-3.5 ml-1" />
-                    </>
-                  )}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-mono text-muted-foreground/70 hidden sm:inline">
+                    NVIDIA Llama 3.3
+                  </span>
+
+                  <button
+                    onClick={handleSend}
+                    disabled={!input.trim() || loading}
+                    className="w-8 h-8 rounded-xl bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-30 transition-all flex items-center justify-center shadow-md active:scale-95 cursor-pointer"
+                    title="Send message"
+                  >
+                    {loading ? (
+                      <LoadingSpinner size="sm" />
+                    ) : (
+                      <Send className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

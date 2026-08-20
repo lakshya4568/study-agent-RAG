@@ -5,9 +5,9 @@ import {
   LucideIcon,
   ChevronLeft,
   ChevronRight,
+  Plus,
   Sparkles,
   Zap,
-  Layers,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -20,26 +20,31 @@ interface SidebarProps {
     onClick: () => void;
     active?: boolean;
   }>;
+  onNewSession?: () => void;
   className?: string;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ items, className }) => {
+export const Sidebar: React.FC<SidebarProps> = ({
+  items,
+  onNewSession,
+  className,
+}) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
     <motion.aside
-      initial={{ width: 250 }}
-      animate={{ width: isCollapsed ? 76 : 250 }}
-      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+      initial={{ width: 240 }}
+      animate={{ width: isCollapsed ? 76 : 240 }}
+      transition={{ duration: 0.2, ease: [0.2, 0.8, 0.2, 1] }}
       className={cn(
-        "flex flex-col h-full bg-card/60 backdrop-blur-xl border-r border-border/40 shadow-2xl z-40 relative select-none",
+        "flex flex-col h-full bg-card/75 dark:bg-card/85 backdrop-blur-2xl border-r border-border/60 shadow-xl z-40 relative select-none",
         className
       )}
     >
-      {/* Collapse Toggle Button */}
+      {/* Collapse Toggle */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute -right-3.5 top-7 bg-card border border-border/80 rounded-full p-1.5 shadow-lg hover:bg-muted transition-all z-50 text-muted-foreground hover:text-foreground active:scale-95"
+        className="absolute -right-3.5 top-6 bg-card border border-border rounded-full p-1 shadow-md hover:bg-secondary transition-all z-50 text-muted-foreground hover:text-foreground active:scale-95 cursor-pointer"
         title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
       >
         {isCollapsed ? (
@@ -49,39 +54,66 @@ export const Sidebar: React.FC<SidebarProps> = ({ items, className }) => {
         )}
       </button>
 
-      {/* Header Brand */}
-      <div className={cn("p-5 pb-4 flex items-center", isCollapsed ? "justify-center" : "gap-3")}>
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary via-emerald-400 to-teal-500 text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/25 ring-1 ring-white/20 shrink-0">
-          <Sparkles className="w-5 h-5 text-white animate-pulse" />
+      {/* Header / Brand */}
+      <div
+        className={cn(
+          "p-4 pb-3 flex items-center",
+          isCollapsed ? "justify-center" : "gap-3"
+        )}
+      >
+        <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-md shadow-primary/25 shrink-0">
+          <Sparkles className="w-5 h-5 text-white" />
         </div>
 
         <AnimatePresence mode="wait">
           {!isCollapsed && (
             <motion.div
-              initial={{ opacity: 0, x: -6 }}
+              initial={{ opacity: 0, x: -4 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -6 }}
+              exit={{ opacity: 0, x: -4 }}
               transition={{ duration: 0.15 }}
               className="overflow-hidden whitespace-nowrap"
             >
               <div className="flex items-center gap-1.5">
-                <h1 className="font-bold text-base tracking-tight text-foreground">
-                  Study OS
-                </h1>
-                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
-                  Pro
+                <span className="font-bold text-sm tracking-tight text-foreground">
+                  Lumina Study
+                </span>
+                <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
+                  AI
                 </span>
               </div>
-              <p className="text-[11px] text-muted-foreground/80 font-medium">
-                Cognitive AI Workspace
+              <p className="text-[11px] text-muted-foreground font-normal">
+                Cognitive Study OS
               </p>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Navigation Items */}
-      <nav className="flex-1 px-3 py-3 space-y-1.5 overflow-y-auto custom-scrollbar">
+      {/* + New Button (Claude style) */}
+      <div className="px-3 pt-1 pb-2">
+        <button
+          onClick={onNewSession}
+          className={cn(
+            "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl bg-secondary/80 hover:bg-secondary text-foreground font-medium text-xs transition-all border border-border/80 shadow-sm active:scale-98 group cursor-pointer",
+            isCollapsed ? "justify-center px-0" : ""
+          )}
+          title="New Study Session (⌘N)"
+        >
+          <Plus className="w-4 h-4 text-primary group-hover:rotate-90 transition-transform duration-200 shrink-0" />
+          {!isCollapsed && (
+            <div className="flex-1 flex items-center justify-between">
+              <span>New Session</span>
+              <kbd className="text-[10px] font-mono text-muted-foreground/60 px-1 py-0.5 rounded bg-background/50 border border-border/40">
+                ⌘N
+              </kbd>
+            </div>
+          )}
+        </button>
+      </div>
+
+      {/* Navigation Links */}
+      <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto custom-scrollbar">
         {items.map((item) => {
           const Icon = item.icon;
           return (
@@ -89,29 +121,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ items, className }) => {
               key={item.id}
               onClick={item.onClick}
               className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all duration-200 group relative text-left",
+                "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl transition-all duration-150 group text-left cursor-pointer",
                 item.active
-                  ? "bg-primary/15 text-primary border border-primary/30 shadow-sm font-semibold"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/40 font-medium",
+                  ? "bg-primary text-primary-foreground font-medium shadow-sm shadow-primary/20"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/60 font-normal",
                 isCollapsed ? "justify-center px-0" : ""
               )}
               title={isCollapsed ? item.label : undefined}
             >
-              {/* Active Indicator Bar */}
-              {item.active && (
-                <motion.div
-                  layoutId="activeNavIndicator"
-                  className="absolute left-0 top-2 bottom-2 w-1 bg-primary rounded-r-full"
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                />
-              )}
-
               <div
                 className={cn(
-                  "w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors",
+                  "w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors",
                   item.active
-                    ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
-                    : "bg-muted/50 text-muted-foreground group-hover:text-foreground group-hover:bg-muted"
+                    ? "text-primary-foreground"
+                    : "text-muted-foreground group-hover:text-foreground"
                 )}
               >
                 <Icon className="w-4 h-4" />
@@ -119,16 +142,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ items, className }) => {
 
               {!isCollapsed && (
                 <div className="flex-1 min-w-0 flex items-center justify-between">
-                  <div className="truncate">
-                    <span className="text-sm block truncate">{item.label}</span>
-                    {item.description && (
-                      <span className="text-[11px] text-muted-foreground/70 block truncate">
-                        {item.description}
-                      </span>
-                    )}
-                  </div>
+                  <span className="text-xs truncate">{item.label}</span>
                   {item.shortcut && (
-                    <span className="text-[10px] font-mono text-muted-foreground/50 ml-1 px-1.5 py-0.5 rounded bg-muted/40 border border-border/30">
+                    <span
+                      className={cn(
+                        "text-[9px] font-mono ml-1 px-1.5 py-0.5 rounded",
+                        item.active
+                          ? "text-primary-foreground/80 bg-white/20"
+                          : "text-muted-foreground/50 bg-secondary/50 border border-border/30"
+                      )}
+                    >
                       {item.shortcut}
                     </span>
                   )}
@@ -139,25 +162,25 @@ export const Sidebar: React.FC<SidebarProps> = ({ items, className }) => {
         })}
       </nav>
 
-      {/* Footer System Telemetry */}
-      <div className="p-3 border-t border-border/40 space-y-2">
+      {/* Footer Telemetry */}
+      <div className="p-3 border-t border-border/60">
         <div
           className={cn(
-            "p-3 rounded-2xl bg-muted/30 border border-border/30 flex items-center gap-2.5",
+            "p-2.5 rounded-xl bg-secondary/40 border border-border/40 flex items-center gap-2.5",
             isCollapsed ? "justify-center" : ""
           )}
         >
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse ring-4 ring-emerald-400/20 shrink-0" />
+          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ring-4 ring-emerald-400/20 shrink-0" />
           {!isCollapsed && (
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold text-foreground truncate">
-                  NVIDIA AI Engine
+                <span className="text-[11px] font-medium text-foreground truncate">
+                  NVIDIA NIM
                 </span>
                 <Zap className="w-3 h-3 text-emerald-400 shrink-0" />
               </div>
-              <p className="text-[10px] text-muted-foreground font-mono truncate">
-                RAG Pipeline Active
+              <p className="text-[10px] text-muted-foreground truncate">
+                RAG Engine Connected
               </p>
             </div>
           )}
@@ -166,4 +189,5 @@ export const Sidebar: React.FC<SidebarProps> = ({ items, className }) => {
     </motion.aside>
   );
 };
+
 

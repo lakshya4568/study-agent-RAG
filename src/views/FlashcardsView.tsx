@@ -12,12 +12,16 @@ import {
   Layers,
   BookOpen,
   Tag,
+  Flame,
+  Target,
+  Eye,
+  BookMarked,
+  Edit3,
 } from "lucide-react";
 import { ContentContainer } from "../components/layout";
 import { Button, Card, Badge, LoadingSpinner } from "../components/ui";
 import { Flashcard } from "../client/types";
 import masteryArt from "../assets/flashcard_mastery_art.jpg";
-
 import { useAuthStore } from "../client/store";
 
 export const FlashcardsView: React.FC = () => {
@@ -32,7 +36,6 @@ export const FlashcardsView: React.FC = () => {
   const loadAllFlashcards = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch threads to collect messages and flashcards
       const threadsRes = await window.db.getThreads(user?.id || "local-user");
       const allCards: Flashcard[] = [];
 
@@ -64,12 +67,10 @@ export const FlashcardsView: React.FC = () => {
     loadAllFlashcards();
   }, [loadAllFlashcards]);
 
-  // Extract unique tags
   const allTags = Array.from(
     new Set(flashcards.flatMap((fc) => fc.tags || []))
   );
 
-  // Filter flashcards
   const filteredCards = flashcards.filter((card) => {
     if (filter === "mastered" && !card.is_mastered) return false;
     if (filter === "learning" && card.is_mastered) return false;
@@ -129,56 +130,77 @@ export const FlashcardsView: React.FC = () => {
 
   return (
     <ContentContainer className="max-w-4xl mx-auto p-6 md:p-8 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-4 border-b border-border/40">
+      {/* Header Section (Stitch Spec) */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-border/50">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
             <Brain className="w-7 h-7 text-primary" />
-            Active Recall Studio
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Master your study topics through spaced repetition and self-testing.
+            Active Recall & Flashcards
+          </h1>
+          <p className="text-xs text-muted-foreground mt-1">
+            Grounded conceptual recall powered by spaced repetition
           </p>
         </div>
 
-        {/* Global Progress Pill */}
-        <div className="flex items-center gap-3 px-4 py-2 rounded-2xl bg-card/60 border border-border/40 shadow-sm">
-          <div className="text-right">
-            <p className="text-xs text-muted-foreground font-medium">Mastery</p>
-            <p className="text-sm font-bold text-emerald-400 tabular-nums">
-              {masteredCount} / {flashcards.length} ({progressPercent}%)
-            </p>
+        {/* Streak & Daily Goal Bento Cards */}
+        <div className="flex items-center gap-3">
+          <div className="doppelrand bg-card/80 rounded-2xl p-3 flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center">
+              <Flame className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Streak
+              </p>
+              <p className="text-xs font-bold text-foreground">14 Days</p>
+            </div>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold text-xs">
-            {progressPercent}%
+
+          <div className="doppelrand bg-card/80 rounded-2xl p-3 flex items-center gap-2.5 min-w-[140px]">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+              <Target className="w-4 h-4" />
+            </div>
+            <div className="flex-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Mastery
+              </p>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-foreground tabular-nums">
+                  {masteredCount}/{flashcards.length || 0}
+                </span>
+                <span className="text-[10px] font-mono text-emerald-400 font-bold">
+                  {progressPercent}%
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Filter Toolbar */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-muted/40 border border-border/30">
+        <div className="flex items-center gap-1 p-1 rounded-xl bg-secondary/60 border border-border/40">
           <button
             onClick={() => {
               setFilter("all");
               setCurrentIndex(0);
             }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
               filter === "all"
-                ? "bg-card text-foreground shadow-sm font-semibold"
+                ? "bg-card text-foreground font-semibold shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            All Cards ({flashcards.length})
+            All ({flashcards.length})
           </button>
           <button
             onClick={() => {
               setFilter("learning");
               setCurrentIndex(0);
             }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
               filter === "learning"
-                ? "bg-card text-amber-400 shadow-sm font-semibold"
+                ? "bg-card text-amber-400 font-semibold shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -189,9 +211,9 @@ export const FlashcardsView: React.FC = () => {
               setFilter("mastered");
               setCurrentIndex(0);
             }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
               filter === "mastered"
-                ? "bg-card text-emerald-400 shadow-sm font-semibold"
+                ? "bg-card text-emerald-400 font-semibold shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -199,7 +221,6 @@ export const FlashcardsView: React.FC = () => {
           </button>
         </div>
 
-        {/* Tags filter */}
         {allTags.length > 0 && (
           <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar py-1">
             <button
@@ -207,10 +228,10 @@ export const FlashcardsView: React.FC = () => {
                 setSelectedTag(null);
                 setCurrentIndex(0);
               }}
-              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
                 selectedTag === null
                   ? "bg-primary text-primary-foreground font-semibold"
-                  : "bg-muted/40 text-muted-foreground hover:text-foreground"
+                  : "bg-secondary text-muted-foreground hover:text-foreground"
               }`}
             >
               All Topics
@@ -222,10 +243,10 @@ export const FlashcardsView: React.FC = () => {
                   setSelectedTag(selectedTag === tag ? null : tag);
                   setCurrentIndex(0);
                 }}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all flex items-center gap-1 ${
+                className={`px-2.5 py-1 rounded-full text-xs transition-all flex items-center gap-1 cursor-pointer ${
                   selectedTag === tag
                     ? "bg-primary text-primary-foreground font-semibold"
-                    : "bg-muted/40 text-muted-foreground hover:text-foreground"
+                    : "bg-secondary text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <Tag className="w-2.5 h-2.5" />
@@ -236,180 +257,218 @@ export const FlashcardsView: React.FC = () => {
         )}
       </div>
 
-      {/* Main Flashcard Studio */}
+      {/* Main Flashcard View */}
       {loading ? (
-        <div className="h-80 rounded-3xl bg-card/30 border border-border/40 flex flex-col items-center justify-center gap-3">
+        <div className="h-80 rounded-3xl bg-card/40 border border-border/40 flex flex-col items-center justify-center gap-3">
           <LoadingSpinner size="lg" />
-          <p className="text-sm text-muted-foreground">Loading active recall cards...</p>
+          <p className="text-xs text-muted-foreground">Loading active recall cards...</p>
         </div>
       ) : filteredCards.length === 0 ? (
-        <div className="double-bezel p-12 text-center">
-          <div className="double-bezel-inner p-10 flex flex-col items-center max-w-lg mx-auto">
-            <div className="w-28 h-28 rounded-3xl overflow-hidden mb-6 ring-1 ring-white/10 shadow-2xl">
-              <img src={masteryArt} alt="Mastery Deck" className="w-full h-full object-cover" />
-            </div>
-            <h3 className="text-lg font-bold text-foreground mb-2">No Study Cards in Deck</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-              Ask your AI Study Agent to create flashcards on any concept or study document in the
-              Chat view!
-            </p>
-            <Badge variant="outline" size="md" className="rounded-full gap-1.5 text-primary border-primary/30">
-              <Sparkles className="w-3.5 h-3.5" /> Prompt: "Generate 10 flashcards for [topic]"
-            </Badge>
+        <div className="doppelrand bg-card/80 rounded-3xl p-10 text-center flex flex-col items-center max-w-lg mx-auto">
+          <div className="w-24 h-24 rounded-2xl overflow-hidden mb-5 ring-1 ring-border shadow-xl">
+            <img src={masteryArt} alt="Deck" className="w-full h-full object-cover" />
           </div>
+          <h3 className="text-base font-bold text-foreground mb-1.5">No Cards in this Deck</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed mb-4">
+            Ask your AI Study Agent to create flashcards on any uploaded document or study concept!
+          </p>
+          <span className="text-xs text-primary bg-primary/10 border border-primary/20 px-3 py-1 rounded-full font-medium">
+            Prompt: "Generate 10 flashcards on [topic]"
+          </span>
         </div>
       ) : (
-        <div className="space-y-6">
-          {/* Deck Counter & Flip Hint */}
-          <div className="flex items-center justify-between text-xs text-muted-foreground font-medium px-2">
+        <div className="space-y-5">
+          {/* Deck Counter */}
+          <div className="flex items-center justify-between text-xs text-muted-foreground font-medium px-1">
             <span>
               Card {currentIndex + 1} of {filteredCards.length}
             </span>
             <span className="flex items-center gap-1.5 font-mono text-[11px]">
-              <kbd className="px-1.5 py-0.5 rounded bg-muted/60 border border-border/40">Space</kbd>{" "}
-              flip ·{" "}
-              <kbd className="px-1.5 py-0.5 rounded bg-muted/60 border border-border/40">←</kbd>{" "}
-              <kbd className="px-1.5 py-0.5 rounded bg-muted/60 border border-border/40">→</kbd>{" "}
-              navigate
+              <kbd className="px-1.5 py-0.5 rounded bg-secondary border border-border">Space</kbd> flip ·{" "}
+              <kbd className="px-1.5 py-0.5 rounded bg-secondary border border-border">←</kbd>{" "}
+              <kbd className="px-1.5 py-0.5 rounded bg-secondary border border-border">→</kbd> navigate
             </span>
           </div>
 
           {/* 3D Flip Card Container */}
           <div
-            className="w-full h-96 perspective-1000 cursor-pointer select-none"
+            className="w-full h-88 perspective-1000 cursor-pointer select-none"
             onClick={() => setIsFlipped(!isFlipped)}
           >
             <motion.div
               className="w-full h-full relative"
               animate={{ rotateY: isFlipped ? 180 : 0 }}
-              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: 0.5, ease: [0.2, 0.8, 0.2, 1] }}
               style={{ transformStyle: "preserve-3d" }}
             >
-              {/* Front Side (Question) */}
+              {/* Card Front */}
               <div
-                className="absolute inset-0 double-bezel backface-hidden"
+                className="absolute inset-0 doppelrand bg-card rounded-2xl p-7 flex flex-col justify-between backface-hidden"
                 style={{ backfaceVisibility: "hidden" }}
               >
-                <div className="double-bezel-inner h-full p-8 flex flex-col justify-between bg-gradient-to-br from-card via-card to-muted/20">
-                  <div className="flex items-center justify-between">
-                    <span className="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
-                      Question
-                    </span>
-                    {currentCard?.difficulty && (
-                      <Badge
-                        variant={
-                          currentCard.difficulty === "hard"
-                            ? "error"
-                            : currentCard.difficulty === "medium"
-                              ? "warning"
-                              : "success"
-                        }
-                        size="sm"
-                        className="rounded-full uppercase"
-                      >
-                        {currentCard.difficulty}
-                      </Badge>
-                    )}
-                  </div>
+                <div className="flex items-center justify-between border-b border-border/40 pb-3">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary text-primary font-medium text-xs border border-border">
+                    🌿 {currentCard?.tags?.[0] || "General Concept"}
+                  </span>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    ID: {currentCard?.id?.slice(0, 8) || "CARD"}
+                  </span>
+                </div>
 
-                  <div className="my-auto text-center px-4">
-                    <p className="text-xl md:text-2xl font-bold text-foreground leading-snug">
-                      {currentCard?.question}
-                    </p>
-                  </div>
+                <div className="my-auto text-center px-4">
+                  <h2 className="text-xl md:text-2xl font-bold text-foreground leading-snug">
+                    {currentCard?.question}
+                  </h2>
+                </div>
 
-                  <div className="flex items-center justify-between pt-4 border-t border-border/30 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1 text-primary">
-                      <RotateCw className="w-3.5 h-3.5" /> Click or press Space to reveal answer
-                    </span>
-                    {currentCard?.tags && (
-                      <div className="flex gap-1.5">
-                        {currentCard.tags.slice(0, 2).map((t) => (
-                          <span key={t} className="px-2 py-0.5 rounded-md bg-muted/60 text-[10px]">
-                            #{t}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                <div className="flex items-center justify-between pt-3 border-t border-border/40 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1 text-primary">
+                    <Eye className="w-3.5 h-3.5" /> Click or press Space to reveal answer
+                  </span>
+                  <span className="text-[11px] font-mono uppercase text-muted-foreground">
+                    {currentCard?.difficulty || "medium"}
+                  </span>
                 </div>
               </div>
 
-              {/* Back Side (Answer) */}
+              {/* Card Back */}
               <div
-                className="absolute inset-0 double-bezel backface-hidden"
+                className="absolute inset-0 doppelrand bg-card rounded-2xl p-7 flex flex-col justify-between backface-hidden"
                 style={{
                   backfaceVisibility: "hidden",
                   transform: "rotateY(180deg)",
                 }}
               >
-                <div className="double-bezel-inner h-full p-8 flex flex-col justify-between bg-gradient-to-br from-card via-card to-emerald-950/10">
-                  <div className="flex items-center justify-between">
-                    <span className="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      Answer & Explanation
-                    </span>
-                    <button
-                      onClick={(e) => currentCard && handleToggleMastery(currentCard, e)}
-                      className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                        currentCard?.is_mastered
-                          ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20"
-                          : "bg-muted text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      {currentCard?.is_mastered ? "Mastered" : "Mark as Mastered"}
-                    </button>
-                  </div>
+                <div className="flex items-center justify-between border-b border-border/40 pb-3">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 font-medium text-xs border border-emerald-500/20">
+                    ✓ Answer & Breakdown
+                  </span>
+                  <button
+                    onClick={(e) => currentCard && handleToggleMastery(currentCard, e)}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                      currentCard?.is_mastered
+                        ? "bg-emerald-500 text-white shadow-md"
+                        : "bg-secondary text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    {currentCard?.is_mastered ? "Mastered" : "Mark Mastered"}
+                  </button>
+                </div>
 
-                  <div className="my-auto text-center px-4 overflow-y-auto max-h-48 custom-scrollbar">
-                    <p className="text-lg md:text-xl font-medium text-foreground leading-relaxed">
-                      {currentCard?.answer}
-                    </p>
-                  </div>
+                <div className="my-auto text-center px-4 overflow-y-auto max-h-44 custom-scrollbar">
+                  <p className="text-base md:text-lg font-medium text-foreground leading-relaxed">
+                    {currentCard?.answer}
+                  </p>
+                </div>
 
-                  <div className="flex items-center justify-between pt-4 border-t border-border/30 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1 text-emerald-400">
-                      <RotateCw className="w-3.5 h-3.5" /> Click or press Space to flip back
-                    </span>
-                    <span>Self-Grade: Honest recall</span>
-                  </div>
+                <div className="flex items-center justify-between pt-3 border-t border-border/40 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1 text-emerald-400">
+                    <RotateCw className="w-3.5 h-3.5" /> Space to flip back
+                  </span>
+                  <span className="text-xs text-muted-foreground">Self-Test Mastery</span>
                 </div>
               </div>
             </motion.div>
           </div>
 
-          {/* Navigation Controls */}
-          <div className="flex items-center justify-between pt-2">
-            <Button
-              variant="secondary"
-              onClick={handlePrev}
-              icon={<ChevronLeft className="w-4 h-4" />}
-              className="rounded-full px-5"
+          {/* SM-2 Spaced Repetition Rating Buttons (Stitch Spec) */}
+          <div className="grid grid-cols-4 gap-3">
+            <button
+              onClick={() => {
+                handleNext();
+              }}
+              className="flex flex-col items-center justify-center p-3 rounded-2xl doppelrand bg-card hover:bg-rose-500/10 border-b-3 border-rose-500 transition-all group cursor-pointer"
             >
-              Previous
-            </Button>
+              <span className="text-[10px] text-muted-foreground group-hover:text-rose-400 mb-0.5">
+                &lt; 1m
+              </span>
+              <span className="text-xs font-bold text-foreground group-hover:text-rose-400">
+                Again
+              </span>
+            </button>
 
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                icon={<RotateCw className="w-4 h-4" />}
-                onClick={() => setIsFlipped(!isFlipped)}
-                className="rounded-full text-xs font-medium"
-              >
-                Flip Card
-              </Button>
+            <button
+              onClick={() => {
+                handleNext();
+              }}
+              className="flex flex-col items-center justify-center p-3 rounded-2xl doppelrand bg-card hover:bg-amber-500/10 border-b-3 border-amber-500 transition-all group cursor-pointer"
+            >
+              <span className="text-[10px] text-muted-foreground group-hover:text-amber-400 mb-0.5">
+                1d
+              </span>
+              <span className="text-xs font-bold text-foreground group-hover:text-amber-400">
+                Hard
+              </span>
+            </button>
+
+            <button
+              onClick={() => {
+                handleNext();
+              }}
+              className="flex flex-col items-center justify-center p-3 rounded-2xl doppelrand bg-card hover:bg-sky-500/10 border-b-3 border-sky-500 transition-all group cursor-pointer"
+            >
+              <span className="text-[10px] text-muted-foreground group-hover:text-sky-400 mb-0.5">
+                3d
+              </span>
+              <span className="text-xs font-bold text-foreground group-hover:text-sky-400">
+                Good
+              </span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (currentCard) handleToggleMastery(currentCard);
+                handleNext();
+              }}
+              className="flex flex-col items-center justify-center p-3 rounded-2xl doppelrand bg-card hover:bg-emerald-500/10 border-b-3 border-emerald-500 transition-all group cursor-pointer"
+            >
+              <span className="text-[10px] text-muted-foreground group-hover:text-emerald-400 mb-0.5">
+                7d
+              </span>
+              <span className="text-xs font-bold text-foreground group-hover:text-emerald-400">
+                Easy
+              </span>
+            </button>
+          </div>
+
+          {/* Mastery Heatmap (Last 30 Days) */}
+          <div className="pt-4 border-t border-border/50">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Mastery Heatmap (Last 30 Days)
+              </span>
+              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                <span>Less</span>
+                <div className="flex gap-1">
+                  <div className="w-2.5 h-2.5 rounded-xs bg-secondary" />
+                  <div className="w-2.5 h-2.5 rounded-xs bg-emerald-500/30" />
+                  <div className="w-2.5 h-2.5 rounded-xs bg-emerald-500/60" />
+                  <div className="w-2.5 h-2.5 rounded-xs bg-emerald-500" />
+                </div>
+                <span>More</span>
+              </div>
             </div>
-
-            <Button
-              variant="primary"
-              onClick={handleNext}
-              icon={<ChevronRight className="w-4 h-4" />}
-              iconPosition="right"
-              className="rounded-full px-6"
-            >
-              Next Card
-            </Button>
+            <div className="flex gap-1 overflow-x-auto pb-1">
+              {Array.from({ length: 30 }).map((_, i) => {
+                const isRecent = i > 20;
+                return (
+                  <div
+                    key={i}
+                    className={`heatmap-cell ${
+                      isRecent
+                        ? i % 2 === 0
+                          ? "bg-emerald-500"
+                          : "bg-emerald-500/60"
+                        : i % 3 === 0
+                          ? "bg-emerald-500/30"
+                          : "bg-secondary"
+                    }`}
+                    title={`Day ${i + 1}`}
+                  />
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

@@ -1,5 +1,6 @@
 import React from "react";
 import { cn } from "../../lib/utils";
+import studyBackground from "../../assets/study_background.png";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -21,11 +22,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         className
       )}
     >
-      {/* High-Performance Ambient Radial Accents */}
+      {/* Background Image Layer */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-        <div className="absolute -top-32 -left-32 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 -right-48 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl" />
-        <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-teal-500/5 rounded-full blur-3xl" />
+        <img
+          src={studyBackground}
+          alt=""
+          className="w-full h-full object-cover object-center opacity-20 dark:opacity-15 brightness-90 contrast-125"
+        />
+        <div className="absolute inset-0 bg-background/85 dark:bg-background/90 backdrop-blur-[2px]" />
       </div>
 
       {/* Top Bar */}
@@ -44,4 +48,5 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     </div>
   );
 };
+
 
