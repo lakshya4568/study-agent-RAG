@@ -3,15 +3,12 @@ import { cn } from "../../lib/utils";
 import {
   LucideIcon,
   Plus,
-  History,
-  Bell,
   PanelLeftClose,
   PanelLeftOpen,
-  ChevronLeft,
-  ChevronRight,
   MessageSquare,
   Trash2,
-  Search,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useChatStore, useAuthStore } from "../../client/store";
 
@@ -36,10 +33,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectThread,
   className,
 }) => {
-  const { isSidebarExpanded, toggleSidebar, activeThreadId, setActiveThreadId } = useChatStore();
+  const {
+    isSidebarExpanded,
+    toggleSidebar,
+    activeThreadId,
+    setActiveThreadId,
+    theme,
+    setTheme,
+  } = useChatStore();
   const { user } = useAuthStore();
   const [threads, setThreads] = useState<Array<{ id: string; title: string; created_at: number }>>([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery] = useState("");
+
+  const toggleTheme = () => {
+    if (theme === "dark") {
+      setTheme("light");
+      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("theme-light");
+    } else {
+      setTheme("dark");
+      document.documentElement.classList.remove("theme-light");
+      document.documentElement.classList.add("dark");
+    }
+  };
 
   const loadThreads = useCallback(async () => {
     try {
@@ -100,7 +116,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {/* 8-pointed geometric emblem */}
             <div
               className="w-9 h-9 rounded-xl flex items-center justify-center text-foreground hover:bg-secondary transition-colors cursor-pointer shrink-0"
-              title="Study Agent PRO"
+              title="Study Agent"
               onClick={toggleSidebar}
             >
               <svg
@@ -285,6 +301,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
               )}
             </div>
           </div>
+        )}
+      </div>
+
+      {/* Bottom Section: Theme Toggle Button on Bottom Left */}
+      <div className="pt-2 border-t border-border/40 w-full shrink-0">
+        {isSidebarExpanded ? (
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="w-full h-8 px-2.5 rounded-xl flex items-center gap-2.5 text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors cursor-pointer text-xs"
+            title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+          >
+            {theme === "dark" ? (
+              <Sun className="w-4 h-4 text-amber-400 shrink-0" />
+            ) : (
+              <Moon className="w-4 h-4 text-indigo-400 shrink-0" />
+            )}
+            <span className="truncate">
+              {theme === "dark" ? "Light theme" : "Dark theme"}
+            </span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors cursor-pointer"
+            title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+          >
+            {theme === "dark" ? (
+              <Sun className="w-4 h-4 text-amber-400" />
+            ) : (
+              <Moon className="w-4 h-4 text-indigo-400" />
+            )}
+          </button>
         )}
       </div>
     </aside>
