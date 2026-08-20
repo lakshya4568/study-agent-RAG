@@ -5,7 +5,7 @@ const path = require("path");
 const originalScript =
   "/Users/proximus/Downloads/Github Repositories/googleForm-MCP/src/gform-mcp-server.js";
 
-const child = spawn("node", [originalScript], {
+const child = spawn("bun", [originalScript], {
   stdio: ["inherit", "pipe", "inherit"], // pipe stdout, inherit stdin/stderr
 });
 
