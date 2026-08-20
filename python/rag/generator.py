@@ -7,7 +7,7 @@ Supports streaming and non-streaming generation.
 
 import logging
 import json
-from typing import List, Tuple, Optional, AsyncIterator
+from typing import List, Tuple, Optional, AsyncIterator, Dict, Any
 
 from langchain.schema import Document
 from langchain_nvidia_ai_endpoints import ChatNVIDIA

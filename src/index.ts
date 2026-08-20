@@ -148,15 +148,36 @@ function convertChatHistoryToMessages(
     });
 }
 
+let mainWindowInstance: BrowserWindow | null = null;
+
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (mainWindowInstance && !mainWindowInstance.isDestroyed()) {
+      if (mainWindowInstance.isMinimized()) mainWindowInstance.restore();
+      mainWindowInstance.focus();
+    }
+  });
+}
+
 const createWindow = (): void => {
+  if (mainWindowInstance && !mainWindowInstance.isDestroyed()) {
+    if (mainWindowInstance.isMinimized()) mainWindowInstance.restore();
+    mainWindowInstance.focus();
+    return;
+  }
+
   // Get primary display work area size
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
 
   // Create the browser window with dynamic screen dimensions
-  const mainWindow = new BrowserWindow({
+  mainWindowInstance = new BrowserWindow({
     width,
     height,
     autoHideMenuBar: true,
+    backgroundColor: "#18181b",
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
       contextIsolation: true,
@@ -167,11 +188,15 @@ const createWindow = (): void => {
     },
   });
 
+  mainWindowInstance.on("closed", () => {
+    mainWindowInstance = null;
+  });
+
   // and load the index.html of the app.
-  mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
+  mainWindowInstance.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
 
   if (isDev && shouldAutoOpenDevTools) {
-    mainWindow.webContents.openDevTools();
+    mainWindowInstance.webContents.openDevTools();
     logger.info("🪟 Main window created and DevTools opened");
   } else {
     logger.info("🪟 Main window created");
@@ -209,33 +234,35 @@ app.on("ready", async () => {
   registerDatabaseHandlers();
   logger.info("🔌 IPC handlers registered");
 
-  // Start NVIDIA RAG service after database is ready
-  try {
-    logger.info("🚀 Starting NVIDIA RAG service...");
-    await startRAGService();
-    logger.info("✅ NVIDIA RAG service started successfully");
-    logger.info("   Model: nvidia/llama-3.2-nemoretriever-300m-embed-v2");
-    logger.info("   LLM: moonshotai/kimi-k2-instruct (via OpenAI SDK)");
-  } catch (error) {
-    logger.error("❌ Failed to start NVIDIA RAG service:", error);
-    logger.error("   RAG features may not be available");
-  }
-
+  // Create window immediately so app appears instantly
   createWindow();
 
-  // Warm up the Study Agent so the UI immediately shows status
-  logger.info("\n🔥 Warming up Study Agent...");
-  studyAgentService
-    .initialize()
+  // Start NVIDIA RAG service in background
+  startRAGService()
     .then(() => {
-      logger.info("✅ Study Agent initialized and ready");
-      logger.info("=".repeat(60));
-      logger.info("🎉 All systems operational - Ready for queries!");
-      logger.info("=".repeat(60) + "\n");
+      logger.info("✅ NVIDIA RAG service started successfully");
+      logger.info("   Model: nvidia/llama-3.2-nemoretriever-300m-embed-v2");
+      logger.info("   LLM: moonshotai/kimi-k2-instruct (via OpenAI SDK)");
     })
     .catch((error) => {
-      logger.error("❌ Study agent failed to initialize on startup:", error);
-      logger.warn("   Agent will initialize on first query instead");
+      logger.error("❌ Failed to start NVIDIA RAG service:", error);
+      logger.error("   RAG features may not be available");
+    })
+    .finally(() => {
+      // Warm up the Study Agent so the UI immediately shows status
+      logger.info("\n🔥 Warming up Study Agent...");
+      studyAgentService
+        .initialize()
+        .then(() => {
+          logger.info("✅ Study Agent initialized and ready");
+          logger.info("=".repeat(60));
+          logger.info("🎉 All systems operational - Ready for queries!");
+          logger.info("=".repeat(60) + "\n");
+        })
+        .catch((error) => {
+          logger.error("❌ Study agent failed to initialize on startup:", error);
+          logger.warn("   Agent will initialize on first query instead");
+        });
     });
 });
 
@@ -245,9 +272,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("activate", () => {
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
-  if (BrowserWindow.getAllWindows().length === 0) {
+  if (!mainWindowInstance || mainWindowInstance.isDestroyed()) {
     createWindow();
   }
 });

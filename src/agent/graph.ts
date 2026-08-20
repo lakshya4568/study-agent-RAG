@@ -1,6 +1,6 @@
 import { StateGraph, START, END, MemorySaver } from "@langchain/langgraph";
 import type { CompiledStateGraph } from "@langchain/langgraph";
-import { ToolNode } from "@langchain/langgraph/prebuilt";
+import type { StructuredTool } from "@langchain/core/tools";
 import type { StudyAgentStateType } from "./state";
 import { StudyAgentState } from "./state";
 import {
@@ -13,20 +13,18 @@ import {
 import type { MemoryManager } from "./MemoryManager";
 
 export async function createStudyMentorGraph(
-  tools: ConstructorParameters<typeof ToolNode>[0],
+  tools: StructuredTool[],
   memoryManager: MemoryManager
 ): Promise<
   CompiledStateGraph<StudyAgentStateType, Partial<StudyAgentStateType>>
 > {
-  const toolNode = new ToolNode(tools);
-  const queryNode = createQueryNode(tools as any[]);
+  const queryNode = createQueryNode(tools);
   const memoryNode = createMemoryNode(memoryManager);
 
   const workflow = new StateGraph(StudyAgentState)
     .addNode("router", routeNode)
     .addNode("query", queryNode)
     .addNode("retrieve", retrieveNode)
-    .addNode("tools", toolNode)
     .addNode("flashcard", flashcardNode)
     .addNode("memory", memoryNode);
 
@@ -51,4 +49,5 @@ export async function createStudyMentorGraph(
     Partial<StudyAgentStateType>
   >;
 }
+
 
