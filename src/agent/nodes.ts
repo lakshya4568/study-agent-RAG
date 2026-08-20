@@ -480,18 +480,25 @@ JSON Schema:
     ]);
 
     let raw = typeof response === "string" ? response : JSON.stringify(response);
-    // Strip markdown code fences if model wrapped the JSON
+    // Strip reasoning traces and markdown code fences
+    raw = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
     raw = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
 
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    const jsonContent = jsonMatch ? jsonMatch[0] : raw;
+    const start = raw.indexOf("{");
+    const end = raw.lastIndexOf("}");
+    const jsonContent = (start !== -1 && end !== -1 && end > start)
+      ? raw.substring(start, end + 1)
+      : raw;
 
     // Validate JSON parsing
-    JSON.parse(jsonContent);
+    const parsed = JSON.parse(jsonContent);
+    if (!parsed.flashcards || !Array.isArray(parsed.flashcards)) {
+      throw new Error("Invalid flashcard JSON structure");
+    }
 
     return {
       documents: docs,
-      messages: [new AIMessage({ content: jsonContent })],
+      messages: [new AIMessage({ content: JSON.stringify(parsed) })],
     };
   } catch (error) {
     logger.error("[FlashcardNode] Generation failed", error);

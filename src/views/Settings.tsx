@@ -18,6 +18,7 @@ import { useChatStore } from "../client/store";
 
 interface ConfigFormState {
   NVIDIA_API_KEY: string;
+  GROQ_API_KEY: string;
   GEMINI_API_KEY: string;
   ANTHROPIC_API_KEY: string;
   OPENAI_API_KEY: string;
@@ -30,6 +31,7 @@ export const Settings: React.FC = () => {
   const [configSummary, setConfigSummary] = useState<ConfigSummaryItem[]>([]);
   const [configForm, setConfigForm] = useState<ConfigFormState>({
     NVIDIA_API_KEY: "",
+    GROQ_API_KEY: "",
     GEMINI_API_KEY: "",
     ANTHROPIC_API_KEY: "",
     OPENAI_API_KEY: "",
@@ -62,6 +64,7 @@ export const Settings: React.FC = () => {
       const getVal = (key: string) => summary.find((i) => i.key === key)?.value ?? "";
       setConfigForm({
         NVIDIA_API_KEY: "",
+        GROQ_API_KEY: "",
         GEMINI_API_KEY: "",
         ANTHROPIC_API_KEY: "",
         OPENAI_API_KEY: "",
@@ -121,6 +124,7 @@ export const Settings: React.FC = () => {
     try {
       const updates: Record<string, string | undefined> = {};
       if (configForm.NVIDIA_API_KEY) updates.NVIDIA_API_KEY = configForm.NVIDIA_API_KEY;
+      if (configForm.GROQ_API_KEY) updates.GROQ_API_KEY = configForm.GROQ_API_KEY;
       if (configForm.GEMINI_API_KEY) updates.GEMINI_API_KEY = configForm.GEMINI_API_KEY;
       if (configForm.ANTHROPIC_API_KEY) updates.ANTHROPIC_API_KEY = configForm.ANTHROPIC_API_KEY;
       if (configForm.OPENAI_API_KEY) updates.OPENAI_API_KEY = configForm.OPENAI_API_KEY;
@@ -132,6 +136,7 @@ export const Settings: React.FC = () => {
       setConfigForm((prev) => ({
         ...prev,
         NVIDIA_API_KEY: "",
+        GROQ_API_KEY: "",
         GEMINI_API_KEY: "",
         ANTHROPIC_API_KEY: "",
         OPENAI_API_KEY: "",
@@ -224,6 +229,24 @@ export const Settings: React.FC = () => {
               <Key className="w-4 h-4 text-primary" />
               <h3>AI Provider API Keys</h3>
             </div>
+
+            <Input
+              label={
+                <span className="flex items-center gap-2">
+                  Groq API Key
+                  {isSet("GROQ_API_KEY") && (
+                    <span className="text-[10px] text-emerald-400 font-semibold">(Configured - Ultra Fast)</span>
+                  )}
+                </span>
+              }
+              type="password"
+              value={configForm.GROQ_API_KEY}
+              onChange={(e) =>
+                setConfigForm((prev) => ({ ...prev, GROQ_API_KEY: e.target.value }))
+              }
+              placeholder={isSet("GROQ_API_KEY") ? "••••••••••••••••" : "gsk_..."}
+              className="rounded-xl"
+            />
 
             <Input
               label={

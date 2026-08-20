@@ -533,7 +533,7 @@ export class StudyAgentService {
       }
 
       if (!this.ragServiceConnected) {
-        throw new Error("RAG service not connected");
+        logger.warn("RAG service not connected - proceeding in direct LLM reasoning mode");
       }
 
       logger.info(`Agent invoke: "${userMessage.substring(0, 100)}..."`);
@@ -560,9 +560,11 @@ export class StudyAgentService {
         memoryCommand: "",
       };
 
-      const invokeConfig: RunnableConfig | undefined = options?.threadId
-        ? { configurable: { thread_id: options.threadId } }
-        : undefined;
+      const invokeConfig: RunnableConfig = {
+        configurable: {
+          thread_id: options?.threadId || "default-study-session",
+        },
+      };
 
       const result = await this.graph.invoke(input, invokeConfig);
 

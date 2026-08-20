@@ -1,44 +1,105 @@
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 import OpenAI from "openai";
+import { ChatOpenAI } from "@langchain/openai";
 import type {
   ChatCompletionMessageParam,
   ChatCompletionTool,
 } from "openai/resources/chat/completions";
 
-const NVIDIA_CHAT_MODEL = "moonshotai/kimi-k2-instruct"; // Using Kimi K2 Instruct
-const NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1";
+// Groq configuration
+const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
+const GROQ_DEFAULT_MODEL = "openai/gpt-oss-120b"; // Verified high-speed working model
 
-function getRequiredApiKey(): string {
-  const key = process.env.NVIDIA_API_KEY;
-  if (!key) {
-    throw new Error(
-      "NVIDIA_API_KEY is not set. Add it to your environment before running the agent."
-    );
+// NVIDIA configuration
+const NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1";
+const NVIDIA_DEFAULT_MODEL = "meta/llama-3.3-70b-instruct";
+
+export interface ModelProviderConfig {
+  provider: "groq" | "nvidia" | "auto";
+  apiKey: string;
+  baseURL: string;
+  model: string;
+}
+
+export function resolveModelConfig(preferred?: "groq" | "nvidia"): ModelProviderConfig {
+  const groqKey = process.env.GROQ_API_KEY;
+  const nvidiaKey = process.env.NVIDIA_API_KEY;
+
+  if (preferred === "groq" && groqKey) {
+    return {
+      provider: "groq",
+      apiKey: groqKey,
+      baseURL: GROQ_BASE_URL,
+      model: GROQ_DEFAULT_MODEL,
+    };
   }
-  return key;
+
+  if (preferred === "nvidia" && nvidiaKey) {
+    return {
+      provider: "nvidia",
+      apiKey: nvidiaKey,
+      baseURL: NVIDIA_BASE_URL,
+      model: NVIDIA_DEFAULT_MODEL,
+    };
+  }
+
+  // Auto resolution: prefer Groq for speed & reliability if available, else NVIDIA
+  if (groqKey) {
+    return {
+      provider: "groq",
+      apiKey: groqKey,
+      baseURL: GROQ_BASE_URL,
+      model: GROQ_DEFAULT_MODEL,
+    };
+  }
+
+  if (nvidiaKey) {
+    return {
+      provider: "nvidia",
+      apiKey: nvidiaKey,
+      baseURL: NVIDIA_BASE_URL,
+      model: NVIDIA_DEFAULT_MODEL,
+    };
+  }
+
+  throw new Error(
+    "No AI API key found. Please configure GROQ_API_KEY or NVIDIA_API_KEY in your .env file or Settings."
+  );
 }
 
 export interface NVIDIAChatOptions {
   temperature?: number;
   maxTokens?: number;
   model?: string;
+  provider?: "groq" | "nvidia" | "auto";
 }
 
 export class NVIDIAOpenAIChat {
   private client: OpenAI;
+  private config: ModelProviderConfig;
   private model: string;
   private temperature: number;
   private maxTokens: number;
 
   constructor(options: NVIDIAChatOptions = {}) {
-    this.client = new OpenAI({
-      apiKey: getRequiredApiKey(),
-      baseURL: NVIDIA_BASE_URL,
-      timeout: 120000, // 2 minute timeout to prevent indefinite hangs
-    });
-    this.model = options.model || NVIDIA_CHAT_MODEL;
+    this.config = resolveModelConfig(options.provider === "auto" ? undefined : options.provider);
+    this.model = options.model || this.config.model;
     this.temperature = options.temperature ?? 0.2;
-    this.maxTokens = options.maxTokens ?? 2000;
+    this.maxTokens = options.maxTokens ?? 3000;
+
+    this.client = new OpenAI({
+      apiKey: this.config.apiKey,
+      baseURL: this.config.baseURL,
+      timeout: 60000,
+    });
+  }
+
+  getProvider(): string {
+    return this.config.provider;
+  }
+
+  getModelName(): string {
+    return this.model;
   }
 
   /**
@@ -46,8 +107,8 @@ export class NVIDIAOpenAIChat {
    */
   private async executeWithRetry<T>(
     operation: () => Promise<T>,
-    maxRetries = 3,
-    initialDelayMs = 1500
+    maxRetries = 2,
+    initialDelayMs = 1000
   ): Promise<T> {
     let lastError: any;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -62,7 +123,7 @@ export class NVIDIAOpenAIChat {
         if (attempt < maxRetries && isRateLimitOrServerErr) {
           const delay = initialDelayMs * Math.pow(2, attempt) + Math.random() * 500;
           console.warn(
-            `[NVIDIA Chat] Request returned ${status || "network error"}, retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${maxRetries})...`
+            `[${this.config.provider.toUpperCase()} Chat] Request returned ${status || "network error"}, retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${maxRetries})...`
           );
           await new Promise((resolve) => setTimeout(resolve, delay));
         } else {
@@ -71,6 +132,14 @@ export class NVIDIAOpenAIChat {
       }
     }
     throw lastError;
+  }
+
+  /**
+   * Sanitize model text output by removing <think>...</think> blocks from reasoning models
+   */
+  private sanitizeContent(content: string): string {
+    if (!content) return "";
+    return content.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
   }
 
   /**
@@ -86,7 +155,8 @@ export class NVIDIAOpenAIChat {
       })
     );
 
-    return completion.choices[0]?.message?.content || "";
+    const rawContent = completion.choices[0]?.message?.content || "";
+    return this.sanitizeContent(rawContent);
   }
 
   /**
@@ -104,8 +174,7 @@ export class NVIDIAOpenAIChat {
   }> {
     const conversationMessages: ChatCompletionMessageParam[] = [...messages];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const allExecutedTools: Array<{ name: string; args: any; result: string }> =
-      [];
+    const allExecutedTools: Array<{ name: string; args: any; result: string }> = [];
     const MAX_ITERATIONS = 5;
     let iterations = 0;
 
@@ -124,25 +193,13 @@ export class NVIDIAOpenAIChat {
       );
 
       const choice = completion.choices[0];
-      let toolCalls = choice.message?.tool_calls || [];
-      let content = choice.message?.content || "";
-
-      // Check for raw tool call tokens in content if no structured tool calls found
-      if (
-        toolCalls.length === 0 &&
-        content.includes("<|tool_calls_section_begin|>")
-      ) {
-        const parsed = this.parseToolCallsFromContent(content);
-        if (parsed.toolCalls.length > 0) {
-          toolCalls = parsed.toolCalls;
-          content = parsed.cleanContent;
-        }
-      }
+      const toolCalls = choice.message?.tool_calls || [];
+      const content = choice.message?.content || "";
 
       // If no tool calls, we have our final answer
       if (toolCalls.length === 0) {
         return {
-          content: content,
+          content: this.sanitizeContent(content),
           toolCalls: allExecutedTools,
         };
       }
@@ -165,10 +222,7 @@ export class NVIDIAOpenAIChat {
 
           if (typeof parsed === "string") {
             try {
-              if (
-                parsed.trim().startsWith("{") ||
-                parsed.trim().startsWith("[")
-              ) {
+              if (parsed.trim().startsWith("{") || parsed.trim().startsWith("[")) {
                 parsed = JSON.parse(parsed);
               }
             } catch {
@@ -187,13 +241,6 @@ export class NVIDIAOpenAIChat {
               toolCall.function.arguments
             );
           }
-        }
-
-        if (typeof toolArgs !== "object" || toolArgs === null) {
-          console.warn(
-            `Tool arguments for ${toolName} are not an object:`,
-            toolArgs
-          );
         }
 
         let toolResult = "";
@@ -226,11 +273,11 @@ export class NVIDIAOpenAIChat {
         });
         const summary = await this.invoke(conversationMessages);
         return {
-          content: summary,
+          content: this.sanitizeContent(summary),
           toolCalls: allExecutedTools,
         };
       } catch {
-        // Fallback to reporting tool execution count
+        // Fallback
       }
     }
 
@@ -238,55 +285,25 @@ export class NVIDIAOpenAIChat {
     return {
       content:
         lastMsg.role === "assistant" && lastMsg.content
-          ? String(lastMsg.content)
+          ? this.sanitizeContent(String(lastMsg.content))
           : "Completed tool operations.",
       toolCalls: allExecutedTools,
     };
   }
 
   /**
-   * Parse raw tool call tokens from content
-   * Format: <|tool_calls_section_begin|><|tool_call_begin|>name:id<|tool_call_argument_begin|>args<|tool_call_end|><|tool_calls_section_end|>
+   * Creates a LangChain ChatOpenAI instance with the resolved model & baseURL
    */
-  private parseToolCallsFromContent(content: string): {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    toolCalls: any[];
-    cleanContent: string;
-  } {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const toolCalls: any[] = [];
-    // Use [\s\S] to match any character including newlines
-    const toolCallRegex =
-      /<\|tool_call_begin\|>([\s\S]*?)<\|tool_call_argument_begin\|>([\s\S]*?)<\|tool_call_end\|>/g;
-    let match;
-
-    while ((match = toolCallRegex.exec(content)) !== null) {
-      const [_, nameAndId, args] = match;
-      // nameAndId might be "functions.tool_name:id" or just "tool_name:id"
-      const parts = nameAndId.trim().split(":");
-      const id = parts.pop() || "0";
-      const fnName = parts.join(":"); // Rejoin in case name has colons, though unlikely
-      const name = fnName.replace("functions.", "").trim();
-
-      toolCalls.push({
-        id: `call_${id}_${Math.random().toString(36).substr(2, 9)}`, // Generate unique ID
-        type: "function",
-        function: {
-          name: name,
-          arguments: args.trim(),
-        },
-      });
-    }
-
-    // Remove the tool calls section from content
-    const cleanContent = content
-      .replace(
-        /<\|tool_calls_section_begin\|>[\s\S]*?<\|tool_calls_section_end\|>/g,
-        ""
-      )
-      .trim();
-
-    return { toolCalls, cleanContent };
+  toLangChainChatModel(): ChatOpenAI {
+    return new ChatOpenAI({
+      apiKey: this.config.apiKey,
+      configuration: {
+        baseURL: this.config.baseURL,
+      },
+      model: this.model,
+      temperature: this.temperature,
+      maxTokens: this.maxTokens,
+    });
   }
 
   /**
@@ -304,6 +321,7 @@ export function createNVIDIAOpenAIChat(
 }
 
 export const nvidiaChatDefaults = {
-  modelName: NVIDIA_CHAT_MODEL,
-  baseURL: NVIDIA_BASE_URL,
+  modelName: GROQ_DEFAULT_MODEL,
+  baseURL: GROQ_BASE_URL,
 };
+
