@@ -26,7 +26,6 @@ interface SidebarProps {
     active?: boolean;
   }>;
   onNewSession?: () => void;
-  onOpenHistory?: () => void;
   onSelectThread?: (threadId: string) => void;
   className?: string;
 }
@@ -34,7 +33,6 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({
   items,
   onNewSession,
-  onOpenHistory,
   onSelectThread,
   className,
 }) => {

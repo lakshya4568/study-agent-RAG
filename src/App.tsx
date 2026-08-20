@@ -24,10 +24,8 @@ export const App: React.FC = () => {
 
   const chatActionsRef = useRef<{
     createNewThread: () => void;
-    openHistory: () => void;
   }>({
     createNewThread: () => {},
-    openHistory: () => {},
   });
 
   // Global Keyboard Shortcuts
@@ -128,10 +126,6 @@ export const App: React.FC = () => {
           onNewSession={() => {
             setActiveView("chat");
             chatActionsRef.current.createNewThread();
-          }}
-          onOpenHistory={() => {
-            setActiveView("chat");
-            chatActionsRef.current.openHistory();
           }}
           onSelectThread={() => {
             setActiveView("chat");

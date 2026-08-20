@@ -1,39 +1,25 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Send,
-  Bot,
-  User,
-  FileText,
-  Brain,
-  BookOpen,
-  Lightbulb,
-  Calendar,
-  PenTool,
-  Trash2,
+  ArrowUp,
+  Plus,
   Paperclip,
   Sparkles,
   X,
-  History,
-  MessageSquare,
-  Search,
   CheckCircle2,
   AlertCircle,
-  Cpu,
+  Bot,
+  Brain,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import {
-  Button,
-  TextArea,
   MessageBubble,
   LoadingSpinner,
-  Badge,
   ToolCallApproval,
   PendingToolCall,
   ModelSelector,
 } from "../components/ui";
 import { useChatStore, useAuthStore } from "../client/store";
-import heroBackdrop from "../assets/study_hero_backdrop.jpg";
 
 interface Message {
   id: string;
@@ -43,68 +29,21 @@ interface Message {
   toolCalls?: unknown[];
 }
 
-const studyAccelerators = [
-  {
-    id: "summarize",
-    Icon: FileText,
-    title: "Executive Synthesis",
-    description: "Distill key principles from active study documents",
-    prompt: "Please provide an executive summary of the main arguments in our study documents.",
-    color: "text-blue-400 bg-blue-500/10 border-blue-500/20",
-  },
-  {
-    id: "flashcards",
-    Icon: Brain,
-    title: "Active Recall Deck",
-    description: "Generate 10 structured conceptual flashcards",
-    prompt: "Create 10 high-yield study flashcards based on the uploaded material.",
-    color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-  },
-  {
-    id: "feynman",
-    Icon: Lightbulb,
-    title: "Feynman Breakdown",
-    description: "Explain difficult mechanisms using intuitive mental models",
-    prompt: "Break down the most complex concept from the documents using the Feynman technique.",
-    color: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-  },
-  {
-    id: "quiz",
-    Icon: BookOpen,
-    title: "Practice Exam",
-    description: "Test mastery with multiple-choice and short-answer prompts",
-    prompt: "Generate a rigorous 5-question test with step-by-step solutions to assess my understanding.",
-    color: "text-rose-400 bg-rose-500/10 border-rose-500/20",
-  },
-  {
-    id: "schedule",
-    Icon: Calendar,
-    title: "Mastery Roadmap",
-    description: "Build an optimized multi-day revision schedule",
-    prompt: "Help me design a spaced repetition study schedule to master this topic in 7 days.",
-    color: "text-teal-400 bg-teal-500/10 border-teal-500/20",
-  },
-  {
-    id: "practice",
-    Icon: PenTool,
-    title: "Problem Solver",
-    description: "Walk through step-by-step problem sets",
-    prompt: "Give me an applied problem related to our topic and guide me through the solution.",
-    color: "text-violet-400 bg-violet-500/10 border-violet-500/20",
-  },
-];
-
 interface ChatProps {
   onRegisterActions?: (actions: {
     createNewThread: () => void;
-    openHistory: () => void;
+    openHistory?: () => void;
   }) => void;
 }
 
 export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
-  const { activeThreadId, setActiveThreadId, selectedDocument, setSelectedDocument } =
-    useChatStore();
   const { user } = useAuthStore();
+  const {
+    activeThreadId,
+    setActiveThreadId,
+    selectedDocument,
+    setSelectedDocument,
+  } = useChatStore();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -127,7 +66,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const isUserScrolledUp = useRef(false);
 
   // Load threads and messages
@@ -200,6 +139,15 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
     }
   }, [activeThreadId, loadThreads, loadMessages, checkPendingTools]);
 
+  const createNewThread = useCallback(async () => {
+    const id = crypto.randomUUID();
+    const title = "New Study Session";
+    await window.db.createThread(id, title, user?.id || "local-user");
+    setActiveThreadId(id);
+    setMessages([]);
+    await loadThreads();
+  }, [user?.id, setActiveThreadId, loadThreads]);
+
   // Register parent actions
   useEffect(() => {
     if (onRegisterActions) {
@@ -208,7 +156,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
         openHistory: () => {},
       });
     }
-  }, [onRegisterActions]);
+  }, [onRegisterActions, createNewThread]);
 
   // Smart Auto-Scroll: only scroll if user hasn't scrolled up
   useEffect(() => {
@@ -220,17 +168,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
   const handleScroll = () => {
     if (!messagesContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
-    // If distance from bottom is greater than 150px, mark as scrolled up
     isUserScrolledUp.current = scrollHeight - scrollTop - clientHeight > 150;
-  };
-
-  const createNewThread = async () => {
-    const id = crypto.randomUUID();
-    const title = "New Study Session";
-    await window.db.createThread(id, title, user.id);
-    setActiveThreadId(id);
-    setMessages([]);
-    await loadThreads();
   };
 
   const handleSend = async () => {
@@ -239,7 +177,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
     let currentThreadId = activeThreadId;
     if (!currentThreadId) {
       currentThreadId = crypto.randomUUID();
-      await window.db.createThread(currentThreadId, "New Study Session", user.id);
+      await window.db.createThread(currentThreadId, "New Study Session", user?.id || "local-user");
       setActiveThreadId(currentThreadId);
     }
 
@@ -395,28 +333,8 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
     }
   };
 
-  const handleDeleteThread = async (threadId: string) => {
-    try {
-      await window.db.deleteThread(threadId);
-      if (activeThreadId === threadId) {
-        setActiveThreadId(null);
-        setMessages([]);
-      }
-      await loadThreads();
-    } catch (err) {
-      console.error("Failed to delete thread:", err);
-    }
-  };
-
   const handleFileUpload = async () => {
-    if (uploading) return;
-
-    let currentThreadId = activeThreadId;
-    if (!currentThreadId) {
-      currentThreadId = crypto.randomUUID();
-      await window.db.createThread(currentThreadId, "New Study Session", user.id);
-      setActiveThreadId(currentThreadId);
-    }
+    if (!window.studyAgent?.openFileDialog) return;
 
     try {
       setUploading(true);
@@ -438,7 +356,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
 
       setUploadProgress({
         stage: "chunking",
-        message: `Tokenizing and indexing ${fileName}...`,
+        message: `Indexing ${fileName}...`,
         fileName,
       });
 
@@ -448,17 +366,28 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
         setUploadProgress({
           stage: "complete",
           message: `Indexed ${fileName}`,
-          fileName,
         });
 
         setSelectedDocument(filePaths[0]);
 
+        let currentThreadId = activeThreadId;
+        if (!currentThreadId) {
+          currentThreadId = crypto.randomUUID();
+          await window.db.createThread(
+            currentThreadId,
+            `Study Notes: ${fileName}`,
+            user?.id || "local-user"
+          );
+          setActiveThreadId(currentThreadId);
+        }
+
         const successMsg: Message = {
           id: `msg-${Date.now()}`,
           role: "system",
-          content: `📄 **${fileName}** is indexed in the vector database with semantic chunking. You can now ask questions, extract concepts, or generate flashcards from it.`,
+          content: `📄 **${fileName}** loaded into vector knowledge base (${result.addedCount} chunks indexed). You can now ask questions about this material!`,
           timestamp: new Date(),
         };
+
         setMessages((prev) => [...prev, successMsg]);
 
         await window.db.saveMessage({
@@ -489,61 +418,54 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
         <div
           ref={messagesContainerRef}
           onScroll={handleScroll}
-          className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 custom-scrollbar"
+          className="flex-1 overflow-y-auto px-4 md:px-16 lg:px-24 py-6 space-y-4 custom-scrollbar"
         >
           {messages.length === 0 ? (
-            /* Claude + Lumina Empty State Hero */
-            <div className="max-w-3xl mx-auto flex flex-col items-center justify-center min-h-[60vh] text-center px-4 space-y-8 stagger-enter">
-              {/* Warm Sun Asterisk & Greeting (Claude Aesthetic) */}
-              <div className="space-y-3">
-                <div className="inline-flex items-center justify-center gap-3 text-foreground">
-                  <span className="text-3xl text-amber-500 animate-spin-slow">✹</span>
-                  <h1 className="text-3xl md:text-4xl font-serif tracking-tight font-medium">
-                    {(() => {
-                      const hour = new Date().getHours();
-                      if (hour < 12) return "Good morning, how can I help you study?";
-                      if (hour < 17) return "Good afternoon, what are we mastering today?";
-                      return "Evening, ready to dive into your notes?";
-                    })()}
-                  </h1>
-                </div>
-                <p className="text-sm text-muted-foreground max-w-lg mx-auto leading-relaxed">
-                  Your cognitive study partner. Upload documents to search vector indices, generate active recall decks, or break down complex mechanisms.
-                </p>
-              </div>
+            /* ChatGPT Minimalist Empty State */
+            <div className="max-w-2xl mx-auto flex flex-col items-center justify-center min-h-[60vh] text-center px-4 space-y-6">
+              <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground/90">
+                What can I help you study today?
+              </h1>
 
-              {/* Study Accelerators Bento */}
-              <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-3 text-left pt-2">
-                {studyAccelerators.slice(0, 3).map((action) => {
-                  const Icon = action.Icon;
-                  return (
-                    <button
-                      key={action.id}
-                      onClick={() => {
-                        setInput(action.prompt);
-                        inputRef.current?.focus();
-                      }}
-                      className="p-4 rounded-2xl bg-card hover:bg-secondary border border-border text-left transition-all duration-150 group shadow-xs hover:border-border/80 active:scale-98 cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2.5 mb-1.5">
-                        <div className={`p-1.5 rounded-lg border ${action.color}`}>
-                          <Icon className="w-3.5 h-3.5" />
-                        </div>
-                        <h3 className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
-                          {action.title}
-                        </h3>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2">
-                        {action.description}
-                      </p>
-                    </button>
-                  );
-                })}
+              {/* Minimal Suggestion Chips */}
+              <div className="flex flex-wrap items-center justify-center gap-2 max-w-lg">
+                {[
+                  "Explain dynamic programming intuitively",
+                  "Generate 5 practice flashcards on Machine Learning",
+                  "What is the current time in Tokyo and London?",
+                  "Summarize key algorithms in search and sorting",
+                ].map((prompt, i) => (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      setInput(prompt);
+                      inputRef.current?.focus();
+                    }}
+                    className="px-3.5 py-1.5 rounded-full bg-secondary/80 hover:bg-secondary text-xs text-foreground/80 border border-border/60 hover:border-border transition-all cursor-pointer text-left"
+                  >
+                    {prompt}
+                  </button>
+                ))}
               </div>
             </div>
           ) : (
             /* Active Message Timeline */
-            <div className="max-w-3xl mx-auto space-y-5 pb-6">
+            <div className="max-w-2xl mx-auto space-y-4 pb-6">
+              {/* Top Timestamp */}
+              <div className="text-center py-2">
+                <span className="text-xs text-muted-foreground/60 font-medium">
+                  {new Date().toLocaleDateString("en-US", {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                  })}{" "}
+                  {new Date().toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              </div>
+
               {messages.map((msg) => (
                 <MessageBubble
                   key={msg.id}
@@ -566,23 +488,13 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
 
               {/* Thinking / Streaming Indicator */}
               {loading && (
-                <div className="flex gap-3.5 items-start stagger-enter">
-                  <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary shrink-0 mt-1">
-                    <Bot className="w-4 h-4" />
+                <div className="flex items-center gap-2.5 text-xs text-muted-foreground py-2 animate-pulse">
+                  <div className="flex gap-1">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" />
                   </div>
-                  <div className="p-4 rounded-2xl bg-card border border-border shadow-sm flex flex-col gap-2 min-w-[240px]">
-                    <div className="flex items-center gap-2 text-xs font-medium text-primary">
-                      <div className="flex gap-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
-                        <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
-                        <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" />
-                      </div>
-                      <span>Thinking & Synthesizing...</span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      Searching vector embeddings and reasoning through study context.
-                    </p>
-                  </div>
+                  <span>Thinking...</span>
                 </div>
               )}
 
@@ -591,45 +503,26 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
           )}
         </div>
 
-        {/* Floating Adaptive Prompt Dock (Claude + Stitch Spec) */}
-        <div className="shrink-0 p-4 pt-2 z-20 flex justify-center bg-background border-t border-border/40">
-          <div className="w-full max-w-3xl space-y-2">
-            {/* Context Pills & Attachment Preview Above Dock */}
-            <div className="flex items-center gap-2 px-1">
-              {selectedDocument ? (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/25 text-primary text-xs font-medium shadow-sm">
-                  <Paperclip className="w-3 h-3" />
+        {/* Floating ChatGPT-Style Prompt Dock */}
+        <div className="shrink-0 px-4 pb-3 pt-1 z-20 flex justify-center bg-background">
+          <div className="w-full max-w-2xl space-y-2">
+            {/* Attachment preview if active */}
+            {selectedDocument && (
+              <div className="flex items-center gap-2 px-1">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary text-foreground text-xs font-medium border border-border">
+                  <Paperclip className="w-3 h-3 text-primary" />
                   <span className="truncate max-w-[220px]">
                     @{selectedDocument.split("/").pop()}
                   </span>
                   <button
                     onClick={() => setSelectedDocument(null)}
-                    className="hover:bg-primary/20 rounded-full p-0.5 ml-1 cursor-pointer"
+                    className="hover:bg-background rounded-full p-0.5 ml-1 cursor-pointer"
                   >
                     <X className="w-3 h-3" />
                   </button>
                 </span>
-              ) : (
-                <button
-                  onClick={handleFileUpload}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary hover:bg-secondary/70 border border-border text-foreground text-xs font-medium transition-colors cursor-pointer"
-                >
-                  <Paperclip className="w-3 h-3 text-primary" />
-                  <span>Attach PDF Notes</span>
-                </button>
-              )}
-
-              <button
-                onClick={() => {
-                  setInput("Create 5 practice exam questions with detailed answers based on my notes.");
-                  inputRef.current?.focus();
-                }}
-                className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-secondary hover:bg-secondary/70 border border-border text-foreground text-xs font-medium transition-colors cursor-pointer"
-              >
-                <Sparkles className="w-3 h-3 text-amber-500" />
-                <span>Quiz Me</span>
-              </button>
-            </div>
+              </div>
+            )}
 
             {/* Upload Feedback */}
             <AnimatePresence>
@@ -641,7 +534,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                   className="px-1"
                 >
                   {uploadProgress && (
-                    <div className="p-2.5 rounded-xl bg-card border border-border flex items-center gap-2.5 text-xs text-foreground">
+                    <div className="p-2 rounded-xl bg-card border border-border flex items-center gap-2 text-xs text-foreground">
                       <LoadingSpinner size="sm" />
                       <span className="truncate">{uploadProgress.message}</span>
                     </div>
@@ -649,7 +542,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                   {uploadStatus && !uploadProgress && (
                     <div
                       className={cn(
-                        "p-2.5 rounded-xl text-xs flex items-center gap-2 border",
+                        "p-2 rounded-xl text-xs flex items-center gap-2 border",
                         uploadStatus.type === "success"
                           ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                           : "bg-rose-500/10 text-rose-400 border-rose-500/20"
@@ -667,47 +560,63 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
               )}
             </AnimatePresence>
 
-            {/* Main Dock Input Box (Perplexity-Style) */}
-            <div className="bg-card rounded-2xl p-3 border border-border shadow-md focus-within:border-primary/70 transition-all">
-              <TextArea
+            {/* Rounded Full Floating Pill Dock (ChatGPT Authentic Design) */}
+            <div className="w-full rounded-full bg-secondary/80 dark:bg-[#212121] border border-border dark:border-[#333333] px-3 py-1.5 flex items-center gap-2.5 shadow-lg focus-within:border-border/90 transition-all">
+              {/* + Attachment Button */}
+              <button
+                onClick={handleFileUpload}
+                disabled={uploading}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer shrink-0"
+                title="Attach PDF notes"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+
+              {/* Text Input */}
+              <input
                 ref={inputRef}
+                type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
+                  if (e.key === "Enter") {
                     e.preventDefault();
                     handleSend();
                   }
                 }}
-                placeholder="Ask a follow-up, solve a problem, or generate flashcards..."
-                className="w-full min-h-[44px] max-h-[160px] bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground/50 resize-none px-1 py-0.5 text-sm leading-relaxed"
+                placeholder="Ask anything..."
+                className="flex-1 bg-transparent border-none outline-none text-[14.5px] text-foreground placeholder:text-muted-foreground/50 py-1"
                 disabled={loading}
               />
 
-              {/* Bottom Actions inside Dock (Clean Minimal Layout) */}
-              <div className="flex items-center justify-between pt-2 px-1 border-t border-border/30 mt-1">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground/60 select-none">
-                  <span className="text-[11px]">Enter to send • Shift+Enter for new line</span>
-                </div>
+              {/* Right Side: Model Switcher + Send Button */}
+              <div className="flex items-center gap-2 shrink-0">
+                <ModelSelector dropUp align="right" />
 
-                <div className="flex items-center gap-2">
-                  <ModelSelector dropUp align="right" />
-
-                  <button
-                    onClick={handleSend}
-                    disabled={!input.trim() || loading}
-                    className="w-8 h-8 rounded-full bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-30 transition-all flex items-center justify-center shadow-sm active:scale-95 cursor-pointer"
-                    title="Send query"
-                  >
-                    {loading ? (
-                      <LoadingSpinner size="sm" />
-                    ) : (
-                      <Send className="w-3.5 h-3.5" />
-                    )}
-                  </button>
-                </div>
+                <button
+                  onClick={handleSend}
+                  disabled={!input.trim() || loading}
+                  className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0",
+                    input.trim()
+                      ? "bg-foreground text-background dark:bg-white dark:text-black hover:opacity-90 active:scale-95 shadow-xs"
+                      : "bg-muted/60 text-muted-foreground/40 cursor-not-allowed"
+                  )}
+                  title="Send query"
+                >
+                  {loading ? (
+                    <LoadingSpinner size="sm" />
+                  ) : (
+                    <ArrowUp className="w-4 h-4 stroke-[2.5]" />
+                  )}
+                </button>
               </div>
             </div>
+
+            {/* Disclaimer */}
+            <p className="text-[11px] text-muted-foreground/50 text-center select-none pt-0.5">
+              Study Agent can make mistakes. Check important info.
+            </p>
           </div>
         </div>
       </div>
