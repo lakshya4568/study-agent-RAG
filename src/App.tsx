@@ -99,26 +99,15 @@ export const App: React.FC = () => {
   const topBarActions = (
     <div className="flex items-center gap-2">
       {activeView === "chat" && (
-        <>
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={<Plus className="w-4 h-4" />}
-            onClick={() => chatActionsRef.current.createNewThread()}
-            className="rounded-full text-xs font-semibold px-3.5 bg-secondary hover:bg-secondary/80 border border-border shadow-xs cursor-pointer"
-          >
-            New Session
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={<HistoryIcon className="w-3.5 h-3.5" />}
-            onClick={() => chatActionsRef.current.openHistory()}
-            className="rounded-full text-xs font-medium px-3 bg-secondary hover:bg-secondary/80 border border-border shadow-xs cursor-pointer"
-          >
-            History
-          </Button>
-        </>
+        <Button
+          variant="ghost"
+          size="sm"
+          icon={<Plus className="w-4 h-4" />}
+          onClick={() => chatActionsRef.current.createNewThread()}
+          className="rounded-full text-xs font-semibold px-3.5 bg-secondary hover:bg-secondary/80 border border-border shadow-xs cursor-pointer"
+        >
+          New Session
+        </Button>
       )}
 
       <Badge

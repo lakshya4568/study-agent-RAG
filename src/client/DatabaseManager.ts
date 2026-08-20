@@ -233,16 +233,16 @@ export class DatabaseManager {
     const stmt = this.db.prepare(
       "INSERT OR REPLACE INTO threads (id, title, created_at, updated_at, user_id) VALUES (?, ?, ?, ?, ?)"
     );
-    stmt.run(id, title, now, now, userId || null);
+    stmt.run(id, title, now, now, userId || "local-user");
   }
 
   getAllThreads(userId?: string): ConversationThread[] {
     if (!this.db) throw new Error("Database not initialized");
     let stmt;
     let rows: ThreadRow[];
-    if (userId) {
+    if (userId && userId !== "local-user") {
       stmt = this.db.prepare(
-        "SELECT * FROM threads WHERE user_id = ? ORDER BY updated_at DESC"
+        "SELECT * FROM threads WHERE user_id = ? OR user_id IS NULL OR user_id = 'local-user' ORDER BY updated_at DESC"
       );
       rows = stmt.all(userId) as ThreadRow[];
     } else {

@@ -21,7 +21,6 @@ import {
   AlertCircle,
   Cpu,
 } from "lucide-react";
-import { Drawer } from "../components/ui/Drawer";
 import { cn } from "../lib/utils";
 import {
   Button,
@@ -122,8 +121,6 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
     message: string;
   } | null>(null);
 
-  const [showHistory, setShowHistory] = useState(false);
-  const [historySearch, setHistorySearch] = useState("");
   const [threads, setThreads] = useState<
     Array<{ id: string; title: string; created_at: number }>
   >([]);
@@ -208,7 +205,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
     if (onRegisterActions) {
       onRegisterActions({
         createNewThread,
-        openHistory: () => setShowHistory(true),
+        openHistory: () => {},
       });
     }
   }, [onRegisterActions]);
@@ -485,10 +482,6 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
     }
   };
 
-  const filteredThreads = threads.filter((t) =>
-    t.title.toLowerCase().includes(historySearch.toLowerCase())
-  );
-
   return (
     <div className="flex h-full w-full overflow-hidden bg-background">
       <div className="flex flex-col h-full p-0 flex-1 min-w-0 relative">
@@ -718,83 +711,6 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
           </div>
         </div>
       </div>
-
-      {/* History Slide-Over Drawer */}
-      <Drawer
-        isOpen={showHistory}
-        onClose={() => setShowHistory(false)}
-        title="Session History"
-        position="left"
-        width="340px"
-      >
-        <div className="space-y-3">
-          {/* Search bar */}
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              value={historySearch}
-              onChange={(e) => setHistorySearch(e.target.value)}
-              placeholder="Search chat history..."
-              className="w-full pl-9 pr-3 py-2 rounded-xl bg-secondary border border-border text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-          </div>
-
-          <div className="space-y-1">
-            {filteredThreads.length === 0 ? (
-              <div className="text-center py-10 text-muted-foreground text-xs">
-                <History className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                <p>No chat history matching search</p>
-              </div>
-            ) : (
-              filteredThreads.map((thread) => (
-                <div
-                  key={thread.id}
-                  className={cn(
-                    "p-2.5 rounded-xl flex items-center justify-between group transition-colors cursor-pointer border",
-                    activeThreadId === thread.id
-                      ? "bg-secondary border-primary/50"
-                      : "bg-card hover:bg-secondary/70 border-transparent hover:border-border"
-                  )}
-                  onClick={() => {
-                    setActiveThreadId(thread.id);
-                    setShowHistory(false);
-                  }}
-                >
-                  <div className="min-w-0 flex-1 pr-2">
-                    <p
-                      className={cn(
-                        "text-xs font-medium truncate",
-                        activeThreadId === thread.id ? "text-primary font-semibold" : "text-foreground"
-                      )}
-                    >
-                      {thread.title}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-                      {new Date(thread.created_at).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteThread(thread.id);
-                    }}
-                    className="p-1 rounded-lg text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-all cursor-pointer"
-                    title="Delete session"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </Drawer>
     </div>
   );
 };
