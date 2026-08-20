@@ -162,6 +162,19 @@ export async function routeNode(
       return { route: "flashcard" };
     }
 
+    // Fast-path heuristic for tool queries (time, date, quiz, mcp)
+    if (
+      lowerQuery.includes("time") ||
+      lowerQuery.includes("clock") ||
+      lowerQuery.includes("date") ||
+      lowerQuery.includes("timezone") ||
+      lowerQuery.includes("quiz") ||
+      lowerQuery.includes("mcp")
+    ) {
+      logger.info("[Router] Fast-path detected tool intent");
+      return { route: "tool" };
+    }
+
     // Check if documents are available in the system
     let hasLoadedDocs = (state.documents?.length ?? 0) > 0;
     if (!hasLoadedDocs) {
@@ -188,25 +201,33 @@ Context:
 - Previous route: ${state.route || "none"}
 
 Options:
-- "memory": User explicitly asks to save, view, or manage long-term personal memories.
+- "memory": User explicitly asks to save personal facts, note something to remember, or view saved memory profile.
 - "flashcard": User explicitly asks to create or generate flashcards or quiz cards.
 - "rag": User asks about study materials, uploaded documents, summaries of content, concept explanations from documents, or questions to find/extract from knowledge base.
-- "tool": User explicitly asks for system tools (convert timezones, calculate, run MCP tool).
-- "general": Greetings, casual study advice, or general conversation not requiring document retrieval.
+- "tool": User asks for system tools (current time, convert timezones, calculate, run MCP tool).
+- "general": Greetings, casual study advice, or general conversation.
 
 User Query: "${query}"
 
 Return ONLY one word: memory, flashcard, rag, tool, or general.`;
 
-    const response = await model.invoke([{ role: "user", content: prompt }]);
-    const route = response.toLowerCase().trim();
+    const rawResponse = await model.invoke([{ role: "user", content: prompt }]);
+    const cleanRoute = rawResponse
+      .replace(/<think>[\s\S]*?<\/think>/gi, "")
+      .toLowerCase()
+      .trim();
 
-    logger.info(`[Router] Decision: ${route}`);
+    logger.info(`[Router] Raw: "${rawResponse.substring(0, 60)}" -> Parsed: "${cleanRoute}"`);
 
-    if (route.includes("memory")) return { route: "memory" };
-    if (route.includes("flashcard")) return { route: "flashcard" };
-    if (route.includes("rag")) return { route: "rag" };
-    if (route.includes("tool")) return { route: "tool" };
+    const match = cleanRoute.match(/\b(memory|flashcard|rag|tool|general)\b/);
+    if (match) {
+      const route = match[1];
+      if (route === "memory") return { route: "memory" };
+      if (route === "flashcard") return { route: "flashcard" };
+      if (route === "rag") return { route: "rag" };
+      if (route === "tool") return { route: "tool" };
+      if (route === "general") return { route: "general" };
+    }
 
     // If documents exist and user asks something study-related, default to RAG for grounding
     if (
@@ -602,7 +623,15 @@ Present this information back to the user in a friendly, organized, and encourag
           .trim();
         result = memoryManager.executeMemoryCommand("remember", toRemember || query);
       } else {
-        result = memoryManager.executeMemoryCommand("recall");
+        const model = createNVIDIAOpenAIChat({
+          model: state.selectedModel || undefined,
+          provider: (state.selectedProvider as any) || undefined,
+          temperature: 0.3,
+        });
+        result = await model.invoke([
+          { role: "system", content: STUDY_MENTOR_SYSTEM_PROMPT },
+          { role: "user", content: query },
+        ]);
       }
 
       return {
