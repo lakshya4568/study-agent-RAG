@@ -183,15 +183,15 @@ const CodeBlock: React.FC<{ language?: string; value: string }> = ({
   const displayLang = (language || "code").toUpperCase();
 
   return (
-    <div className="code-block-wrapper my-4 rounded-2xl overflow-hidden neu-inset border border-border shadow-md bg-card/90 dark:bg-[#111114]">
+    <div className="code-block-wrapper my-4 rounded-2xl overflow-hidden border border-border shadow-md">
       {/* Code Header Bar */}
-      <div className="code-block-header px-4 py-2.5 bg-secondary/80 dark:bg-[#18181c] border-b border-border flex items-center justify-between select-none">
+      <div className="code-block-header px-4 py-2.5 border-b border-border flex items-center justify-between select-none">
         <div className="flex items-center gap-2">
           <Code2 className="w-3.5 h-3.5 text-primary" />
-          <span className="code-language text-[11px] font-mono font-bold text-muted-foreground uppercase tracking-wider">
+          <span className="code-language text-[11px] font-mono font-bold uppercase tracking-wider">
             {displayLang}
           </span>
-          <span className="text-[10px] text-muted-foreground/70 font-mono">
+          <span className="text-[10px] opacity-70 font-mono">
             {lines.length} {lines.length === 1 ? "line" : "lines"}
           </span>
         </div>
@@ -216,17 +216,17 @@ const CodeBlock: React.FC<{ language?: string; value: string }> = ({
       </div>
 
       {/* Code Body with Line Numbers & Syntax Highlighting */}
-      <div className="p-4 overflow-x-auto custom-scrollbar font-mono text-[13px] leading-relaxed bg-card/60 dark:bg-[#111114]">
+      <div className="code-block p-4 overflow-x-auto custom-scrollbar font-mono text-[13px] leading-relaxed">
         <table className="border-collapse w-full m-0 p-0">
           <tbody>
             {lines.map((line, idx) => (
               <tr key={idx} className="hover:bg-black/2 dark:hover:bg-white/2 transition-colors leading-relaxed">
                 {lines.length > 1 && (
-                  <td className="select-none pr-4 text-right text-zinc-400 dark:text-zinc-600 text-xs font-mono w-[1%] whitespace-nowrap align-top border-none p-0">
+                  <td className="code-line-number select-none pr-4 text-right text-xs font-mono w-[1%] whitespace-nowrap align-top border-none p-0">
                     {idx + 1}
                   </td>
                 )}
-                <td className="whitespace-pre font-mono align-top text-zinc-800 dark:text-zinc-200 border-none p-0">
+                <td className="whitespace-pre font-mono align-top border-none p-0 text-inherit">
                   {tokenizeLine(line)}
                 </td>
               </tr>
@@ -249,25 +249,25 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(({
         rehypePlugins={[rehypeKatex, rehypeRaw]}
         components={{
           table: ({ ...props }) => (
-            <div className="overflow-x-auto my-4 rounded-xl border border-border shadow-md bg-card/90 dark:bg-[#121215] custom-scrollbar">
+            <div className="overflow-x-auto my-4 rounded-xl border border-border shadow-md custom-scrollbar">
               <table className="markdown-table m-0 w-full border-collapse" {...props} />
             </div>
           ),
           th: ({ ...props }) => (
             <th
-              className="markdown-th px-4 py-3 text-left text-xs font-bold text-foreground tracking-wider uppercase bg-secondary/80 dark:bg-[#18181c] border-b border-border font-sans"
+              className="markdown-th px-4 py-3 text-left text-xs font-bold tracking-wider uppercase border-b border-border font-sans"
               {...props}
             />
           ),
           td: ({ ...props }) => (
             <td
-              className="markdown-td px-4 py-2.5 text-[14px] text-foreground/90 border-b border-border/50 font-normal leading-relaxed"
+              className="markdown-td px-4 py-2.5 text-[14px] border-b border-border/50 font-normal leading-relaxed"
               {...props}
             />
           ),
           tr: ({ ...props }) => (
             <tr
-              className="odd:bg-card even:bg-secondary/40 dark:odd:bg-[#121215] dark:even:bg-[#16161a] hover:bg-secondary/70 dark:hover:bg-[#1c1c22] transition-colors"
+              className="markdown-tr transition-colors"
               {...props}
             />
           ),
@@ -279,7 +279,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(({
 
             return isInline ? (
               <code
-                className="inline-code px-1.5 py-0.5 rounded-md text-[13px] font-mono font-medium bg-secondary/80 dark:bg-[#16161a] text-emerald-700 dark:text-emerald-400 border border-border"
+                className="inline-code px-1.5 py-0.5 rounded-md text-[13px] font-mono font-medium border"
                 {...props}
               >
                 {children}
