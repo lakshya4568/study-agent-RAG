@@ -61,7 +61,7 @@ function tokenizeLine(line: string): React.ReactNode[] {
       token.startsWith("--")
     ) {
       nodes.push(
-        <span key={keyIdx} className="token-comment italic text-zinc-500">
+        <span key={keyIdx} className="token-comment italic text-zinc-400 dark:text-zinc-500">
           {token}
         </span>
       );
@@ -75,7 +75,7 @@ function tokenizeLine(line: string): React.ReactNode[] {
       (token.startsWith("`") && token.endsWith("`"))
     ) {
       nodes.push(
-        <span key={keyIdx} className="token-string text-emerald-400 dark:text-emerald-400">
+        <span key={keyIdx} className="token-string text-emerald-700 dark:text-emerald-400">
           {token}
         </span>
       );
@@ -85,7 +85,7 @@ function tokenizeLine(line: string): React.ReactNode[] {
     // Numbers
     if (/^\d+(?:\.\d+)?(?:e[+-]?\d+)?$/.test(token)) {
       nodes.push(
-        <span key={keyIdx} className="token-number text-amber-400 dark:text-amber-400 font-medium">
+        <span key={keyIdx} className="token-number text-amber-700 dark:text-amber-400 font-medium">
           {token}
         </span>
       );
@@ -95,7 +95,7 @@ function tokenizeLine(line: string): React.ReactNode[] {
     // Keywords
     if (KEYWORDS.has(token)) {
       nodes.push(
-        <span key={keyIdx} className="token-keyword text-rose-400 dark:text-rose-400 font-semibold">
+        <span key={keyIdx} className="token-keyword text-rose-700 dark:text-rose-400 font-semibold">
           {token}
         </span>
       );
@@ -105,7 +105,7 @@ function tokenizeLine(line: string): React.ReactNode[] {
     // Booleans & Nulls
     if (BOOLEANS_NULLS.has(token)) {
       nodes.push(
-        <span key={keyIdx} className="token-boolean text-amber-500 dark:text-amber-300 font-semibold">
+        <span key={keyIdx} className="token-boolean text-amber-800 dark:text-amber-300 font-semibold">
           {token}
         </span>
       );
@@ -115,7 +115,7 @@ function tokenizeLine(line: string): React.ReactNode[] {
     // Built-in Types
     if (BUILTIN_TYPES.has(token)) {
       nodes.push(
-        <span key={keyIdx} className="token-type text-sky-400 dark:text-sky-400 font-medium">
+        <span key={keyIdx} className="token-type text-sky-700 dark:text-sky-400 font-medium">
           {token}
         </span>
       );
@@ -125,7 +125,7 @@ function tokenizeLine(line: string): React.ReactNode[] {
     // PascalCase (Custom Types / Classes)
     if (/^[A-Z][a-zA-Z0-9_]*$/.test(token)) {
       nodes.push(
-        <span key={keyIdx} className="token-type text-sky-400 dark:text-sky-300 font-medium">
+        <span key={keyIdx} className="token-type text-sky-700 dark:text-sky-300 font-medium">
           {token}
         </span>
       );
@@ -135,7 +135,7 @@ function tokenizeLine(line: string): React.ReactNode[] {
     // Operators
     if (/^[=><!~?:&|+\-*/%^]+$/.test(token)) {
       nodes.push(
-        <span key={keyIdx} className="token-operator text-teal-400 dark:text-teal-400">
+        <span key={keyIdx} className="token-operator text-teal-700 dark:text-teal-400">
           {token}
         </span>
       );
@@ -145,7 +145,7 @@ function tokenizeLine(line: string): React.ReactNode[] {
     // Punctuation
     if (/^[{}()\[\];,.]+$/.test(token)) {
       nodes.push(
-        <span key={keyIdx} className="token-punctuation text-zinc-400 dark:text-zinc-400">
+        <span key={keyIdx} className="token-punctuation text-zinc-600 dark:text-zinc-400">
           {token}
         </span>
       );
@@ -154,7 +154,7 @@ function tokenizeLine(line: string): React.ReactNode[] {
 
     // Default variable / text
     nodes.push(
-      <span key={keyIdx} className="token-text text-zinc-200 dark:text-zinc-200">
+      <span key={keyIdx} className="token-text text-zinc-800 dark:text-zinc-200">
         {token}
       </span>
     );
@@ -183,15 +183,15 @@ const CodeBlock: React.FC<{ language?: string; value: string }> = ({
   const displayLang = (language || "code").toUpperCase();
 
   return (
-    <div className="code-block-wrapper my-4 rounded-2xl overflow-hidden neu-inset border border-border shadow-lg bg-[#111114]">
+    <div className="code-block-wrapper my-4 rounded-2xl overflow-hidden neu-inset border border-border shadow-md bg-card/90 dark:bg-[#111114]">
       {/* Code Header Bar */}
-      <div className="code-block-header px-4 py-2.5 bg-[#18181c] border-b border-border flex items-center justify-between select-none">
+      <div className="code-block-header px-4 py-2.5 bg-secondary/80 dark:bg-[#18181c] border-b border-border flex items-center justify-between select-none">
         <div className="flex items-center gap-2">
           <Code2 className="w-3.5 h-3.5 text-primary" />
           <span className="code-language text-[11px] font-mono font-bold text-muted-foreground uppercase tracking-wider">
             {displayLang}
           </span>
-          <span className="text-[10px] text-zinc-500 font-mono">
+          <span className="text-[10px] text-muted-foreground/70 font-mono">
             {lines.length} {lines.length === 1 ? "line" : "lines"}
           </span>
         </div>
@@ -203,8 +203,8 @@ const CodeBlock: React.FC<{ language?: string; value: string }> = ({
         >
           {copied ? (
             <>
-              <Check className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="text-[11px] text-emerald-400 font-semibold">Copied!</span>
+              <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">Copied!</span>
             </>
           ) : (
             <>
@@ -216,17 +216,17 @@ const CodeBlock: React.FC<{ language?: string; value: string }> = ({
       </div>
 
       {/* Code Body with Line Numbers & Syntax Highlighting */}
-      <div className="p-4 overflow-x-auto custom-scrollbar font-mono text-[13px] leading-relaxed bg-[#111114]">
+      <div className="p-4 overflow-x-auto custom-scrollbar font-mono text-[13px] leading-relaxed bg-card/60 dark:bg-[#111114]">
         <table className="border-collapse w-full m-0 p-0">
           <tbody>
             {lines.map((line, idx) => (
-              <tr key={idx} className="hover:bg-white/2 transition-colors leading-relaxed">
+              <tr key={idx} className="hover:bg-black/[0.02] dark:hover:bg-white/2 transition-colors leading-relaxed">
                 {lines.length > 1 && (
-                  <td className="select-none pr-4 text-right text-zinc-600 dark:text-zinc-600 text-xs font-mono w-[1%] whitespace-nowrap align-top border-none p-0">
+                  <td className="select-none pr-4 text-right text-zinc-400 dark:text-zinc-600 text-xs font-mono w-[1%] whitespace-nowrap align-top border-none p-0">
                     {idx + 1}
                   </td>
                 )}
-                <td className="whitespace-pre font-mono align-top text-zinc-200 border-none p-0">
+                <td className="whitespace-pre font-mono align-top text-zinc-800 dark:text-zinc-200 border-none p-0">
                   {tokenizeLine(line)}
                 </td>
               </tr>
@@ -249,13 +249,13 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(({
         rehypePlugins={[rehypeKatex, rehypeRaw]}
         components={{
           table: ({ ...props }) => (
-            <div className="overflow-x-auto my-4 rounded-xl border border-border shadow-md bg-[#121215] custom-scrollbar">
+            <div className="overflow-x-auto my-4 rounded-xl border border-border shadow-md bg-card/90 dark:bg-[#121215] custom-scrollbar">
               <table className="markdown-table m-0 w-full border-collapse" {...props} />
             </div>
           ),
           th: ({ ...props }) => (
             <th
-              className="markdown-th px-4 py-3 text-left text-xs font-bold text-foreground tracking-wider uppercase bg-[#18181c] border-b border-border font-sans"
+              className="markdown-th px-4 py-3 text-left text-xs font-bold text-foreground tracking-wider uppercase bg-secondary/80 dark:bg-[#18181c] border-b border-border font-sans"
               {...props}
             />
           ),
@@ -267,7 +267,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(({
           ),
           tr: ({ ...props }) => (
             <tr
-              className="odd:bg-[#121215] even:bg-[#16161a] hover:bg-[#1c1c22] transition-colors"
+              className="odd:bg-card even:bg-secondary/40 dark:odd:bg-[#121215] dark:even:bg-[#16161a] hover:bg-secondary/70 dark:hover:bg-[#1c1c22] transition-colors"
               {...props}
             />
           ),
@@ -279,7 +279,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(({
 
             return isInline ? (
               <code
-                className="inline-code px-1.5 py-0.5 rounded-md text-[13px] font-mono font-medium bg-[#16161a] text-emerald-400 border border-border"
+                className="inline-code px-1.5 py-0.5 rounded-md text-[13px] font-mono font-medium bg-secondary/80 dark:bg-[#16161a] text-emerald-700 dark:text-emerald-400 border border-border"
                 {...props}
               >
                 {children}

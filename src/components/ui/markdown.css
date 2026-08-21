@@ -240,7 +240,7 @@
 .theme-light .markdown-table,
 .light .markdown-table {
   background: #ffffff;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e2cfc9;
 }
 
 .markdown-th {
@@ -258,9 +258,9 @@
 
 .theme-light .markdown-th,
 .light .markdown-th {
-  background: #f8fafc;
-  color: #0f172a;
-  border-bottom: 1px solid #e2e8f0;
+  background: #f6eae6;
+  color: #261115;
+  border-bottom: 1px solid #e2cfc9;
 }
 
 .markdown-td {
@@ -272,8 +272,8 @@
 
 .theme-light .markdown-td,
 .light .markdown-td {
-  color: #334155;
-  border-bottom: 1px solid #f1f5f9;
+  color: #2b141a;
+  border-bottom: 1px solid #efe3df;
 }
 
 .markdown-table tr:hover {
@@ -282,7 +282,7 @@
 
 .theme-light .markdown-table tr:hover,
 .light .markdown-table tr:hover {
-  background-color: #f8fafc;
+  background-color: #fdf5f3;
 }
 
 .markdown-table tr:last-child .markdown-td {
@@ -304,9 +304,9 @@
 
 .theme-light .code-block-wrapper,
 .light .code-block-wrapper {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  background: #fdf5f3;
+  border: 1px solid #e2cfc9;
+  box-shadow: 0 4px 12px rgba(180, 155, 145, 0.15);
 }
 
 .code-block-header {
@@ -320,8 +320,8 @@
 
 .theme-light .code-block-header,
 .light .code-block-header {
-  background: #f1f5f9;
-  border-bottom: 1px solid #e2e8f0;
+  background: #f6eae6;
+  border-bottom: 1px solid #e2cfc9;
 }
 
 .code-language {
@@ -335,7 +335,7 @@
 
 .theme-light .code-language,
 .light .code-language {
-  color: #64748b;
+  color: #705b61;
 }
 
 .code-block {
@@ -351,8 +351,8 @@
 
 .theme-light .code-block,
 .light .code-block {
-  background: #f8fafc;
-  color: #0f172a;
+  background: #fdf5f3;
+  color: #261115;
 }
 
 .code-block code {
@@ -376,9 +376,9 @@
 
 .theme-light .inline-code,
 .light .inline-code {
-  background: #f1f5f9;
-  color: #059669;
-  border: 1px solid #e2e8f0;
+  background: #f6eae6;
+  color: #047857;
+  border: 1px solid #e2cfc9;
   font-weight: 600;
 }
 
@@ -399,9 +399,9 @@
 
 .theme-light .katex-display,
 .light .katex-display {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  color: #0f172a;
+  background: #fdf5f3;
+  border: 1px solid #e2cfc9;
+  color: #261115;
 }
 
 .katex {
