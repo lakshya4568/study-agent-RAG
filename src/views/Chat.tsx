@@ -557,11 +557,6 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                 </button>
               </div>
             </div>
-
-            {/* Disclaimer */}
-            <p className="text-[10.5px] text-muted-foreground/60 text-center select-none pt-0.5 font-mono">
-              Study Agent with Groq LPUs & NVIDIA NIM RAG · Check key references
-            </p>
           </div>
         </div>
       </div>
