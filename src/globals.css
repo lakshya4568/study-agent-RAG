@@ -33,6 +33,10 @@
     --input: 0 0% 7.1%;               /* #121212 / Sunken Input Trough */
     --ring: 158 64% 48%;
 
+    /* Two-Font Typography Tokens */
+    --font-sans: 'Inter', 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, SFMono-Regular, monospace;
+
     /* Stitch Palette Signature Colors */
     --emerald-primary: #10B981;
     --emerald-dark: #059669;
@@ -89,7 +93,7 @@
     margin: 0;
     padding: 0;
     overflow: hidden;
-    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+    font-family: var(--font-sans);
   }
   
   body {
@@ -97,6 +101,7 @@
     color: hsl(var(--foreground));
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     user-select: none;
   }
 

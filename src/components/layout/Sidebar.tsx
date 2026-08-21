@@ -160,7 +160,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
 
         {/* Working Deck Divider */}
-        <div className="w-full h-[1px] bg-border my-0.5 shrink-0" />
+        <div className="w-full h-px bg-border my-0.5 shrink-0" />
 
         {/* Navigation Items */}
         <nav className="flex flex-col gap-1.5 w-full shrink-0">

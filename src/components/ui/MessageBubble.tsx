@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { cn } from "../../lib/utils";
 import { Copy, Check, Share2, RotateCw, MoreHorizontal, Brain, ChevronRight } from "lucide-react";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { FlashcardViewer } from "./FlashcardViewer";
@@ -18,7 +17,6 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
   id,
   role,
   content,
-  timestamp,
   delay = 0,
 }) => {
   const [copied, setCopied] = useState(false);
@@ -79,7 +77,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
         transition={{ duration: 0.18, ease: "easeOut" }}
         className="flex justify-end mb-6 w-full group select-text"
       >
-        <div className="rounded-[20px] px-5 py-3 bg-primary text-primary-foreground text-[14.5px] font-normal leading-relaxed neu-raised-sm border border-primary/40 shadow-sm max-w-[82%] sm:max-w-[72%] break-words">
+        <div className="rounded-[20px] px-5 py-3 bg-primary text-primary-foreground text-[14.5px] font-normal leading-relaxed neu-raised-sm border border-primary/40 shadow-sm max-w-[82%] sm:max-w-[72%] wrap-break-word">
           <p className="whitespace-pre-wrap">{content}</p>
         </div>
       </motion.div>
