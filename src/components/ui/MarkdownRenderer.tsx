@@ -73,18 +73,18 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(({
         rehypePlugins={[rehypeKatex, rehypeRaw]}
         components={{
           table: ({ ...props }) => (
-            <div className="overflow-x-auto my-4 rounded-xl border border-border/40 neu-raised-sm">
+            <div className="overflow-x-auto my-4 rounded-xl">
               <table className="markdown-table m-0 w-full" {...props} />
             </div>
           ),
           th: ({ ...props }) => (
             <th
-              className="bg-secondary/70 text-foreground px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider border-b border-border/40"
+              className="markdown-th px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider"
               {...props}
             />
           ),
           td: ({ ...props }) => (
-            <td className="px-4 py-2.5 text-sm border-b border-border/30" {...props} />
+            <td className="markdown-td px-4 py-2.5 text-sm" {...props} />
           ),
           code: ({ className, children, ...props }) => {
             const match = /language-(\w+)/.exec(className || "");
@@ -94,7 +94,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(({
 
             return isInline ? (
               <code
-                className="inline-code neu-inset-sm text-primary px-1.5 py-0.5 rounded-md text-[12.5px] font-mono border border-border/40"
+                className="inline-code px-2 py-0.5 rounded-md text-[12.5px] font-mono font-medium"
                 {...props}
               >
                 {children}
@@ -120,11 +120,11 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(({
           li: ({ ...props }) => <li className="leading-relaxed" {...props} />,
           blockquote: ({ ...props }) => (
             <blockquote
-              className="border-l-3 border-primary neu-inset-sm pl-4 py-2 my-3 rounded-r-xl text-sm italic text-muted-foreground"
+              className="markdown-blockquote my-3 text-sm italic"
               {...props}
             />
           ),
-          hr: ({ ...props }) => <hr className="border-border/40 my-4" {...props} />,
+          hr: ({ ...props }) => <hr className="markdown-hr my-4" {...props} />,
           a: ({ ...props }) => (
             <a
               className="text-primary font-semibold hover:underline inline-flex items-center gap-0.5"

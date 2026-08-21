@@ -35,6 +35,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
   const {
     activeThreadId,
     setActiveThreadId,
+    loadThreads,
   } = useChatStore();
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -42,10 +43,6 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
   const [loading, setLoading] = useState(false);
   const [pendingToolCalls, setPendingToolCalls] = useState<PendingToolCall[]>([]);
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
-
-  const [, setThreads] = useState<
-    Array<{ id: string; title: string; created_at: number }>
-  >([]);
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -68,18 +65,6 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
     }
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isActionMenuOpen]);
-
-  // Load threads and messages
-  const loadThreads = useCallback(async () => {
-    try {
-      const result = await window.db.getThreads(user?.id || "local-user");
-      if (result.success && result.threads) {
-        setThreads(result.threads);
-      }
-    } catch (err) {
-      console.error("Failed to load threads:", err);
-    }
-  }, [user?.id]);
 
   const loadMessages = useCallback(async (threadId: string) => {
     try {
@@ -139,14 +124,12 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
     }
   }, [activeThreadId, loadThreads, loadMessages, checkPendingTools]);
 
-  const createNewThread = useCallback(async () => {
-    const id = crypto.randomUUID();
-    const title = "New Study Session";
-    await window.db.createThread(id, title, user?.id || "local-user");
-    setActiveThreadId(id);
+  const createNewThread = useCallback(() => {
+    setActiveThreadId(null);
     setMessages([]);
-    await loadThreads();
-  }, [user?.id, setActiveThreadId, loadThreads]);
+    setInput("");
+    inputRef.current?.focus();
+  }, [setActiveThreadId]);
 
   // Register parent actions
   useEffect(() => {
@@ -175,9 +158,14 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
     if (!input.trim() || loading) return;
 
     let currentThreadId = activeThreadId;
+    const isNewThread = !currentThreadId;
+
     if (!currentThreadId) {
       currentThreadId = crypto.randomUUID();
-      await window.db.createThread(currentThreadId, "New Study Session", user?.id || "local-user");
+      const candidateTitle = input.trim().replace(/\s+/g, " ");
+      const newTitle =
+        candidateTitle.length > 35 ? `${candidateTitle.slice(0, 35)}...` : candidateTitle;
+      await window.db.createThread(currentThreadId, newTitle || "Study Session", user?.id || "local-user");
       setActiveThreadId(currentThreadId);
     }
 
@@ -201,11 +189,9 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
       timestamp: userMessage.timestamp.getTime(),
     });
 
-    // Derive a clean thread title from first message
-    const candidateTitle = userMessage.content.trim().replace(/\s+/g, " ");
-    const newTitle =
-      candidateTitle.length > 35 ? `${candidateTitle.slice(0, 35)}...` : candidateTitle;
-    await window.db.updateThreadTitle(currentThreadId, newTitle);
+    if (isNewThread) {
+      await loadThreads();
+    }
 
     try {
       if (!window.studyAgent) throw new Error("Study agent runtime is offline.");
@@ -247,16 +233,20 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
 
       // Check for flashcards JSON format
       let potentialJson = assistantMessage.content.trim();
+      potentialJson = potentialJson.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
       const codeBlockRegex = /^```(?:json)?\s*([\s\S]*?)\s*```$/;
       const match = potentialJson.match(codeBlockRegex);
       if (match) {
         potentialJson = match[1].trim();
       }
 
-      if (potentialJson.startsWith("{")) {
+      const firstBrace = potentialJson.indexOf("{");
+      const lastBrace = potentialJson.lastIndexOf("}");
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
         try {
-          const parsed = JSON.parse(potentialJson);
-          if (parsed.flashcards && Array.isArray(parsed.flashcards)) {
+          const candidate = potentialJson.substring(firstBrace, lastBrace + 1);
+          const parsed = JSON.parse(candidate);
+          if (parsed.flashcards && Array.isArray(parsed.flashcards) && parsed.flashcards.length > 0) {
             const enrichedFlashcards = parsed.flashcards.map((card: any, idx: number) => ({
               ...card,
               id: `fc-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 6)}`,

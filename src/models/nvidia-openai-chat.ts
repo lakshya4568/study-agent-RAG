@@ -72,6 +72,7 @@ export interface NVIDIAChatOptions {
   maxTokens?: number;
   model?: string;
   provider?: "groq" | "nvidia" | "auto";
+  responseFormat?: { type: "json_object" | "text" };
 }
 
 export class NVIDIAOpenAIChat {
@@ -80,12 +81,14 @@ export class NVIDIAOpenAIChat {
   private model: string;
   private temperature: number;
   private maxTokens: number;
+  private responseFormat?: { type: "json_object" | "text" };
 
   constructor(options: NVIDIAChatOptions = {}) {
     this.config = resolveModelConfig(options.provider === "auto" ? undefined : options.provider);
     this.model = options.model || this.config.model;
     this.temperature = options.temperature ?? 0.2;
     this.maxTokens = options.maxTokens ?? 3000;
+    this.responseFormat = options.responseFormat;
 
     this.client = new OpenAI({
       apiKey: this.config.apiKey,
@@ -145,13 +148,18 @@ export class NVIDIAOpenAIChat {
   /**
    * Invoke the chat model with messages (no tools)
    */
-  async invoke(messages: ChatCompletionMessageParam[]): Promise<string> {
+  async invoke(
+    messages: ChatCompletionMessageParam[],
+    options?: { responseFormat?: { type: "json_object" | "text" } }
+  ): Promise<string> {
+    const format = options?.responseFormat || this.responseFormat;
     const completion = await this.executeWithRetry(() =>
       this.client.chat.completions.create({
         model: this.model,
         messages,
         temperature: this.temperature,
         max_tokens: this.maxTokens,
+        ...(format ? { response_format: format } : {}),
       })
     );
 

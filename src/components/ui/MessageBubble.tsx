@@ -49,16 +49,20 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
   let flashcards: Flashcard[] | null = null;
   if (!isUser && !isSystem) {
     let jsonContent = mainContent.trim();
+    jsonContent = jsonContent.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
     const codeBlockRegex = /^```(?:json)?\s*([\s\S]*?)\s*```$/;
     const match = jsonContent.match(codeBlockRegex);
     if (match) {
       jsonContent = match[1].trim();
     }
 
-    if (jsonContent.startsWith("{")) {
+    const firstBrace = jsonContent.indexOf("{");
+    const lastBrace = jsonContent.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
       try {
-        const parsed = JSON.parse(jsonContent);
-        if (parsed.flashcards && Array.isArray(parsed.flashcards)) {
+        const candidate = jsonContent.substring(firstBrace, lastBrace + 1);
+        const parsed = JSON.parse(candidate);
+        if (parsed.flashcards && Array.isArray(parsed.flashcards) && parsed.flashcards.length > 0) {
           flashcards = parsed.flashcards;
         }
       } catch {

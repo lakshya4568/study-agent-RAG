@@ -1,6 +1,7 @@
 import { SystemMessage, AIMessage, HumanMessage } from "@langchain/core/messages";
 import type { BaseMessage } from "@langchain/core/messages";
 import type { Document } from "@langchain/core/documents";
+import { z } from "zod";
 import { createNVIDIAOpenAIChat } from "../models/nvidia-openai-chat";
 import type { StudyAgentStateType } from "./state";
 import { logger } from "../client/logger";
@@ -16,6 +17,28 @@ import {
   mergeWithDefaults,
 } from "../tools/tool-schema-enricher";
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
+
+export const FlashcardItemSchema = z.object({
+  id: z.union([z.number(), z.string()]).optional(),
+  question: z.string().min(1, "Question cannot be empty"),
+  answer: z.string().min(1, "Answer cannot be empty"),
+  difficulty: z.enum(["easy", "medium", "hard"]).catch("medium"),
+  tags: z.array(z.string()).catch(["Study"]),
+});
+
+export const FlashcardResponseSchema = z.object({
+  flashcards: z.array(FlashcardItemSchema).min(1),
+  metadata: z
+    .object({
+      topic: z.string().optional().default("Study Topic"),
+      source: z.string().optional().default("General Knowledge"),
+      count: z.number().optional(),
+    })
+    .optional()
+    .default({ topic: "Study Topic", source: "General Knowledge" }),
+});
+
+export type FlashcardResponseType = z.infer<typeof FlashcardResponseSchema>;
 
 export const STUDY_MENTOR_SYSTEM_PROMPT = `You are Alex, an intelligent, enthusiastic, and supportive AI Study Mentor! 🎓
 
@@ -152,11 +175,13 @@ export async function routeNode(
 
     // Fast-path heuristic for explicit flashcard creation
     if (
-      lowerQuery.startsWith("create flashcards") ||
-      lowerQuery.startsWith("generate flashcards") ||
-      lowerQuery.startsWith("make flashcards") ||
-      lowerQuery.includes("flashcards for") ||
-      lowerQuery.includes("generate study cards")
+      lowerQuery.includes("flashcard") ||
+      lowerQuery.includes("flash card") ||
+      lowerQuery.includes("flash-card") ||
+      lowerQuery.includes("study card") ||
+      lowerQuery.includes("practice card") ||
+      lowerQuery.includes("anki") ||
+      /\b(make|create|generate|build|give me|show)\b[\s\S]*?\b(cards|flashcards)\b/i.test(query)
     ) {
       logger.info("[Router] Fast-path detected flashcard intent");
       return { route: "flashcard" };
@@ -164,12 +189,14 @@ export async function routeNode(
 
     // Fast-path heuristic for tool queries (time, date, quiz, mcp)
     if (
-      lowerQuery.includes("time") ||
+      lowerQuery.includes("time in") ||
+      lowerQuery.includes("current time") ||
+      lowerQuery.includes("what time") ||
       lowerQuery.includes("clock") ||
-      lowerQuery.includes("date") ||
+      lowerQuery.includes("date today") ||
       lowerQuery.includes("timezone") ||
-      lowerQuery.includes("quiz") ||
-      lowerQuery.includes("mcp")
+      lowerQuery.includes("mcp tool") ||
+      lowerQuery.includes("what tools")
     ) {
       logger.info("[Router] Fast-path detected tool intent");
       return { route: "tool" };
@@ -191,7 +218,7 @@ export async function routeNode(
       model: state.selectedModel || undefined,
       provider: (state.selectedProvider as any) || undefined,
       temperature: 0.1,
-      maxTokens: 50,
+      maxTokens: 400,
     });
     const prompt = `You are an intelligent intent router for the AI Study Agent.
 Decide the single best route for the user query.
@@ -448,7 +475,168 @@ export function createQueryNode(tools: StructuredTool[]) {
 }
 
 /**
- * Generates structured flashcards from context or topic.
+ * Highly resilient parser that extracts structured flashcards from any model output
+ * (clean JSON, malformed JSON, unclosed arrays, trailing commas, or markdown text flashcards).
+ */
+export function repairAndExtractFlashcards(
+  rawText: string,
+  topic = "Study Topic"
+): FlashcardResponseType {
+  // 1. Remove reasoning tokens (<think>...</think>)
+  let text = rawText.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+
+  // 2. Strip code block markers
+  text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+
+  // 3. Attempt direct JSON parsing if brackets exist
+  const firstBrace = text.indexOf("{");
+  const lastBrace = text.lastIndexOf("}");
+
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    let candidate = text.substring(firstBrace, lastBrace + 1);
+
+    // Clean common LLM JSON syntax errors (trailing commas, control characters)
+    candidate = candidate
+      .replace(/,\s*([\]}])/g, "$1")
+      .replace(/\r\n/g, "\n")
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, " ");
+
+    try {
+      const parsed = JSON.parse(candidate);
+      const validated = FlashcardResponseSchema.safeParse(parsed);
+      if (validated.success && validated.data.flashcards.length > 0) {
+        return validated.data;
+      }
+    } catch {
+      // Continue to advanced repair
+    }
+  }
+
+  // 4. Try parsing individual JSON objects {"question": ..., "answer": ...} inside text
+  const objectRegex =
+    /\{[\s\S]*?"question"\s*:\s*"([\s\S]*?)"[\s\S]*?"answer"\s*:\s*"([\s\S]*?)"[\s\S]*?\}/gi;
+  const extractedCards: Array<{
+    question: string;
+    answer: string;
+    difficulty: "easy" | "medium" | "hard";
+    tags: string[];
+  }> = [];
+
+  let match;
+  while ((match = objectRegex.exec(text)) !== null) {
+    try {
+      const objText = match[0]
+        .replace(/,\s*([\]}])/g, "$1")
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, " ");
+      const parsedObj = JSON.parse(objText);
+      if (parsedObj.question && parsedObj.answer) {
+        extractedCards.push({
+          question: String(parsedObj.question).trim(),
+          answer: String(parsedObj.answer).trim(),
+          difficulty: ["easy", "medium", "hard"].includes(parsedObj.difficulty)
+            ? parsedObj.difficulty
+            : "medium",
+          tags: Array.isArray(parsedObj.tags) ? parsedObj.tags : [topic],
+        });
+      }
+    } catch {
+      if (match[1] && match[2]) {
+        extractedCards.push({
+          question: match[1].replace(/\\"/g, '"').trim(),
+          answer: match[2].replace(/\\"/g, '"').trim(),
+          difficulty: "medium",
+          tags: [topic],
+        });
+      }
+    }
+  }
+
+  if (extractedCards.length > 0) {
+    return {
+      flashcards: extractedCards.map((c, i) => ({ id: i + 1, ...c })),
+      metadata: {
+        topic,
+        source: "AI Tutor",
+        count: extractedCards.length,
+      },
+    };
+  }
+
+  // 5. Fallback: Parse markdown formatted flashcards (e.g. **🃏 Flashcard 1** \n **Q:** ... \n **A:** ...)
+  const markdownCards: Array<{
+    question: string;
+    answer: string;
+    difficulty: "easy" | "medium" | "hard";
+    tags: string[];
+  }> = [];
+  const lines = text.split("\n");
+  let currentQ = "";
+  let currentA = "";
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const qMatch = trimmed.match(/^\*?\*?(?:Q|Question)\d*\s*:?\*?\*?\s*(.+)/i);
+    const aMatch = trimmed.match(/^\*?\*?(?:A|Answer)\d*\s*:?\*?\*?\s*(.+)/i);
+
+    if (qMatch) {
+      if (currentQ && currentA) {
+        markdownCards.push({
+          question: currentQ,
+          answer: currentA,
+          difficulty: "medium",
+          tags: [topic],
+        });
+        currentQ = "";
+        currentA = "";
+      }
+      currentQ = qMatch[1].replace(/\*\*/g, "").trim();
+    } else if (aMatch) {
+      currentA = aMatch[1].replace(/\*\*/g, "").trim();
+    } else if (
+      currentA &&
+      trimmed &&
+      !trimmed.startsWith("**🃏") &&
+      !trimmed.startsWith("###") &&
+      !trimmed.startsWith("---")
+    ) {
+      currentA += " " + trimmed.replace(/\*\*/g, "").trim();
+    } else if (
+      currentQ &&
+      !currentA &&
+      trimmed &&
+      !trimmed.startsWith("**🃏") &&
+      !trimmed.startsWith("###") &&
+      !trimmed.startsWith("---")
+    ) {
+      currentQ += " " + trimmed.replace(/\*\*/g, "").trim();
+    }
+  }
+
+  if (currentQ && currentA) {
+    markdownCards.push({
+      question: currentQ,
+      answer: currentA,
+      difficulty: "medium",
+      tags: [topic],
+    });
+  }
+
+  if (markdownCards.length > 0) {
+    return {
+      flashcards: markdownCards.map((c, i) => ({ id: i + 1, ...c })),
+      metadata: {
+        topic,
+        source: "AI Tutor",
+        count: markdownCards.length,
+      },
+    };
+  }
+
+  throw new Error("Could not parse flashcards from model output");
+}
+
+/**
+ * Generates structured flashcards from context or topic with guaranteed JSON formatting.
  */
 export async function flashcardNode(
   state: StudyAgentStateType
@@ -458,18 +646,26 @@ export async function flashcardNode(
       model: state.selectedModel || undefined,
       provider: (state.selectedProvider as any) || undefined,
       temperature: 0.2,
+      maxTokens: 3500,
+      responseFormat: { type: "json_object" },
     });
 
     const userMessages = state.messages.filter(
       (msg) => msg._getType?.() === "human" || (msg as { role?: string }).role === "user"
     );
-    const question = userMessages[userMessages.length - 1]?.content || "Study topic";
+    const question = String(userMessages[userMessages.length - 1]?.content || "Study topic");
+
+    // Clean topic name for metadata
+    const cleanTopic = question
+      .replace(/\b(create|generate|make|practice|high-yield|study|flashcards?|cards?|for|on|about)\b/gi, "")
+      .replace(/[^\w\s]/g, "")
+      .trim() || "Study Topic";
 
     // If documents are not in state, attempt retrieval for grounding
     let docs = state.documents ?? [];
     if (docs.length === 0) {
       try {
-        const ragResponse = await ragClient.query(String(question), [], 4);
+        const ragResponse = await ragClient.query(question, [], 4);
         docs = ragResponse.sources.map((s) => ({
           pageContent: s.content,
           metadata: s.metadata,
@@ -486,57 +682,50 @@ export async function flashcardNode(
       })
       .join("\n\n---\n\n");
 
-    const systemPrompt = `You are a specialized flashcard generator for students.
-Create a set of 10 high-quality, comprehensive flashcards based on the user request and provided context.
+    const systemPrompt = `You are an expert educational flashcard creator.
+Generate a set of 5 to 10 high-yield, comprehensive flashcards.
 
-OUTPUT FORMAT:
-You MUST return a STRICT, valid JSON object without any Markdown fences or external text.
-
-JSON Schema:
+OUTPUT SPECIFICATION:
+You MUST respond with a pure JSON object adhering to this exact schema:
 {
   "flashcards": [
     {
       "id": 1,
-      "question": "Clear, specific question",
-      "answer": "Concise, complete answer",
+      "question": "Concise, conceptual question testing core understanding",
+      "answer": "Clear, complete explanation and key takeaway",
       "difficulty": "easy" | "medium" | "hard",
-      "tags": ["topic1", "topic2"]
+      "tags": ["Subject", "Subtopic"]
     }
   ],
   "metadata": {
-    "topic": "Main Topic",
-    "source": "Document Source or General Knowledge",
-    "count": 10
+    "topic": "${cleanTopic}",
+    "source": "Study Materials",
+    "count": 5
   }
 }`;
 
-    const userPrompt = `Request: ${question}\n\nContext:\n${context || "Use general domain knowledge to create accurate study cards."}`;
+    const userPrompt = `Generate flashcards for: ${question}\n\nReference Material:\n${
+      context || "Use accurate domain expertise to craft clear, active-recall study flashcards."
+    }`;
 
-    const response = await model.invoke([
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ]);
+    const response = await model.invoke(
+      [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      { responseFormat: { type: "json_object" } }
+    );
 
-    let raw = typeof response === "string" ? response : JSON.stringify(response);
-    // Strip reasoning traces and markdown code fences
-    raw = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
-    raw = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+    const raw = typeof response === "string" ? response : JSON.stringify(response);
+    const structuredResult = repairAndExtractFlashcards(raw, cleanTopic);
 
-    const start = raw.indexOf("{");
-    const end = raw.lastIndexOf("}");
-    const jsonContent = (start !== -1 && end !== -1 && end > start)
-      ? raw.substring(start, end + 1)
-      : raw;
-
-    // Validate JSON parsing
-    const parsed = JSON.parse(jsonContent);
-    if (!parsed.flashcards || !Array.isArray(parsed.flashcards)) {
-      throw new Error("Invalid flashcard JSON structure");
-    }
+    logger.info(
+      `[FlashcardNode] Successfully extracted ${structuredResult.flashcards.length} structured flashcards for topic: "${cleanTopic}"`
+    );
 
     return {
       documents: docs,
-      messages: [new AIMessage({ content: JSON.stringify(parsed) })],
+      messages: [new AIMessage({ content: JSON.stringify(structuredResult) })],
     };
   } catch (error) {
     logger.error("[FlashcardNode] Generation failed", error);

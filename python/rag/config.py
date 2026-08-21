@@ -130,7 +130,7 @@ class RAGConfig:
     nvidia_api_key: str = field(default_factory=lambda: os.getenv("NVIDIA_API_KEY", ""))
 
     # Model selections (keys into the model registries above)
-    embedding_model: str = "nv-embedqa-1b-v2"
+    embedding_model: str = "nv-embedqa-e5-v5"
     reranking_model: str = "nv-rerankqa-1b-v2"
     llm_model: str = "kimi-k2-instruct"
 
@@ -193,7 +193,7 @@ class RAGConfig:
         """Create config from environment variables."""
         return cls(
             nvidia_api_key=os.getenv("NVIDIA_API_KEY", ""),
-            embedding_model=os.getenv("RAG_EMBEDDING_MODEL", "nv-embedqa-1b-v2"),
+            embedding_model=os.getenv("RAG_EMBEDDING_MODEL", "nv-embedqa-e5-v5"),
             reranking_model=os.getenv("RAG_RERANKING_MODEL", "nv-rerankqa-1b-v2"),
             llm_model=os.getenv("RAG_LLM_MODEL", "kimi-k2-instruct"),
             chroma_persist_dir=os.getenv("CHROMA_PERSIST_DIR", "./chroma_db"),

@@ -180,6 +180,12 @@ export class DatabaseManager {
         FOREIGN KEY(message_id) REFERENCES messages(id) ON DELETE CASCADE
       )
     `);
+
+    // Ensure default local-user exists
+    this.db.exec(`
+      INSERT OR IGNORE INTO users (id, email, username, password_hash, created_at)
+      VALUES ('local-user', 'scholar@study.local', 'Scholar', '', datetime('now'))
+    `);
   }
 
   // User methods
@@ -229,26 +235,25 @@ export class DatabaseManager {
   // Thread methods
   createThread(id: string, title: string, userId?: string) {
     if (!this.db) throw new Error("Database not initialized");
+    const targetUserId = userId || "local-user";
+    
+    // Ensure the target user exists so FK never fails
+    this.db.prepare(`
+      INSERT OR IGNORE INTO users (id, email, username, password_hash, created_at)
+      VALUES (?, ?, ?, '', datetime('now'))
+    `).run(targetUserId, `${targetUserId}@study.local`, targetUserId === "local-user" ? "Scholar" : targetUserId);
+
     const now = Date.now();
     const stmt = this.db.prepare(
       "INSERT OR REPLACE INTO threads (id, title, created_at, updated_at, user_id) VALUES (?, ?, ?, ?, ?)"
     );
-    stmt.run(id, title, now, now, userId || "local-user");
+    stmt.run(id, title, now, now, targetUserId);
   }
 
   getAllThreads(userId?: string): ConversationThread[] {
     if (!this.db) throw new Error("Database not initialized");
-    let stmt;
-    let rows: ThreadRow[];
-    if (userId && userId !== "local-user") {
-      stmt = this.db.prepare(
-        "SELECT * FROM threads WHERE user_id = ? OR user_id IS NULL OR user_id = 'local-user' ORDER BY updated_at DESC"
-      );
-      rows = stmt.all(userId) as ThreadRow[];
-    } else {
-      stmt = this.db.prepare("SELECT * FROM threads ORDER BY updated_at DESC");
-      rows = stmt.all() as ThreadRow[];
-    }
+    const stmt = this.db.prepare("SELECT * FROM threads ORDER BY updated_at DESC");
+    const rows = stmt.all() as ThreadRow[];
 
     return rows.map((row) => ({
       id: row.id,

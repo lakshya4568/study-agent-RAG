@@ -37,11 +37,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
     toggleSidebar,
     activeThreadId,
     setActiveThreadId,
+    threads,
+    loadThreads,
+    deleteSession,
     theme,
     setTheme,
   } = useChatStore();
-  const { user } = useAuthStore();
-  const [threads, setThreads] = useState<Array<{ id: string; title: string; created_at: number }>>([]);
   const [searchQuery] = useState("");
 
   const toggleTheme = () => {
@@ -56,38 +57,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  const loadThreads = useCallback(async () => {
-    try {
-      if (window.db?.getThreads) {
-        const res = await window.db.getThreads(user?.id || "local-user");
-        if (res.success && res.threads) {
-          setThreads(res.threads);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to load threads in sidebar:", err);
-    }
-  }, [user?.id]);
-
   useEffect(() => {
     loadThreads();
-    const interval = setInterval(loadThreads, 3000);
-    return () => clearInterval(interval);
-  }, [loadThreads, activeThreadId]);
+  }, [loadThreads]);
 
   const handleDeleteThread = async (e: React.MouseEvent, threadId: string) => {
     e.stopPropagation();
-    try {
-      if (window.db?.deleteThread) {
-        await window.db.deleteThread(threadId);
-        setThreads((prev) => prev.filter((t) => t.id !== threadId));
-        if (activeThreadId === threadId) {
-          setActiveThreadId(null);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to delete thread:", err);
-    }
+    await deleteSession(threadId);
   };
 
   const filteredThreads = threads.filter((t) =>

@@ -104,30 +104,56 @@ export const AVAILABLE_MODELS: ModelOption[] = [
   },
 ];
 
+export interface ThreadItem {
+  id: string;
+  title: string;
+  created_at: number;
+  updated_at?: number;
+  userId?: string;
+}
+
 interface ChatState {
+  threads: ThreadItem[];
   activeThreadId: string | null;
   selectedDocument: string | null;
   theme: "dark" | "light" | "vibrant";
   isSidebarExpanded: boolean;
   selectedModel: string;
   selectedProvider: "groq" | "nvidia" | "auto";
+  setThreads: (threads: ThreadItem[]) => void;
+  loadThreads: () => Promise<void>;
   setActiveThreadId: (id: string | null) => void;
   setSelectedDocument: (doc: string | null) => void;
   setTheme: (theme: "dark" | "light" | "vibrant") => void;
   toggleSidebar: () => void;
   setSidebarExpanded: (expanded: boolean) => void;
   setSelectedModel: (model: string, provider?: "groq" | "nvidia" | "auto") => void;
+  deleteSession: (id: string) => Promise<void>;
 }
 
 export const useChatStore = create<ChatState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
+      threads: [],
       activeThreadId: null,
       selectedDocument: null,
       theme: "dark",
       isSidebarExpanded: true,
       selectedModel: "qwen/qwen3.6-27b",
       selectedProvider: "groq",
+      setThreads: (threads) => set({ threads }),
+      loadThreads: async () => {
+        try {
+          if (window.db?.getThreads) {
+            const res = await window.db.getThreads("local-user");
+            if (res && res.success && Array.isArray(res.threads)) {
+              set({ threads: res.threads });
+            }
+          }
+        } catch (err) {
+          console.error("Failed to load threads:", err);
+        }
+      },
       setActiveThreadId: (id) => set({ activeThreadId: id }),
       setSelectedDocument: (doc) => set({ selectedDocument: doc }),
       setTheme: (theme) => set({ theme }),
@@ -138,9 +164,30 @@ export const useChatStore = create<ChatState>()(
         const resolvedProvider = provider || found?.provider || "auto";
         set({ selectedModel: model, selectedProvider: resolvedProvider });
       },
+      deleteSession: async (id: string) => {
+        try {
+          if (window.db?.deleteThread) {
+            await window.db.deleteThread(id);
+          }
+          const { activeThreadId, threads } = get();
+          set({
+            threads: threads.filter((t) => t.id !== id),
+            activeThreadId: activeThreadId === id ? null : activeThreadId,
+          });
+        } catch (err) {
+          console.error("Failed to delete session:", err);
+        }
+      },
     }),
     {
       name: "chat-storage",
+      partialize: (state) => ({
+        activeThreadId: state.activeThreadId,
+        theme: state.theme,
+        isSidebarExpanded: state.isSidebarExpanded,
+        selectedModel: state.selectedModel,
+        selectedProvider: state.selectedProvider,
+      }),
     }
   )
 );
