@@ -6,7 +6,7 @@
   "main": ".webpack/main",
   "scripts": {
     "prestart": "npm run build:mcp && node scripts/setup-python.js",
-    "start": "electron-forge start",
+    "start": "NODE_OPTIONS=\"--disable-warning=DEP0205\" electron-forge start",
     "prepackage": "npm run build:mcp && npm run rebuild:natives",
     "package": "electron-forge package",
     "make": "electron-forge make",
