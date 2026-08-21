@@ -499,6 +499,7 @@ export function repairAndExtractFlashcards(
     candidate = candidate
       .replace(/,\s*([\]}])/g, "$1")
       .replace(/\r\n/g, "\n")
+      // eslint-disable-next-line no-control-regex
       .replace(/[\u0000-\u001F\u007F-\u009F]/g, " ");
 
     try {
@@ -527,6 +528,7 @@ export function repairAndExtractFlashcards(
     try {
       const objText = match[0]
         .replace(/,\s*([\]}])/g, "$1")
+        // eslint-disable-next-line no-control-regex
         .replace(/[\u0000-\u001F\u007F-\u009F]/g, " ");
       const parsedObj = JSON.parse(objText);
       if (parsedObj.question && parsedObj.answer) {

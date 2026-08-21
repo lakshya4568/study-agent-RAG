@@ -136,7 +136,9 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
     if (onRegisterActions) {
       onRegisterActions({
         createNewThread,
-        openHistory: () => {},
+        openHistory: () => {
+          /* open history placeholder */
+        },
       });
     }
   }, [onRegisterActions, createNewThread]);

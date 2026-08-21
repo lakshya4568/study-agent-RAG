@@ -5,7 +5,7 @@ import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
-import { Check, Copy, Code2, Table as TableIcon } from "lucide-react";
+import { Check, Copy, Code2 } from "lucide-react";
 import "katex/dist/katex.min.css";
 import "./markdown.css";
 
@@ -43,7 +43,7 @@ function tokenizeLine(line: string): React.ReactNode[] {
   if (!line) return [<span key="empty">&nbsp;</span>];
 
   // Regex pattern matching comments, strings, identifiers, numbers, operators, punctuation
-  const tokenRegex = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/|#[^\n]*|--[^\n]*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b\d+(?:\.\d+)?(?:e[+-]?\d+)?\b|[a-zA-Z_$][a-zA-Z0-9_$]*|[=><!~?:&|+\-*/%^]+|[{}()\[\];,.]|\s+|[^\s\w]+)/g;
+  const tokenRegex = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/|#[^\n]*|--[^\n]*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b\d+(?:\.\d+)?(?:e[+-]?\d+)?\b|[a-zA-Z_$][a-zA-Z0-9_$]*|[=><!~?:&|+\-*/%^]+|[{}()[\];,.]|\s+|[^\s\w]+)/g;
 
   const nodes: React.ReactNode[] = [];
   let match: RegExpExecArray | null;
@@ -143,7 +143,7 @@ function tokenizeLine(line: string): React.ReactNode[] {
     }
 
     // Punctuation
-    if (/^[{}()\[\];,.]+$/.test(token)) {
+    if (/^[{}()[\];,.]+$/.test(token)) {
       nodes.push(
         <span key={keyIdx} className="token-punctuation text-zinc-600 dark:text-zinc-400">
           {token}

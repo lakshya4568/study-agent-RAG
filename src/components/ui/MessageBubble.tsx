@@ -150,7 +150,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
           </button>
 
           <button
-            onClick={() => {}}
+            onClick={() => {
+              /* retry handler placeholder */
+            }}
             className="w-7 h-7 rounded-lg neu-raised-sm flex items-center justify-center hover:text-foreground active:scale-95 transition-all cursor-pointer border border-border"
             title="Retry"
           >
@@ -158,7 +160,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
           </button>
 
           <button
-            onClick={() => {}}
+            onClick={() => {
+              /* more options placeholder */
+            }}
             className="w-7 h-7 rounded-lg neu-raised-sm flex items-center justify-center hover:text-foreground active:scale-95 transition-all cursor-pointer border border-border"
             title="More"
           >

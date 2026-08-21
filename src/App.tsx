@@ -33,7 +33,9 @@ export const App: React.FC = () => {
   const chatActionsRef = useRef<{
     createNewThread: () => void;
   }>({
-    createNewThread: () => {},
+    createNewThread: () => {
+      /* default no-op */
+    },
   });
 
   // Global Keyboard Shortcuts

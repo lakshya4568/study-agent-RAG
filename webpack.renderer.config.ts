@@ -7,10 +7,10 @@ import { plugins } from "./webpack.plugins";
 export const rendererConfig: Configuration = {
   module: {
     rules: rules.filter((rule) => {
-      // @ts-ignore - rule.use might be a string or object
-      const use = rule.use;
+      const rawRule = rule as Record<string, unknown>;
+      const use = rawRule.use;
       if (typeof use === "object" && use !== null && "loader" in use) {
-        return use.loader !== "@vercel/webpack-asset-relocator-loader";
+        return (use as { loader?: string }).loader !== "@vercel/webpack-asset-relocator-loader";
       }
       return true;
     }),
