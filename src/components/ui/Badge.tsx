@@ -25,8 +25,8 @@ export const Badge: React.FC<BadgeProps> = ({
     error: "bg-rose-500/10 text-rose-500 dark:text-rose-400 border-rose-500/25",
     info: "bg-sky-500/10 text-sky-500 dark:text-sky-400 border-sky-500/25",
     primary: "bg-primary/10 text-primary border-primary/25",
-    default: "bg-secondary text-foreground/85 border-border/40",
-    outline: "bg-transparent border-border/80 text-muted-foreground",
+    default: "bg-secondary text-foreground/85 border-border",
+    outline: "bg-transparent border-border text-muted-foreground",
   };
 
   const pipColors = {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { cn } from "../../lib/utils";
 import {
   LucideIcon,
@@ -9,7 +9,7 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
-import { useChatStore, useAuthStore } from "../../client/store";
+import { useChatStore } from "../../client/store";
 
 interface SidebarProps {
   items: Array<{
@@ -73,7 +73,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside
       className={cn(
-        "h-full flex flex-col py-3 bg-card border-r border-border/40 select-none shrink-0 justify-between z-40 relative transition-[width] duration-200 ease-in-out shadow-sm",
+        "h-full flex flex-col py-3 sidebar-deck select-none shrink-0 justify-between z-40 relative transition-[width] duration-200 ease-in-out",
         isSidebarExpanded ? "w-64 px-3" : "w-[60px] px-2 items-center",
         className
       )}
@@ -90,7 +90,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="flex items-center gap-2.5 overflow-hidden">
             {/* Tactile 8-pointed geometric emblem */}
             <div
-              className="w-9 h-9 rounded-xl neu-raised-sm flex items-center justify-center text-foreground hover:brightness-105 active:scale-95 transition-all cursor-pointer shrink-0"
+              className="w-9 h-9 rounded-xl neu-raised-sm flex items-center justify-center text-foreground hover:brightness-110 active:scale-95 transition-all cursor-pointer shrink-0 border border-border"
               title="Study Agent"
               onClick={toggleSidebar}
             >
@@ -113,7 +113,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="text-xs font-bold tracking-tight text-foreground truncate">
                   Study Agent
                 </span>
-                <span className="text-[10px] text-muted-foreground truncate font-mono">
+                <span className="text-[10px] text-muted-foreground/80 truncate font-mono">
                   Autonomous Tutor
                 </span>
               </div>
@@ -124,7 +124,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               type="button"
               onClick={toggleSidebar}
-              className="w-7 h-7 rounded-lg neu-raised-sm flex items-center justify-center text-muted-foreground hover:text-foreground active:scale-95 transition-all cursor-pointer"
+              className="w-7 h-7 rounded-lg neu-raised-sm flex items-center justify-center text-muted-foreground hover:text-foreground active:scale-95 transition-all cursor-pointer border border-border"
               title="Collapse sidebar"
             >
               <PanelLeftClose className="w-3.5 h-3.5" />
@@ -137,14 +137,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <button
             type="button"
             onClick={onNewSession}
-            className="w-full h-9 px-3 rounded-xl neu-convex text-foreground flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer group shrink-0 border border-border/40"
+            className="w-full h-9 px-3 rounded-xl neu-convex text-foreground flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer group shrink-0 border border-border"
             title="New Study Session (⌘N)"
           >
             <div className="flex items-center gap-2 font-semibold text-xs text-foreground">
               <Plus className="w-3.5 h-3.5 text-primary group-hover:rotate-90 transition-transform duration-200" />
               <span>New Session</span>
             </div>
-            <span className="text-[10px] text-muted-foreground font-mono neu-inset-sm px-1.5 py-0.5 rounded">
+            <span className="text-[10px] text-muted-foreground font-mono neu-inset-sm px-1.5 py-0.5 rounded border border-border">
               ⌘N
             </span>
           </button>
@@ -152,14 +152,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <button
             type="button"
             onClick={onNewSession}
-            className="w-9 h-9 rounded-full neu-convex text-foreground flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer group shrink-0 border border-border/40"
+            className="w-9 h-9 rounded-full neu-convex text-foreground flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer group shrink-0 border border-border"
             title="New Study Session (⌘N)"
           >
             <Plus className="w-4 h-4 text-primary group-hover:rotate-90 transition-transform duration-200" />
           </button>
         )}
 
-        <div className="w-full h-[1px] bg-border/40 my-0.5 shrink-0" />
+        {/* Working Deck Divider */}
+        <div className="w-full h-[1px] bg-border my-0.5 shrink-0" />
 
         {/* Navigation Items */}
         <nav className="flex flex-col gap-1.5 w-full shrink-0">
@@ -174,17 +175,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   className={cn(
                     "w-full h-8.5 px-3 rounded-xl flex items-center justify-between transition-all duration-150 relative cursor-pointer text-left select-none",
                     item.active
-                      ? "neu-convex text-foreground font-semibold border border-border/60 shadow-xs"
+                      ? "neu-convex text-foreground font-semibold border border-border shadow-xs"
                       : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
                   )}
                   title={item.label}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <Icon className={cn("w-4 h-4 shrink-0", item.active ? "text-primary" : "text-muted-foreground/70")} />
+                    <Icon className={cn("w-4 h-4 shrink-0", item.active ? "text-primary" : "text-muted-foreground/80")} />
                     <span className="text-xs truncate">{item.label}</span>
                   </div>
                   {item.shortcut && (
-                    <span className="text-[10px] text-muted-foreground/50 font-mono">
+                    <span className="text-[10px] text-muted-foreground/70 font-mono">
                       {item.shortcut}
                     </span>
                   )}
@@ -200,7 +201,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 className={cn(
                   "w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-150 relative group cursor-pointer select-none",
                   item.active
-                    ? "neu-convex text-primary font-semibold border border-border/60"
+                    ? "neu-convex text-primary font-semibold border border-border"
                     : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
                 )}
                 title={`${item.label} ${item.shortcut ? `(${item.shortcut})` : ""}`}
@@ -213,12 +214,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Recent Session History Section (Expanded View) */}
         {isSidebarExpanded && (
-          <div className="flex flex-col min-h-0 flex-1 pt-2.5 border-t border-border/40">
+          <div className="flex flex-col min-h-0 flex-1 pt-2.5 border-t border-border">
             <div className="flex items-center justify-between px-1.5 pb-1.5 shrink-0">
               <span className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">
                 Recent Sessions
               </span>
-              <span className="text-[10px] text-muted-foreground/60 font-mono">
+              <span className="text-[10px] text-muted-foreground/70 font-mono">
                 {threads.length}
               </span>
             </div>
@@ -226,7 +227,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {/* Scrollable Session List */}
             <div className="flex-1 overflow-y-auto space-y-1 custom-scrollbar pr-0.5">
               {filteredThreads.length === 0 ? (
-                <div className="text-center py-6 px-2 text-muted-foreground/45 text-[11px]">
+                <div className="text-center py-6 px-2 text-muted-foreground/60 text-[11px]">
                   No past sessions yet.
                 </div>
               ) : (
@@ -242,7 +243,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       className={cn(
                         "group w-full px-2.5 py-1.5 rounded-xl flex items-center justify-between text-xs transition-all cursor-pointer text-left select-none",
                         isActive
-                          ? "neu-inset-sm text-foreground font-semibold border border-border/40"
+                          ? "neu-inset-sm text-foreground font-semibold border border-border shadow-xs"
                           : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
                       )}
                       title={thread.title}
@@ -251,7 +252,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <MessageSquare
                           className={cn(
                             "w-3.5 h-3.5 shrink-0",
-                            isActive ? "text-primary" : "text-muted-foreground/50"
+                            isActive ? "text-primary" : "text-muted-foreground/60"
                           )}
                         />
                         <span className="truncate text-xs">
@@ -277,7 +278,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Bottom Section: Theme Toggle Button */}
-      <div className="pt-2 border-t border-border/40 w-full shrink-0">
+      <div className="pt-2 border-t border-border w-full shrink-0">
         {isSidebarExpanded ? (
           <button
             type="button"

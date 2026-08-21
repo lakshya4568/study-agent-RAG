@@ -86,7 +86,7 @@ export const ToolCallApproval: React.FC<ToolCallApprovalProps> = ({
                 <span className="text-[11px] font-bold text-muted-foreground block mb-1 uppercase tracking-wider">
                   Arguments Payload:
                 </span>
-                <pre className="text-[11px] text-foreground/90 p-3 rounded-xl border border-border/40 neu-inset-sm overflow-x-auto font-mono whitespace-pre-wrap max-h-32 custom-scrollbar">
+                <pre className="text-[11px] text-foreground/90 p-3 rounded-xl border border-border neu-inset-sm overflow-x-auto font-mono whitespace-pre-wrap max-h-32 custom-scrollbar">
                   {formatArgs(toolCall.args)}
                 </pre>
               </div>

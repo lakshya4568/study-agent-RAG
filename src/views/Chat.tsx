@@ -403,7 +403,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                       setInput(prompt);
                       inputRef.current?.focus();
                     }}
-                    className="px-4 py-2 rounded-full neu-raised-sm text-xs text-foreground/85 hover:text-foreground hover:brightness-105 active:scale-95 transition-all cursor-pointer text-left border border-border/40 select-none"
+                    className="px-4 py-2 rounded-full neu-raised-sm text-xs text-muted-foreground hover:text-foreground active:scale-95 transition-all cursor-pointer text-left border border-border select-none"
                   >
                     {prompt}
                   </button>
@@ -415,7 +415,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
             <div className="max-w-2xl mx-auto space-y-4 pb-6">
               {/* Top Timestamp */}
               <div className="text-center py-2">
-                <span className="text-[11px] text-muted-foreground/60 font-mono">
+                <span className="text-[11px] text-muted-foreground/70 font-mono">
                   {new Date().toLocaleDateString("en-US", {
                     weekday: "short",
                     month: "short",
@@ -469,14 +469,14 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
         <div className="shrink-0 px-4 pb-3 pt-1 z-20 flex justify-center bg-transparent">
           <div className="w-full max-w-2xl space-y-2">
             {/* Rounded Full Floating Pill Dock */}
-            <div className="w-full rounded-full neu-floating border border-border/50 px-3.5 py-1.5 flex items-center gap-2.5 shadow-md focus-within:border-primary/60 transition-all relative">
+            <div className="w-full rounded-full neu-floating border border-border px-3.5 py-1.5 flex items-center gap-2.5 focus-within:border-primary/60 transition-all relative">
               {/* + Action Menu Button */}
               <div className="relative" ref={actionMenuRef}>
                 <button
                   type="button"
                   onClick={() => setIsActionMenuOpen(!isActionMenuOpen)}
                   className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center neu-convex text-muted-foreground hover:text-foreground active:scale-95 transition-all cursor-pointer shrink-0 border border-border/40",
+                    "w-8 h-8 rounded-full flex items-center justify-center neu-convex text-muted-foreground hover:text-foreground active:scale-95 transition-all cursor-pointer shrink-0 border border-border",
                     isActionMenuOpen && "text-primary rotate-45"
                   )}
                   title="Add attachments or create flashcards"
@@ -486,7 +486,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
 
                 {/* Dropdown Menu on + Click */}
                 {isActionMenuOpen && (
-                  <div className="absolute bottom-full left-0 mb-2.5 w-60 rounded-2xl neu-floating bg-popover border border-border/40 shadow-xl p-2 z-50 text-xs animate-in fade-in zoom-in-95 duration-150 space-y-1">
+                  <div className="absolute bottom-full left-0 mb-2.5 w-60 rounded-2xl neu-floating bg-popover border border-border shadow-2xl p-2 z-50 text-xs animate-in fade-in zoom-in-95 duration-150 space-y-1">
                     <button
                       type="button"
                       onClick={() => {
@@ -543,7 +543,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
                     "w-8.5 h-8.5 rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0",
                     input.trim()
                       ? "neu-convex-primary text-white shadow-sm active:scale-95"
-                      : "bg-secondary text-muted-foreground/30 border border-border/40 cursor-not-allowed"
+                      : "bg-secondary text-muted-foreground/30 border border-border cursor-not-allowed"
                   )}
                   title="Send query"
                 >
@@ -557,7 +557,7 @@ export const Chat: React.FC<ChatProps> = ({ onRegisterActions }) => {
             </div>
 
             {/* Disclaimer */}
-            <p className="text-[10.5px] text-muted-foreground/45 text-center select-none pt-0.5 font-mono">
+            <p className="text-[10.5px] text-muted-foreground/60 text-center select-none pt-0.5 font-mono">
               Study Agent with Groq LPUs & NVIDIA NIM RAG · Check key references
             </p>
           </div>

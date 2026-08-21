@@ -78,7 +78,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
       {isOpen && (
         <div
           className={cn(
-            "absolute z-50 w-68 rounded-2xl bg-popover neu-floating p-2 animate-in fade-in zoom-in-95 duration-150 text-xs border border-border/40 shadow-xl",
+            "absolute z-50 w-68 rounded-2xl bg-popover neu-floating p-2 animate-in fade-in zoom-in-95 duration-150 text-xs border border-border shadow-2xl",
             align === "right" ? "right-0" : "left-0",
             dropUp ? "bottom-full mb-2.5" : "top-full mt-2.5"
           )}
@@ -113,7 +113,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
             ))}
           </div>
 
-          <div className="my-1.5 border-t border-border/40" />
+          <div className="my-1.5 border-t border-border" />
 
           {/* NVIDIA NIM section */}
           <div className="px-2.5 py-1 text-[10px] font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">

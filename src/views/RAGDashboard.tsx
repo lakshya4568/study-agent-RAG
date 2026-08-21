@@ -177,7 +177,7 @@ export const RAGDashboard: React.FC = () => {
   return (
     <ContentContainer className="space-y-6 max-w-5xl mx-auto p-6 md:p-8 bg-background">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 pb-5 border-b border-border/40">
+      <div className="flex items-center justify-between gap-4 pb-5 border-b border-border">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
             <Database className="w-6 h-6 text-primary" />
@@ -245,7 +245,7 @@ export const RAGDashboard: React.FC = () => {
                   and reranked via reciprocal rank fusion before generation.
                 </p>
               </div>
-              <div className="w-36 h-36 rounded-2xl overflow-hidden neu-raised shrink-0 border border-border/40">
+              <div className="w-36 h-36 rounded-2xl overflow-hidden neu-raised shrink-0 border border-border">
                 <img src={ragGraphic} alt="RAG Pipeline" className="w-full h-full object-cover" />
               </div>
             </div>

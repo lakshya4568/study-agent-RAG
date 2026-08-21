@@ -135,7 +135,7 @@ export const FlashcardsView: React.FC = () => {
   return (
     <ContentContainer className="max-w-4xl mx-auto p-6 md:p-8 space-y-6 bg-background">
       {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-border/40">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-border">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
             <Brain className="w-6 h-6 text-primary" />
@@ -280,7 +280,7 @@ export const FlashcardsView: React.FC = () => {
       ) : filteredCards.length === 0 ? (
         <div className="neu-bezel text-center p-8 max-w-lg mx-auto">
           <div className="neu-bezel-inner p-8 flex flex-col items-center">
-            <div className="w-24 h-24 rounded-2xl overflow-hidden mb-5 neu-raised border border-border/40">
+            <div className="w-24 h-24 rounded-2xl overflow-hidden mb-5 neu-raised border border-border">
               <img src={masteryArt} alt="Deck" className="w-full h-full object-cover" />
             </div>
             <h3 className="text-base font-bold text-foreground mb-1.5">No Cards in this Deck</h3>
@@ -323,7 +323,7 @@ export const FlashcardsView: React.FC = () => {
                 style={{ backfaceVisibility: "hidden" }}
               >
                 <div className="neu-bezel-inner p-7 flex flex-col justify-between h-full">
-                  <div className="flex items-center justify-between border-b border-border/40 pb-3">
+                  <div className="flex items-center justify-between border-b border-border pb-3">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full neu-inset-sm text-primary font-bold text-xs">
                       🌿 {currentCard?.tags?.[0] || "General Concept"}
                     </span>
@@ -338,7 +338,7 @@ export const FlashcardsView: React.FC = () => {
                     </h2>
                   </div>
 
-                  <div className="flex items-center justify-between pt-3 border-t border-border/40 text-xs text-muted-foreground">
+                  <div className="flex items-center justify-between pt-3 border-t border-border text-xs text-muted-foreground">
                     <span className="flex items-center gap-1.5 text-primary font-semibold">
                       <Eye className="w-3.5 h-3.5" /> Tap Space to reveal answer
                     </span>
@@ -358,7 +358,7 @@ export const FlashcardsView: React.FC = () => {
                 }}
               >
                 <div className="neu-bezel-inner p-7 flex flex-col justify-between h-full">
-                  <div className="flex items-center justify-between border-b border-border/40 pb-3">
+                  <div className="flex items-center justify-between border-b border-border pb-3">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 font-bold text-xs border border-emerald-500/25 neu-raised-sm">
                       ✓ Answer & Key Concept
                     </span>
@@ -381,7 +381,7 @@ export const FlashcardsView: React.FC = () => {
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-between pt-3 border-t border-border/40 text-xs text-muted-foreground">
+                  <div className="flex items-center justify-between pt-3 border-t border-border text-xs text-muted-foreground">
                     <span className="flex items-center gap-1.5 text-emerald-500 dark:text-emerald-400 font-semibold">
                       <RotateCw className="w-3.5 h-3.5" /> Space to flip back
                     </span>
@@ -453,7 +453,7 @@ export const FlashcardsView: React.FC = () => {
           </div>
 
           {/* Mastery Heatmap (Last 30 Days) */}
-          <div className="pt-4 border-t border-border/40">
+          <div className="pt-4 border-t border-border">
             <div className="flex items-center justify-between mb-2.5">
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 Mastery Heatmap (Last 30 Days)

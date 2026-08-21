@@ -60,13 +60,13 @@ export const Drawer: React.FC<DrawerProps> = ({
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
             style={{ width }}
             className={cn(
-              "fixed top-0 bottom-0 z-50 bg-popover neu-floating flex flex-col border-border/40",
+              "fixed top-0 bottom-0 z-50 bg-popover neu-floating flex flex-col border-border",
               position === "right" ? "right-0 border-l" : "left-0 border-r",
               className
             )}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-4 px-5 border-b border-border/40 bg-card">
+            <div className="flex items-center justify-between p-4 px-5 border-b border-border bg-card">
               <h2 className="text-sm font-bold tracking-tight text-foreground">{title}</h2>
               <button
                 onClick={onClose}

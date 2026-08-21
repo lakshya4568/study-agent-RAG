@@ -116,7 +116,7 @@ export const ServerManager: React.FC = () => {
   return (
     <ContentContainer className="max-w-5xl mx-auto p-6 md:p-8 space-y-6 bg-background">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 pb-5 border-b border-border/40">
+      <div className="flex items-center justify-between gap-4 pb-5 border-b border-border">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
             <Blocks className="w-6 h-6 text-primary" />
@@ -275,7 +275,7 @@ export const ServerManager: React.FC = () => {
                             className={`inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border neu-raised-sm ${
                               server.status === "connected"
                                 ? "bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border-emerald-500/25"
-                                : "bg-secondary text-muted-foreground border-border/40"
+                                : "bg-secondary text-muted-foreground border-border"
                             }`}
                           >
                             <Zap className="w-2.5 h-2.5" />
@@ -287,14 +287,14 @@ export const ServerManager: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="w-9 h-9 rounded-xl neu-inset-sm text-primary flex items-center justify-center shrink-0 border border-border/40">
+                      <div className="w-9 h-9 rounded-xl neu-inset-sm text-primary flex items-center justify-center shrink-0 border border-border">
                         <Package className="w-4 h-4" />
                       </div>
                     </div>
 
                     {/* Connected Tools Breakdown */}
                     <div className="mt-4 space-y-2">
-                      <div className="flex items-center justify-between text-xs text-muted-foreground font-medium pb-1 border-b border-border/40">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground font-medium pb-1 border-b border-border">
                         <span className="font-semibold text-foreground/80">Exposed Tools ({server.tools?.length || 0})</span>
                         <span className="text-[10px] font-mono text-emerald-500 dark:text-emerald-400 font-bold">Active in Graph</span>
                       </div>
@@ -304,14 +304,14 @@ export const ServerManager: React.FC = () => {
                           {server.tools.map((t: any, idx: number) => (
                             <div
                               key={t.name || idx}
-                              className="p-2.5 rounded-xl neu-inset-sm border border-border/40"
+                              className="p-2.5 rounded-xl neu-inset-sm border border-border"
                             >
                               <div className="flex items-center justify-between gap-2">
                                 <span className="font-mono text-xs font-bold text-primary">
                                   {t.name}
                                 </span>
                                 {t.inputSchema?.properties && (
-                                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border/40 font-semibold">
+                                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border font-semibold">
                                     {Object.keys(t.inputSchema.properties).length} params
                                   </span>
                                 )}
@@ -332,7 +332,7 @@ export const ServerManager: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="pt-3 border-t border-border/40 flex justify-end">
+                  <div className="pt-3 border-t border-border flex justify-end">
                     <Button
                       variant="danger"
                       size="sm"

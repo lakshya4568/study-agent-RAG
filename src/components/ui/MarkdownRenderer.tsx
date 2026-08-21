@@ -32,8 +32,8 @@ const CodeBlock: React.FC<{ language?: string; value: string; className?: string
   };
 
   return (
-    <div className="code-block-wrapper my-3.5 rounded-2xl overflow-hidden neu-inset border border-border/40 shadow-md">
-      <div className="code-block-header px-4 py-2 bg-secondary/80 border-b border-border/40 flex items-center justify-between">
+    <div className="code-block-wrapper my-3.5 rounded-2xl overflow-hidden neu-inset border border-border shadow-md">
+      <div className="code-block-header px-4 py-2 bg-secondary/80 border-b border-border flex items-center justify-between">
         <span className="code-language text-[11px] font-mono font-bold text-muted-foreground uppercase tracking-wider">
           {language || "code"}
         </span>

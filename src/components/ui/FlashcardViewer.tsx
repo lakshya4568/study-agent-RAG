@@ -167,7 +167,7 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
     <div className="neu-bezel max-w-2xl mx-auto my-6 overflow-hidden flex flex-col h-[560px]">
       <div className="neu-bezel-inner flex flex-col h-full overflow-hidden">
         {/* Header */}
-        <div className="p-4 px-5 border-b border-border/40 flex justify-between items-center">
+        <div className="p-4 px-5 border-b border-border flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-xl neu-inset-sm flex items-center justify-center text-primary">
               <Brain className="w-4 h-4" />
@@ -254,7 +254,7 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
               >
                 {/* Front (Question) */}
                 <div className="absolute inset-0 backface-hidden neu-raised rounded-2xl p-7 flex flex-col items-center justify-between text-center overflow-y-auto custom-scrollbar">
-                  <div className="w-full flex items-center justify-between border-b border-border/40 pb-3">
+                  <div className="w-full flex items-center justify-between border-b border-border pb-3">
                     <Badge
                       variant={currentCard.difficulty === "hard" ? "error" : currentCard.difficulty === "medium" ? "warning" : "success"}
                       size="sm"
@@ -269,7 +269,7 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
                     {currentCard.question}
                   </h3>
 
-                  <div className="w-full pt-3 border-t border-border/40 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground font-medium uppercase tracking-wider">
+                  <div className="w-full pt-3 border-t border-border flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground font-medium uppercase tracking-wider">
                     <RotateCw className="w-3 h-3 text-primary" /> Reveal Answer
                   </div>
 
@@ -289,7 +289,7 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
                   className="absolute inset-0 backface-hidden neu-raised rounded-2xl p-7 flex flex-col items-center justify-between text-center rotate-y-180 overflow-y-auto custom-scrollbar"
                   style={{ transform: "rotateY(180deg)" }}
                 >
-                  <div className="w-full flex items-center justify-between border-b border-border/40 pb-3">
+                  <div className="w-full flex items-center justify-between border-b border-border pb-3">
                     <span className="text-xs font-bold text-emerald-500 dark:text-emerald-400 flex items-center gap-1">
                       <CheckCircle className="w-3.5 h-3.5" /> Answer & Key Concept
                     </span>
@@ -302,7 +302,7 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
                     </p>
                   </div>
 
-                  <div className="w-full pt-3 border-t border-border/40 flex gap-1.5 flex-wrap justify-center">
+                  <div className="w-full pt-3 border-t border-border flex gap-1.5 flex-wrap justify-center">
                     {currentCard.tags?.map((tag) => (
                       <span key={tag} className="text-[10px] font-medium neu-inset-sm px-2.5 py-1 rounded-full text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
                         <Sparkles className="w-2.5 h-2.5" /> {tag}
@@ -316,7 +316,7 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
         </div>
 
         {/* Controls Bottom Bar */}
-        <div className="p-4 px-5 border-t border-border/40 flex justify-between items-center">
+        <div className="p-4 px-5 border-t border-border flex justify-between items-center">
           <Button
             variant="ghost"
             size="sm"

@@ -152,7 +152,7 @@ export const Settings: React.FC = () => {
   return (
     <ContentContainer className="space-y-6 max-w-4xl mx-auto p-6 md:p-8 bg-background">
       {/* Header */}
-      <div className="flex items-center justify-between pb-5 border-b border-border/40">
+      <div className="flex items-center justify-between pb-5 border-b border-border">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
             <Settings2 className="w-6 h-6 text-primary" />
@@ -210,7 +210,7 @@ export const Settings: React.FC = () => {
         <form onSubmit={handleConfigSave} className="space-y-5">
           <div className="neu-bezel">
             <div className="neu-bezel-inner p-6 space-y-4">
-              <div className="flex items-center gap-2 text-sm font-bold text-foreground pb-2 border-b border-border/40">
+              <div className="flex items-center gap-2 text-sm font-bold text-foreground pb-2 border-b border-border">
                 <Key className="w-4 h-4 text-primary" />
                 <h3>AI Provider API Credentials</h3>
               </div>
@@ -301,7 +301,7 @@ export const Settings: React.FC = () => {
         <div className="space-y-5">
           <div className="neu-bezel">
             <div className="neu-bezel-inner p-6 space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-border/40">
+              <div className="flex items-center justify-between pb-2 border-b border-border">
                 <div className="flex items-center gap-2 text-sm font-bold text-foreground">
                   <Brain className="w-4 h-4 text-primary" />
                   <h3>Long-Term Cognitive Memory Core (`Memory.md`)</h3>

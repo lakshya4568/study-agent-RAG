@@ -91,7 +91,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
       <motion.div
         initial={{ opacity: 0, y: 4 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex justify-start mb-4 max-w-2xl text-xs text-muted-foreground neu-inset-sm px-4 py-2.5 rounded-xl border border-border/40"
+        className="flex justify-start mb-4 max-w-2xl text-xs text-muted-foreground neu-inset-sm px-4 py-2.5 rounded-xl border border-border"
       >
         <MarkdownRenderer content={content} />
       </motion.div>
@@ -130,10 +130,10 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
 
       {/* Tactile Action Bar (Copy, Share, Retry, More) */}
       {!flashcards && (
-        <div className="flex items-center gap-1.5 pt-2 text-muted-foreground/70 text-xs">
+        <div className="flex items-center gap-1.5 pt-2 text-muted-foreground text-xs">
           <button
             onClick={handleCopy}
-            className="w-7 h-7 rounded-lg neu-raised-sm flex items-center justify-center hover:text-foreground active:scale-95 transition-all cursor-pointer"
+            className="w-7 h-7 rounded-lg neu-raised-sm flex items-center justify-center hover:text-foreground active:scale-95 transition-all cursor-pointer border border-border"
             title="Copy response"
           >
             {copied ? (
@@ -145,7 +145,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
 
           <button
             onClick={handleCopy}
-            className="w-7 h-7 rounded-lg neu-raised-sm flex items-center justify-center hover:text-foreground active:scale-95 transition-all cursor-pointer"
+            className="w-7 h-7 rounded-lg neu-raised-sm flex items-center justify-center hover:text-foreground active:scale-95 transition-all cursor-pointer border border-border"
             title="Share"
           >
             <Share2 className="w-3.5 h-3.5" />
@@ -153,7 +153,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
 
           <button
             onClick={() => {}}
-            className="w-7 h-7 rounded-lg neu-raised-sm flex items-center justify-center hover:text-foreground active:scale-95 transition-all cursor-pointer"
+            className="w-7 h-7 rounded-lg neu-raised-sm flex items-center justify-center hover:text-foreground active:scale-95 transition-all cursor-pointer border border-border"
             title="Retry"
           >
             <RotateCw className="w-3.5 h-3.5" />
@@ -161,7 +161,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
 
           <button
             onClick={() => {}}
-            className="w-7 h-7 rounded-lg neu-raised-sm flex items-center justify-center hover:text-foreground active:scale-95 transition-all cursor-pointer"
+            className="w-7 h-7 rounded-lg neu-raised-sm flex items-center justify-center hover:text-foreground active:scale-95 transition-all cursor-pointer border border-border"
             title="More"
           >
             <MoreHorizontal className="w-3.5 h-3.5" />

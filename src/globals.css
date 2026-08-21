@@ -4,24 +4,24 @@
   :root {
     --radius: 0.875rem;
     
-    /* Tactile Dark Neumorphism Obsidian Palette */
-    --background: 240 7% 8%;          /* #121215 / Solid matte canvas */
+    /* Dark Theme Palette (User Specified) */
+    --background: 0 0% 3.9%;          /* #0a0a0a / Deep Black Base */
     --foreground: 240 5% 96%;         /* #f4f4f7 / High-contrast crisp text */
     
-    --card: 240 6% 11%;               /* #1a1a1f / Tactile card surface */
+    --card: 0 0% 11.8%;               /* #1e1e1e / Elevated Surface Grey */
     --card-foreground: 240 5% 96%;
     
-    --popover: 240 6% 12%;            /* #1d1d23 / Elevated solid plate */
+    --popover: 240 4% 15%;            /* #26262a / Floating Deck Surface */
     --popover-foreground: 240 5% 96%;
     
-    --primary: 158 64% 48%;           /* #10b981 / Emerald Green */
+    --primary: 158 64% 48%;           /* #10b981 / Emerald Accent */
     --primary-foreground: 0 0% 100%;
     
-    --secondary: 240 6% 14%;          /* #222228 / Subtle secondary surface */
+    --secondary: 240 4% 15%;          /* #27272a / Subtle Secondary Surface */
     --secondary-foreground: 240 5% 92%;
     
-    --muted: 240 6% 12%;              /* #1c1c21 / Recessed sunken surface */
-    --muted-foreground: 240 5% 62%;   /* #9797a1 / Readable tertiary text */
+    --muted: 0 0% 11.8%;              /* #1e1e1e / Recessed Sunken Surface */
+    --muted-foreground: 240 5% 84%;   /* #d4d4d8 / Muted Text (User Specified) */
     
     --accent: 158 64% 48%;
     --accent-foreground: 0 0% 100%;
@@ -29,8 +29,8 @@
     --destructive: 346 87% 60%;       /* Coral #f43f5e */
     --destructive-foreground: 0 0% 100%;
     
-    --border: 240 5% 16%;             /* #26262e / Tactile edge border */
-    --input: 240 6% 10%;              /* #151518 / Sunken input trough */
+    --border: 240 4.2% 18.8%;         /* #2e2e32 / Border & Divider Grey (User Specified) */
+    --input: 0 0% 7.1%;               /* #121212 / Sunken Input Trough */
     --ring: 158 64% 48%;
 
     /* Stitch Palette Signature Colors */
@@ -134,16 +134,49 @@
 
 @layer utilities {
   /* ==========================================================================
-     TACTILE NEUMORPHISM (SOFT UI) SHADOW & SURFACE UTILITIES (NO GLOW HALO)
+     3D WORKING DECK & MATTE-TO-GLOWING BLACK SURFACE UTILITIES
      ========================================================================== */
 
-  /* 1. Standard Raised Neumorphic Surface (Cards, Panels) */
-  .neu-raised {
-    background: #18181d;
+  /* Sidebar Deck (Matte Black with 3D Lateral Shadow onto Working Canvas) */
+  .sidebar-deck {
+    background: #111113;
+    border-right: 1px solid #2e2e32;
     box-shadow: 
-      4px 4px 10px rgba(0, 0, 0, 0.45), 
-      -2px -2px 6px rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.04);
+      6px 0 28px -4px rgba(0, 0, 0, 0.85), 
+      inset -1px 0 0 rgba(255, 255, 255, 0.02);
+  }
+
+  .theme-light .sidebar-deck,
+  .light .sidebar-deck {
+    background: #fdf6f3;
+    border-right: 1px solid #e2cfc9;
+    box-shadow: 4px 0 20px -3px rgba(180, 155, 145, 0.25);
+  }
+
+  /* Top Bar Deck (Matte Black working header with subtle under-deck shadow) */
+  .topbar-deck {
+    background: #141417;
+    border-bottom: 1px solid #2e2e32;
+    box-shadow: 
+      0 4px 20px -2px rgba(0, 0, 0, 0.7), 
+      inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+
+  .theme-light .topbar-deck,
+  .light .topbar-deck {
+    background: #faf2ee;
+    border-bottom: 1px solid #e2cfc9;
+    box-shadow: 0 4px 16px -2px rgba(180, 155, 145, 0.2);
+  }
+
+  /* 1. Standard Raised Working Deck Card (Cards, Panels) */
+  .neu-raised {
+    background: linear-gradient(180deg, #202024 0%, #17171a 100%);
+    box-shadow: 
+      0 10px 30px -5px rgba(0, 0, 0, 0.85), 
+      0 4px 12px -2px rgba(0, 0, 0, 0.6), 
+      inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    border: 1px solid #2e2e32;
   }
 
   .theme-light .neu-raised,
@@ -155,13 +188,13 @@
     border: 1px solid rgba(255, 245, 240, 0.6);
   }
 
-  /* 2. Raised Small (Buttons, Badges, Small Controls) */
+  /* 2. Raised Small Deck Elements (Buttons, Badges, Small Controls) */
   .neu-raised-sm {
-    background: #1a1a20;
+    background: linear-gradient(180deg, #222227 0%, #18181b 100%);
     box-shadow: 
-      2px 2px 6px rgba(0, 0, 0, 0.4), 
-      -1px -1px 4px rgba(255, 255, 255, 0.025);
-    border: 1px solid rgba(255, 255, 255, 0.04);
+      0 3px 8px rgba(0, 0, 0, 0.55), 
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    border: 1px solid #2e2e32;
   }
 
   .theme-light .neu-raised-sm,
@@ -175,11 +208,12 @@
 
   /* 3. Floating / High-Elevation Surface (Floating Prompt Dock, Modals) */
   .neu-floating {
-    background: #19191f;
+    background: linear-gradient(180deg, #1e1e22 0%, #151518 100%);
     box-shadow: 
-      0 10px 28px rgba(0, 0, 0, 0.55), 
-      0 2px 8px rgba(0, 0, 0, 0.35);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+      0 18px 48px -6px rgba(0, 0, 0, 0.95), 
+      0 4px 16px rgba(0, 0, 0, 0.7), 
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    border: 1px solid #2e2e32;
   }
 
   .theme-light .neu-floating,
@@ -193,11 +227,11 @@
 
   /* 4. Sunken / Inset Surface (Inputs, TextAreas, Code Viewports) */
   .neu-inset {
-    background: #121216;
+    background: #121214;
     box-shadow: 
-      inset 2px 2px 5px rgba(0, 0, 0, 0.5), 
+      inset 2px 2px 6px rgba(0, 0, 0, 0.7), 
       inset -1px -1px 3px rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.03);
+    border: 1px solid #2e2e32;
   }
 
   .theme-light .neu-inset,
@@ -211,11 +245,11 @@
 
   /* 5. Inset Small (Subtle wells, search bars, tag pills) */
   .neu-inset-sm {
-    background: #131317;
+    background: #131316;
     box-shadow: 
-      inset 1px 1px 3px rgba(0, 0, 0, 0.4), 
+      inset 1px 1px 4px rgba(0, 0, 0, 0.6), 
       inset -1px -1px 2px rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.03);
+    border: 1px solid #2e2e32;
   }
 
   .theme-light .neu-inset-sm,
@@ -227,19 +261,28 @@
     border: 1px solid rgba(180, 140, 120, 0.06);
   }
 
-  /* 6. Convex Tactile Buttons & Pills */
+  /* 6. Convex Tactile Buttons & Pills (Matte to Glowing Black) */
   .neu-convex {
-    background: linear-gradient(145deg, #202026, #16161c);
+    background: linear-gradient(180deg, #25252b 0%, #1c1c20 100%);
     box-shadow: 
-      3px 3px 8px rgba(0, 0, 0, 0.4), 
-      -2px -2px 6px rgba(255, 255, 255, 0.025);
-    border: 1px solid rgba(255, 255, 255, 0.04);
+      0 2px 6px rgba(0, 0, 0, 0.5), 
+      inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    border: 1px solid #2e2e32;
+    transition: all 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .neu-convex:hover {
+    background: linear-gradient(180deg, #2a2a32 0%, #202026 100%);
+    box-shadow: 
+      0 4px 14px rgba(0, 0, 0, 0.7), 
+      0 0 12px -2px rgba(255, 255, 255, 0.06), 
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    border-color: #3f3f46;
   }
 
   .neu-convex:active {
-    background: linear-gradient(145deg, #141419, #1a1a21);
-    box-shadow: 
-      inset 2px 2px 4px rgba(0, 0, 0, 0.5);
+    background: linear-gradient(180deg, #161619 0%, #1c1c21 100%);
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.7);
     transform: translateY(1px);
   }
 
@@ -259,45 +302,54 @@
     transform: translateY(1px);
   }
 
-  /* 7. Convex Primary (Emerald Green Action Button) */
+  /* 7. Convex Primary (Emerald Accent Action Button) */
   .neu-convex-primary {
-    background: linear-gradient(145deg, #10b981, #059669);
+    background: linear-gradient(180deg, #10b981 0%, #059669 100%);
     box-shadow: 
-      2px 3px 10px rgba(16, 185, 129, 0.35), 
-      inset 0 1px 0 rgba(255, 255, 255, 0.25);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+      0 4px 14px rgba(16, 185, 129, 0.4), 
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .neu-convex-primary:hover {
+    box-shadow: 
+      0 6px 20px rgba(16, 185, 129, 0.5), 
+      0 0 16px rgba(16, 185, 129, 0.3), 
+      inset 0 1px 0 rgba(255, 255, 255, 0.4);
   }
 
   .neu-convex-primary:active {
-    background: linear-gradient(145deg, #059669, #047857);
-    box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.35);
+    background: linear-gradient(180deg, #059669 0%, #047857 100%);
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.4);
     transform: translateY(1px);
   }
 
   /* 8. Convex Emerald */
   .neu-convex-emerald {
-    background: linear-gradient(145deg, #10b981, #059669);
+    background: linear-gradient(180deg, #10b981 0%, #059669 100%);
     box-shadow: 
-      2px 3px 10px rgba(16, 185, 129, 0.35), 
-      inset 0 1px 0 rgba(255, 255, 255, 0.25);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+      0 4px 14px rgba(16, 185, 129, 0.4), 
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
   }
 
-  /* 9. Machined Double-Bezel Architecture */
+  /* 9. Machined Double-Bezel Architecture (3D Working Deck Tray) */
   .neu-bezel {
-    background: #141419;
+    background: #141418;
     border-radius: 1.5rem;
     padding: 0.375rem;
     box-shadow: 
-      4px 4px 14px rgba(0, 0, 0, 0.45), 
-      -2px -2px 8px rgba(255, 255, 255, 0.025);
-    border: 1px solid rgba(255, 255, 255, 0.03);
+      0 14px 38px -6px rgba(0, 0, 0, 0.9), 
+      0 4px 14px rgba(0, 0, 0, 0.6), 
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    border: 1px solid #2e2e32;
   }
 
   .neu-bezel-inner {
-    background: #18181e;
+    background: #18181c;
     border-radius: calc(1.5rem - 0.375rem);
-    border: 1px solid rgba(255, 255, 255, 0.03);
+    border: 1px solid #2e2e32;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   }
 
   .theme-light .neu-bezel,
@@ -317,11 +369,11 @@
 
   /* 10. Tactile Segmented Control Trough */
   .neu-segmented-trough {
-    background: #121216;
+    background: #121215;
     border-radius: 0.875rem;
     padding: 0.25rem;
-    box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.45);
-    border: 1px solid rgba(255, 255, 255, 0.03);
+    box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.6);
+    border: 1px solid #2e2e32;
   }
 
   .theme-light .neu-segmented-trough,
@@ -332,11 +384,12 @@
   }
 
   .neu-segmented-active {
-    background: #202028;
+    background: linear-gradient(180deg, #24242a 0%, #1a1a1e 100%);
     border-radius: calc(0.875rem - 0.25rem);
     box-shadow: 
-      2px 2px 6px rgba(0, 0, 0, 0.35);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+      0 3px 8px rgba(0, 0, 0, 0.5), 
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    border: 1px solid #2e2e32;
   }
 
   .theme-light .neu-segmented-active,
@@ -346,11 +399,24 @@
     border: 1px solid rgba(180, 140, 120, 0.06);
   }
 
+  /* 11. Glowing Black Deck Surface */
+  .glowing-deck {
+    transition: all 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .glowing-deck:hover {
+    border-color: #3f3f46;
+    box-shadow: 
+      0 14px 40px -6px rgba(0, 0, 0, 0.95), 
+      0 0 20px -2px rgba(16, 185, 129, 0.14), 
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  }
+
   /* Backwards compatibility aliases */
   .doppelrand {
     background: #18181d;
-    border: 1px solid rgba(255, 255, 255, 0.04);
-    box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.4);
+    border: 1px solid #2e2e32;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
   }
 
   .theme-light .doppelrand,
@@ -361,11 +427,11 @@
   }
 
   .double-bezel {
-    background: #141419;
+    background: #141418;
     border-radius: 1.5rem;
     padding: 0.375rem;
-    box-shadow: 4px 4px 14px rgba(0, 0, 0, 0.45);
-    border: 1px solid rgba(255, 255, 255, 0.03);
+    box-shadow: 0 14px 38px -6px rgba(0, 0, 0, 0.9);
+    border: 1px solid #2e2e32;
   }
 
   .theme-light .double-bezel,
@@ -376,9 +442,9 @@
   }
 
   .double-bezel-inner {
-    background: #18181e;
+    background: #18181c;
     border-radius: calc(1.5rem - 0.375rem);
-    border: 1px solid rgba(255, 255, 255, 0.03);
+    border: 1px solid #2e2e32;
   }
 
   .theme-light .double-bezel-inner,
@@ -388,9 +454,12 @@
   }
 
   .deck-card {
-    background: #18181d;
-    box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.45);
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    background: linear-gradient(180deg, #202024 0%, #17171a 100%);
+    box-shadow: 
+      0 10px 30px -5px rgba(0, 0, 0, 0.85), 
+      0 4px 12px -2px rgba(0, 0, 0, 0.6), 
+      inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    border: 1px solid #2e2e32;
   }
 
   /* Custom Neumorphic Scrollbar */
@@ -404,7 +473,7 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #25252e;
+    background: #2e2e32;
     border-radius: 9999px;
   }
 
@@ -414,7 +483,7 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #32323e;
+    background: #3f3f46;
   }
 
   .theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover,
@@ -454,7 +523,7 @@
 
   .heatmap-cell:hover {
     transform: scale(1.3);
-    box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.7);
     z-index: 10;
   }
 
@@ -478,10 +547,10 @@
     justify-content: center;
     padding: 0.875rem;
     margin: 0.75rem 0;
-    background: #141418;
+    background: #121215;
     border-radius: 0.75rem;
     font-size: 1.15rem;
-    border: 1px solid rgba(255, 255, 255, 0.03);
+    border: 1px solid #2e2e32;
   }
 
   .theme-light .math-block,

@@ -36,7 +36,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   return (
     <header
       className={cn(
-        "flex items-center justify-between px-6 py-2.5 bg-card border-b border-border/40 select-none z-30 shadow-xs",
+        "flex items-center justify-between px-6 py-2.5 topbar-deck select-none z-30",
         className
       )}
     >
@@ -69,7 +69,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         {/* Theme toggle */}
         <button
           onClick={toggleTheme}
-          className="w-8.5 h-8.5 rounded-xl neu-raised-sm flex items-center justify-center text-muted-foreground hover:text-foreground active:scale-95 transition-all cursor-pointer"
+          className="w-8.5 h-8.5 rounded-xl neu-raised-sm flex items-center justify-center text-muted-foreground hover:text-foreground active:scale-95 transition-all cursor-pointer border border-border"
           title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
         >
           {theme === "dark" ? (
