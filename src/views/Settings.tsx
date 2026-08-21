@@ -7,9 +7,11 @@ import {
   Brain,
   RotateCcw,
   CheckCircle2,
+  Database,
 } from "lucide-react";
 import { ContentContainer } from "../components/layout";
 import { Button, Input, LoadingSpinner } from "../components/ui";
+import { RAGDashboard } from "./RAGDashboard";
 import type { ConfigSummaryItem } from "../client/types";
 
 interface ConfigFormState {
@@ -23,7 +25,7 @@ interface ConfigFormState {
 }
 
 export const Settings: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<"keys" | "memory">("keys");
+  const [activeTab, setActiveTab] = useState<"keys" | "memory" | "vector">("keys");
   const [configSummary, setConfigSummary] = useState<ConfigSummaryItem[]>([]);
   const [configForm, setConfigForm] = useState<ConfigFormState>({
     NVIDIA_API_KEY: "",
@@ -159,13 +161,13 @@ export const Settings: React.FC = () => {
             Settings
           </h2>
           <p className="text-xs text-muted-foreground mt-1 font-mono">
-            LLM inference credentials · Long-term cognitive profile
+            LLM inference credentials · Long-term cognitive profile · Vector RAG database
           </p>
         </div>
       </div>
 
       {/* Tactile Segmented Tab Bar */}
-      <div className="neu-segmented-trough p-1 rounded-2xl flex items-center gap-1.5 w-fit">
+      <div className="neu-segmented-trough p-1 rounded-2xl flex items-center gap-1.5 w-fit mt-1 mb-2">
         <button
           onClick={() => setActiveTab("keys")}
           className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer select-none ${
@@ -185,6 +187,16 @@ export const Settings: React.FC = () => {
           }`}
         >
           <Brain className="w-3.5 h-3.5 text-primary" /> Long-Term Memory
+        </button>
+        <button
+          onClick={() => setActiveTab("vector")}
+          className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer select-none ${
+            activeTab === "vector"
+              ? "neu-segmented-active text-foreground shadow-xs"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Database className="w-3.5 h-3.5 text-primary" /> Vector Studio
         </button>
       </div>
 
@@ -297,7 +309,7 @@ export const Settings: React.FC = () => {
             </Button>
           </div>
         </form>
-      ) : (
+      ) : activeTab === "memory" ? (
         <div className="space-y-5">
           <div className="neu-bezel">
             <div className="neu-bezel-inner p-6 space-y-4">
@@ -344,6 +356,8 @@ export const Settings: React.FC = () => {
             </Button>
           </div>
         </div>
+      ) : (
+        <RAGDashboard embedded />
       )}
     </ContentContainer>
   );

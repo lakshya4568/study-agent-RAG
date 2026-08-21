@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
   MessageSquare,
-  FlaskConical,
   Blocks,
   Settings2,
 } from "lucide-react";
@@ -9,12 +8,11 @@ import { MainLayout, Sidebar } from "./components/layout";
 import { Chat } from "./views/Chat";
 import { ServerManager } from "./views/ServerManager";
 import { Settings } from "./views/Settings";
-import { RAGDashboard } from "./views/RAGDashboard";
 import { useChatStore } from "./client/store";
 
 export const App: React.FC = () => {
   const [activeView, setActiveView] = useState<
-    "chat" | "rag-dashboard" | "servers" | "settings"
+    "chat" | "servers" | "settings"
   >("chat");
 
   const { theme } = useChatStore();
@@ -47,11 +45,8 @@ export const App: React.FC = () => {
           setActiveView("chat");
         } else if (e.key === "2") {
           e.preventDefault();
-          setActiveView("rag-dashboard");
-        } else if (e.key === "3") {
-          e.preventDefault();
           setActiveView("servers");
-        } else if (e.key === "4") {
+        } else if (e.key === "3") {
           e.preventDefault();
           setActiveView("settings");
         } else if (e.key === "n" || e.key === "N") {
@@ -76,20 +71,11 @@ export const App: React.FC = () => {
       active: activeView === "chat",
     },
     {
-      id: "rag-dashboard",
-      icon: FlaskConical,
-      label: "Vector Studio",
-      description: "RAG & Embeddings",
-      shortcut: "⌘2",
-      onClick: () => setActiveView("rag-dashboard"),
-      active: activeView === "rag-dashboard",
-    },
-    {
       id: "servers",
       icon: Blocks,
       label: "MCP Tools",
       description: "Agent Skills",
-      shortcut: "⌘3",
+      shortcut: "⌘2",
       onClick: () => setActiveView("servers"),
       active: activeView === "servers",
     },
@@ -97,8 +83,8 @@ export const App: React.FC = () => {
       id: "settings",
       icon: Settings2,
       label: "Settings",
-      description: "Keys & Memory",
-      shortcut: "⌘4",
+      description: "Keys, Memory & Vectors",
+      shortcut: "⌘3",
       onClick: () => setActiveView("settings"),
       active: activeView === "settings",
     },
@@ -126,7 +112,6 @@ export const App: React.FC = () => {
           }}
         />
       )}
-      {activeView === "rag-dashboard" && <RAGDashboard />}
       {activeView === "servers" && <ServerManager />}
       {activeView === "settings" && <Settings />}
     </MainLayout>

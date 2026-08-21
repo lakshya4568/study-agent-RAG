@@ -97,7 +97,11 @@ function formatDate(ts: number): string {
   });
 }
 
-export const RAGDashboard: React.FC = () => {
+interface RAGDashboardProps {
+  embedded?: boolean;
+}
+
+export const RAGDashboard: React.FC<RAGDashboardProps> = ({ embedded = false }) => {
   const [documents, setDocuments] = useState<UploadedDocument[]>([]);
   const [health, setHealth] = useState<RAGHealthData | null>(null);
   const [collectionStats, setCollectionStats] = useState<CollectionStatsData | null>(null);
@@ -174,16 +178,16 @@ export const RAGDashboard: React.FC = () => {
   const totalChunks = vectorState?.totalChunks ?? collectionStats?.total_documents ?? 0;
   const totalDocs = documents.filter((d) => d.status === "ready").length;
 
-  return (
-    <ContentContainer className="space-y-6 max-w-5xl mx-auto p-6 md:p-8 bg-background">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4 pb-5 border-b border-border">
+  const content = (
+    <div className="space-y-6 pt-4">
+      {/* Header / Subtab Status Bar */}
+      <div className="flex items-center justify-between gap-4 pb-4 border-b border-border">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
-            <Database className="w-6 h-6 text-primary" />
+          <h3 className="text-sm font-bold tracking-tight text-foreground flex items-center gap-2">
+            <Database className="w-4 h-4 text-primary" />
             Neural Vector Engine
-          </h2>
-          <p className="text-xs text-muted-foreground mt-1 font-mono">
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5 font-mono">
             NVIDIA NIM RAG pipeline · Chroma vector collection · Semantic chunking
           </p>
         </div>
@@ -383,6 +387,16 @@ export const RAGDashboard: React.FC = () => {
           </div>
         </div>
       )}
+    </div>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <ContentContainer className="space-y-6 max-w-5xl mx-auto p-6 md:p-8 bg-background">
+      {content}
     </ContentContainer>
   );
 };
