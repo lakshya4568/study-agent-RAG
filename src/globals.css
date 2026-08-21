@@ -279,9 +279,8 @@
   .neu-convex:hover {
     background: linear-gradient(180deg, #2a2a32 0%, #202026 100%);
     box-shadow: 
-      0 4px 14px rgba(0, 0, 0, 0.7), 
-      0 0 12px -2px rgba(255, 255, 255, 0.06), 
-      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+      0 4px 12px rgba(0, 0, 0, 0.7), 
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
     border-color: #3f3f46;
   }
 
@@ -307,20 +306,20 @@
     transform: translateY(1px);
   }
 
-  /* 7. Convex Primary (Emerald Accent Action Button) */
+  /* 7. Convex Primary (Emerald Accent Action Button - Clean Solid, No Glow) */
   .neu-convex-primary {
     background: linear-gradient(180deg, #10b981 0%, #059669 100%);
     box-shadow: 
-      0 4px 14px rgba(16, 185, 129, 0.4), 
-      inset 0 1px 0 rgba(255, 255, 255, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+      0 2px 5px rgba(0, 0, 0, 0.4), 
+      inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.15);
   }
 
   .neu-convex-primary:hover {
+    background: linear-gradient(180deg, #14c58b 0%, #059669 100%);
     box-shadow: 
-      0 6px 20px rgba(16, 185, 129, 0.5), 
-      0 0 16px rgba(16, 185, 129, 0.3), 
-      inset 0 1px 0 rgba(255, 255, 255, 0.4);
+      0 3px 8px rgba(0, 0, 0, 0.5), 
+      inset 0 1px 0 rgba(255, 255, 255, 0.35);
   }
 
   .neu-convex-primary:active {
@@ -329,13 +328,26 @@
     transform: translateY(1px);
   }
 
-  /* 8. Convex Emerald */
+  /* 8. Convex Emerald (Clean Solid, No Glow) */
   .neu-convex-emerald {
     background: linear-gradient(180deg, #10b981 0%, #059669 100%);
     box-shadow: 
-      0 4px 14px rgba(16, 185, 129, 0.4), 
-      inset 0 1px 0 rgba(255, 255, 255, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+      0 2px 5px rgba(0, 0, 0, 0.4), 
+      inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+  }
+
+  .neu-convex-emerald:hover {
+    background: linear-gradient(180deg, #14c58b 0%, #059669 100%);
+    box-shadow: 
+      0 3px 8px rgba(0, 0, 0, 0.5), 
+      inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  }
+
+  .neu-convex-emerald:active {
+    background: linear-gradient(180deg, #059669 0%, #047857 100%);
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.4);
+    transform: translateY(1px);
   }
 
   /* 9. Machined Double-Bezel Architecture (3D Working Deck Tray) */
@@ -404,7 +416,7 @@
     border: 1px solid rgba(180, 140, 120, 0.06);
   }
 
-  /* 11. Glowing Black Deck Surface */
+  /* 11. Clean Deck Hover Surface (No Glow) */
   .glowing-deck {
     transition: all 0.25s cubic-bezier(0.32, 0.72, 0, 1);
   }
@@ -413,8 +425,7 @@
     border-color: #3f3f46;
     box-shadow: 
       0 14px 40px -6px rgba(0, 0, 0, 0.95), 
-      0 0 20px -2px rgba(16, 185, 129, 0.14), 
-      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
   }
 
   /* Backwards compatibility aliases */
@@ -527,8 +538,8 @@
   }
 
   .heatmap-cell:hover {
-    transform: scale(1.3);
-    box-shadow: 0 0 8px rgba(16, 185, 129, 0.7);
+    transform: scale(1.2);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
     z-index: 10;
   }
 

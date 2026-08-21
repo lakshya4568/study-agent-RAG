@@ -26,8 +26,8 @@ export const IconButton: React.FC<IconButtonProps> = ({
   type = "button",
 }) => {
   const variants = {
-    primary: "neu-convex-primary text-white shadow-md active:scale-95",
-    secondary: "neu-convex text-foreground/90 hover:text-foreground shadow-xs active:scale-95",
+    primary: "neu-convex-primary text-white active:scale-95",
+    secondary: "neu-convex text-foreground/90 hover:text-foreground active:scale-95",
     raised: "neu-raised-sm text-foreground/90 hover:text-foreground active:scale-95",
     ghost: "text-muted-foreground hover:text-foreground hover:bg-secondary/60 active:scale-95",
     danger: "neu-raised-sm text-rose-400 hover:bg-rose-500/10 border-rose-500/20 active:scale-95",

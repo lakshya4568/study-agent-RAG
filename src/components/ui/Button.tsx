@@ -29,9 +29,9 @@ export const Button: React.FC<ButtonProps> = ({
 
   const variants = {
     primary:
-      "neu-convex-primary text-white shadow-md active:scale-[0.98]",
+      "neu-convex-primary text-white active:scale-[0.98]",
     secondary:
-      "neu-convex text-foreground/95 hover:text-foreground shadow-sm active:scale-[0.98]",
+      "neu-convex text-foreground/95 hover:text-foreground active:scale-[0.98]",
     outline:
       "neu-raised-sm text-foreground/90 hover:text-foreground border border-border/80 hover:border-primary/50 active:scale-[0.98]",
     ghost:
@@ -39,7 +39,7 @@ export const Button: React.FC<ButtonProps> = ({
     danger:
       "neu-raised-sm text-rose-400 border border-rose-500/30 hover:bg-rose-500/15 active:scale-[0.98]",
     emerald:
-      "neu-convex-emerald text-white shadow-md active:scale-[0.98]",
+      "neu-convex-emerald text-white active:scale-[0.98]",
   };
 
   const sizes = {
