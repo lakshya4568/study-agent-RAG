@@ -100,13 +100,25 @@ export const FlashcardsView: React.FC = () => {
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === "Space") {
+      // Never intercept keyboard events when user is typing in an input, textarea, or editable element
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable ||
+          target.closest("input, textarea, [contenteditable='true']"))
+      ) {
+        return;
+      }
+
+      if (e.code === "Space" || e.key === " ") {
         e.preventDefault();
         setIsFlipped((prev) => !prev);
-      } else if (e.code === "ArrowRight") {
+      } else if (e.code === "ArrowRight" || e.key === "ArrowRight") {
         e.preventDefault();
         handleNext();
-      } else if (e.code === "ArrowLeft") {
+      } else if (e.code === "ArrowLeft" || e.key === "ArrowLeft") {
         e.preventDefault();
         handlePrev();
       }

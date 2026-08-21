@@ -104,27 +104,27 @@ class TestRAGConfig:
 
     def test_default_config(self):
         cfg = RAGConfig(nvidia_api_key="test-key")
-        assert cfg.embedding_model == "nv-embedqa-1b-v2"
-        assert cfg.reranking_model == "nv-rerankqa-1b-v2"
-        assert cfg.llm_model == "kimi-k2-instruct"
+        assert cfg.embedding_model == "nv-embedqa-e5-v5"
+        assert cfg.reranking_model == "nv-rerank-qa-mistral-4b"
+        assert cfg.llm_model == "llama-3.1-8b-instruct"
         assert cfg.enable_reranking is True
         assert cfg.enable_hybrid_search is True
 
     def test_get_embedding_model(self):
         cfg = RAGConfig(nvidia_api_key="test-key")
         model = cfg.get_embedding_model()
-        assert model.model_id == "nvidia/llama-3.2-nv-embedqa-1b-v2"
-        assert model.dimensions == 2048
+        assert model.model_id == "nvidia/nv-embedqa-e5-v5"
+        assert model.dimensions == 1024
 
     def test_get_reranking_model(self):
         cfg = RAGConfig(nvidia_api_key="test-key")
         model = cfg.get_reranking_model()
-        assert model.model_id == "nvidia/llama-3.2-nv-rerankqa-1b-v2"
+        assert model.model_id == "nv-rerank-qa-mistral-4b:1"
 
     def test_get_llm_model(self):
         cfg = RAGConfig(nvidia_api_key="test-key")
         model = cfg.get_llm_model()
-        assert model.model_id == "moonshotai/kimi-k2-instruct"
+        assert model.model_id == "meta/llama-3.1-8b-instruct"
 
     def test_invalid_embedding_model(self):
         cfg = RAGConfig(nvidia_api_key="test-key", embedding_model="nonexistent")
