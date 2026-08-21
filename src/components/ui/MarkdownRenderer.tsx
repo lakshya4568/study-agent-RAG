@@ -220,7 +220,7 @@ const CodeBlock: React.FC<{ language?: string; value: string }> = ({
         <table className="border-collapse w-full m-0 p-0">
           <tbody>
             {lines.map((line, idx) => (
-              <tr key={idx} className="hover:bg-black/[0.02] dark:hover:bg-white/2 transition-colors leading-relaxed">
+              <tr key={idx} className="hover:bg-black/2 dark:hover:bg-white/2 transition-colors leading-relaxed">
                 {lines.length > 1 && (
                   <td className="select-none pr-4 text-right text-zinc-400 dark:text-zinc-600 text-xs font-mono w-[1%] whitespace-nowrap align-top border-none p-0">
                     {idx + 1}
