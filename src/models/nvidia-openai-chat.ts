@@ -12,7 +12,12 @@ const GROQ_DEFAULT_MODEL = "openai/gpt-oss-120b"; // Verified high-speed working
 
 // NVIDIA configuration
 const NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1";
-const NVIDIA_DEFAULT_MODEL = "meta/llama-3.3-70b-instruct";
+const NVIDIA_DEFAULT_MODEL = "nvidia/nemotron-3-super-120b-a12b";
+const RETIRED_NVIDIA_MODELS = new Set([
+  "meta/llama-3.1-70b-instruct",
+  "meta/llama-3.3-70b-instruct",
+  "nvidia/llama-3.1-nemotron-70b-instruct",
+]);
 
 export interface ModelProviderConfig {
   provider: "groq" | "nvidia" | "auto";
@@ -21,7 +26,9 @@ export interface ModelProviderConfig {
   model: string;
 }
 
-export function resolveModelConfig(preferred?: "groq" | "nvidia"): ModelProviderConfig {
+export function resolveModelConfig(
+  preferred?: "groq" | "nvidia",
+): ModelProviderConfig {
   const groqKey = process.env.GROQ_API_KEY;
   const nvidiaKey = process.env.NVIDIA_API_KEY;
 
@@ -63,7 +70,7 @@ export function resolveModelConfig(preferred?: "groq" | "nvidia"): ModelProvider
   }
 
   throw new Error(
-    "No AI API key found. Please configure GROQ_API_KEY or NVIDIA_API_KEY in your .env file or Settings."
+    "No AI API key found. Please configure GROQ_API_KEY or NVIDIA_API_KEY in your .env file or Settings.",
   );
 }
 
@@ -84,8 +91,15 @@ export class NVIDIAOpenAIChat {
   private responseFormat?: { type: "json_object" | "text" };
 
   constructor(options: NVIDIAChatOptions = {}) {
-    this.config = resolveModelConfig(options.provider === "auto" ? undefined : options.provider);
-    this.model = options.model || this.config.model;
+    this.config = resolveModelConfig(
+      options.provider === "auto" ? undefined : options.provider,
+    );
+    this.model =
+      this.config.provider === "nvidia" &&
+      options.model &&
+      RETIRED_NVIDIA_MODELS.has(options.model)
+        ? NVIDIA_DEFAULT_MODEL
+        : options.model || this.config.model;
     this.temperature = options.temperature ?? 0.2;
     this.maxTokens = options.maxTokens ?? 3000;
     this.responseFormat = options.responseFormat;
@@ -111,7 +125,7 @@ export class NVIDIAOpenAIChat {
   private async executeWithRetry<T>(
     operation: () => Promise<T>,
     maxRetries = 2,
-    initialDelayMs = 1000
+    initialDelayMs = 1000,
   ): Promise<T> {
     let lastError: any;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -121,12 +135,15 @@ export class NVIDIAOpenAIChat {
         lastError = err;
         const status = err?.status || err?.response?.status;
         const isRateLimitOrServerErr =
-          status === 429 || (status >= 500 && status < 600) || err?.code === "ECONNRESET";
+          status === 429 ||
+          (status >= 500 && status < 600) ||
+          err?.code === "ECONNRESET";
 
         if (attempt < maxRetries && isRateLimitOrServerErr) {
-          const delay = initialDelayMs * Math.pow(2, attempt) + Math.random() * 500;
+          const delay =
+            initialDelayMs * Math.pow(2, attempt) + Math.random() * 500;
           console.warn(
-            `[${this.config.provider.toUpperCase()} Chat] Request returned ${status || "network error"}, retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${maxRetries})...`
+            `[${this.config.provider.toUpperCase()} Chat] Request returned ${status || "network error"}, retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${maxRetries})...`,
           );
           await new Promise((resolve) => setTimeout(resolve, delay));
         } else {
@@ -150,7 +167,7 @@ export class NVIDIAOpenAIChat {
    */
   async invoke(
     messages: ChatCompletionMessageParam[],
-    options?: { responseFormat?: { type: "json_object" | "text" } }
+    options?: { responseFormat?: { type: "json_object" | "text" } },
   ): Promise<string> {
     const format = options?.responseFormat || this.responseFormat;
     const completion = await this.executeWithRetry(() =>
@@ -160,7 +177,7 @@ export class NVIDIAOpenAIChat {
         temperature: this.temperature,
         max_tokens: this.maxTokens,
         ...(format ? { response_format: format } : {}),
-      })
+      }),
     );
 
     const rawContent = completion.choices[0]?.message?.content || "";
@@ -174,7 +191,7 @@ export class NVIDIAOpenAIChat {
     messages: ChatCompletionMessageParam[],
     tools: ChatCompletionTool[],
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    toolExecutor: (toolName: string, args: any) => Promise<string>
+    toolExecutor: (toolName: string, args: any) => Promise<string>,
   ): Promise<{
     content: string;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -182,7 +199,8 @@ export class NVIDIAOpenAIChat {
   }> {
     const conversationMessages: ChatCompletionMessageParam[] = [...messages];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const allExecutedTools: Array<{ name: string; args: any; result: string }> = [];
+    const allExecutedTools: Array<{ name: string; args: any; result: string }> =
+      [];
     const MAX_ITERATIONS = 5;
     let iterations = 0;
 
@@ -197,7 +215,7 @@ export class NVIDIAOpenAIChat {
           tool_choice: "auto",
           temperature: this.temperature,
           max_tokens: this.maxTokens,
-        })
+        }),
       );
 
       const choice = completion.choices[0];
@@ -230,7 +248,10 @@ export class NVIDIAOpenAIChat {
 
           if (typeof parsed === "string") {
             try {
-              if (parsed.trim().startsWith("{") || parsed.trim().startsWith("[")) {
+              if (
+                parsed.trim().startsWith("{") ||
+                parsed.trim().startsWith("[")
+              ) {
                 parsed = JSON.parse(parsed);
               }
             } catch {
@@ -246,7 +267,7 @@ export class NVIDIAOpenAIChat {
           } catch {
             console.error(
               `Failed to parse arguments for tool ${toolName}:`,
-              toolCall.function.arguments
+              toolCall.function.arguments,
             );
           }
         }
@@ -277,7 +298,8 @@ export class NVIDIAOpenAIChat {
       try {
         conversationMessages.push({
           role: "user",
-          content: "Please summarize the results from the tools executed above into a helpful response.",
+          content:
+            "Please summarize the results from the tools executed above into a helpful response.",
         });
         const summary = await this.invoke(conversationMessages);
         return {
@@ -323,13 +345,12 @@ export class NVIDIAOpenAIChat {
 }
 
 export function createNVIDIAOpenAIChat(
-  options: NVIDIAChatOptions = {}
+  options: NVIDIAChatOptions = {},
 ): NVIDIAOpenAIChat {
   return new NVIDIAOpenAIChat(options);
 }
 
 export const nvidiaChatDefaults = {
-  modelName: GROQ_DEFAULT_MODEL,
-  baseURL: GROQ_BASE_URL,
+  modelName: NVIDIA_DEFAULT_MODEL,
+  baseURL: NVIDIA_BASE_URL,
 };
-

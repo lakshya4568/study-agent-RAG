@@ -22,8 +22,8 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "auth-storage",
-    }
-  )
+    },
+  ),
 );
 
 export interface ModelOption {
@@ -71,35 +71,12 @@ export const AVAILABLE_MODELS: ModelOption[] = [
   },
   // NVIDIA NIM Models
   {
-    id: "meta/llama-3.3-70b-instruct",
-    name: "Llama 3.3 70B",
+    id: "nvidia/nemotron-3-super-120b-a12b",
+    name: "Nemotron 3 Super 120B",
     provider: "nvidia",
-    description: "State-of-the-art instruction following and problem solving",
+    description:
+      "Advanced NVIDIA reasoning model for complex study conversations",
     tag: "🟢 Flagship",
-    badge: "NVIDIA",
-  },
-  {
-    id: "deepseek-ai/deepseek-r1",
-    name: "DeepSeek R1",
-    provider: "nvidia",
-    description: "Deep mathematical and algorithmic chain-of-thought reasoning",
-    tag: "🟢 Deep Reasoning",
-    badge: "NVIDIA",
-  },
-  {
-    id: "nvidia/llama-3.1-nemotron-70b-instruct",
-    name: "Nemotron 70B",
-    provider: "nvidia",
-    description: "NVIDIA-tuned enterprise precision and structured output",
-    tag: "🟢 Enterprise",
-    badge: "NVIDIA",
-  },
-  {
-    id: "meta/llama-3.1-70b-instruct",
-    name: "Llama 3.1 70B",
-    provider: "nvidia",
-    description: "Solid, reliable general tutoring and study synthesis",
-    tag: "🟢 Balanced",
     badge: "NVIDIA",
   },
 ];
@@ -127,7 +104,10 @@ interface ChatState {
   setTheme: (theme: "dark" | "light" | "vibrant") => void;
   toggleSidebar: () => void;
   setSidebarExpanded: (expanded: boolean) => void;
-  setSelectedModel: (model: string, provider?: "groq" | "nvidia" | "auto") => void;
+  setSelectedModel: (
+    model: string,
+    provider?: "groq" | "nvidia" | "auto",
+  ) => void;
   deleteSession: (id: string) => Promise<void>;
 }
 
@@ -157,7 +137,8 @@ export const useChatStore = create<ChatState>()(
       setActiveThreadId: (id) => set({ activeThreadId: id }),
       setSelectedDocument: (doc) => set({ selectedDocument: doc }),
       setTheme: (theme) => set({ theme }),
-      toggleSidebar: () => set((state) => ({ isSidebarExpanded: !state.isSidebarExpanded })),
+      toggleSidebar: () =>
+        set((state) => ({ isSidebarExpanded: !state.isSidebarExpanded })),
       setSidebarExpanded: (expanded) => set({ isSidebarExpanded: expanded }),
       setSelectedModel: (model, provider) => {
         const found = AVAILABLE_MODELS.find((m) => m.id === model);
@@ -188,8 +169,6 @@ export const useChatStore = create<ChatState>()(
         selectedModel: state.selectedModel,
         selectedProvider: state.selectedProvider,
       }),
-    }
-  )
+    },
+  ),
 );
-
-
