@@ -1,73 +1,197 @@
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 import OpenAI from "openai";
+import { ChatOpenAI } from "@langchain/openai";
 import type {
   ChatCompletionMessageParam,
   ChatCompletionTool,
 } from "openai/resources/chat/completions";
 
-const NVIDIA_CHAT_MODEL = "meta/llama-3.3-70b-instruct"; // Using LLaMA 3.3 70B Instruct
-const NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1";
+// Groq configuration
+const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
+const GROQ_DEFAULT_MODEL = "openai/gpt-oss-120b"; // Verified high-speed working model
 
-function getRequiredApiKey(): string {
-  const key = process.env.NVIDIA_API_KEY;
-  if (!key) {
-    throw new Error(
-      "NVIDIA_API_KEY is not set. Add it to your environment before running the agent."
-    );
+// NVIDIA configuration
+const NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1";
+const NVIDIA_DEFAULT_MODEL = "nvidia/nemotron-3-super-120b-a12b";
+const RETIRED_NVIDIA_MODELS = new Set([
+  "meta/llama-3.1-70b-instruct",
+  "meta/llama-3.3-70b-instruct",
+  "nvidia/llama-3.1-nemotron-70b-instruct",
+]);
+
+export interface ModelProviderConfig {
+  provider: "groq" | "nvidia" | "auto";
+  apiKey: string;
+  baseURL: string;
+  model: string;
+}
+
+export function resolveModelConfig(
+  preferred?: "groq" | "nvidia",
+): ModelProviderConfig {
+  const groqKey = process.env.GROQ_API_KEY;
+  const nvidiaKey = process.env.NVIDIA_API_KEY;
+
+  if (preferred === "groq" && groqKey) {
+    return {
+      provider: "groq",
+      apiKey: groqKey,
+      baseURL: GROQ_BASE_URL,
+      model: GROQ_DEFAULT_MODEL,
+    };
   }
-  return key;
+
+  if (preferred === "nvidia" && nvidiaKey) {
+    return {
+      provider: "nvidia",
+      apiKey: nvidiaKey,
+      baseURL: NVIDIA_BASE_URL,
+      model: NVIDIA_DEFAULT_MODEL,
+    };
+  }
+
+  // Auto resolution: prefer Groq for speed & reliability if available, else NVIDIA
+  if (groqKey) {
+    return {
+      provider: "groq",
+      apiKey: groqKey,
+      baseURL: GROQ_BASE_URL,
+      model: GROQ_DEFAULT_MODEL,
+    };
+  }
+
+  if (nvidiaKey) {
+    return {
+      provider: "nvidia",
+      apiKey: nvidiaKey,
+      baseURL: NVIDIA_BASE_URL,
+      model: NVIDIA_DEFAULT_MODEL,
+    };
+  }
+
+  throw new Error(
+    "No AI API key found. Please configure GROQ_API_KEY or NVIDIA_API_KEY in your .env file or Settings.",
+  );
 }
 
 export interface NVIDIAChatOptions {
   temperature?: number;
   maxTokens?: number;
   model?: string;
+  provider?: "groq" | "nvidia" | "auto";
+  responseFormat?: { type: "json_object" | "text" };
 }
 
 export class NVIDIAOpenAIChat {
   private client: OpenAI;
+  private config: ModelProviderConfig;
   private model: string;
   private temperature: number;
   private maxTokens: number;
+  private responseFormat?: { type: "json_object" | "text" };
 
   constructor(options: NVIDIAChatOptions = {}) {
-    this.client = new OpenAI({
-      apiKey: getRequiredApiKey(),
-      baseURL: NVIDIA_BASE_URL,
-      timeout: 120000, // 2 minute timeout to prevent indefinite hangs
-    });
-    this.model = options.model || NVIDIA_CHAT_MODEL;
+    this.config = resolveModelConfig(
+      options.provider === "auto" ? undefined : options.provider,
+    );
+    this.model =
+      this.config.provider === "nvidia" &&
+      options.model &&
+      RETIRED_NVIDIA_MODELS.has(options.model)
+        ? NVIDIA_DEFAULT_MODEL
+        : options.model || this.config.model;
     this.temperature = options.temperature ?? 0.2;
-    this.maxTokens = options.maxTokens ?? 2000;
+    this.maxTokens = options.maxTokens ?? 3000;
+    this.responseFormat = options.responseFormat;
+
+    this.client = new OpenAI({
+      apiKey: this.config.apiKey,
+      baseURL: this.config.baseURL,
+      timeout: 60000,
+    });
+  }
+
+  getProvider(): string {
+    return this.config.provider;
+  }
+
+  getModelName(): string {
+    return this.model;
+  }
+
+  /**
+   * Helper to execute completions with exponential backoff on 429 rate limit or 5xx server errors
+   */
+  private async executeWithRetry<T>(
+    operation: () => Promise<T>,
+    maxRetries = 2,
+    initialDelayMs = 1000,
+  ): Promise<T> {
+    let lastError: any;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (err: any) {
+        lastError = err;
+        const status = err?.status || err?.response?.status;
+        const isRateLimitOrServerErr =
+          status === 429 ||
+          (status >= 500 && status < 600) ||
+          err?.code === "ECONNRESET";
+
+        if (attempt < maxRetries && isRateLimitOrServerErr) {
+          const delay =
+            initialDelayMs * Math.pow(2, attempt) + Math.random() * 500;
+          console.warn(
+            `[${this.config.provider.toUpperCase()} Chat] Request returned ${status || "network error"}, retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${maxRetries})...`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        } else {
+          throw err;
+        }
+      }
+    }
+    throw lastError;
+  }
+
+  /**
+   * Sanitize model text output by removing <think>...</think> blocks from reasoning models
+   */
+  private sanitizeContent(content: string): string {
+    if (!content) return "";
+    return content.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
   }
 
   /**
    * Invoke the chat model with messages (no tools)
    */
-  async invoke(messages: ChatCompletionMessageParam[]): Promise<string> {
-    const completion = await this.client.chat.completions.create({
-      model: this.model,
-      messages,
-      temperature: this.temperature,
-      max_tokens: this.maxTokens,
-    });
+  async invoke(
+    messages: ChatCompletionMessageParam[],
+    options?: { responseFormat?: { type: "json_object" | "text" } },
+  ): Promise<string> {
+    const format = options?.responseFormat || this.responseFormat;
+    const completion = await this.executeWithRetry(() =>
+      this.client.chat.completions.create({
+        model: this.model,
+        messages,
+        temperature: this.temperature,
+        max_tokens: this.maxTokens,
+        ...(format ? { response_format: format } : {}),
+      }),
+    );
 
-    return completion.choices[0].message.content || "";
+    const rawContent = completion.choices[0]?.message?.content || "";
+    return this.sanitizeContent(rawContent);
   }
 
   /**
    * Invoke the chat model with tools enabled
-   * This handles the complete tool-calling flow with recursion:
-   * 1. Send initial request with tools
-   * 2. If tool calls are made, execute them
-   * 3. Send results back to model
-   * 4. Repeat until model provides final answer
    */
   async invokeWithTools(
     messages: ChatCompletionMessageParam[],
     tools: ChatCompletionTool[],
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    toolExecutor: (toolName: string, args: any) => Promise<string>
+    toolExecutor: (toolName: string, args: any) => Promise<string>,
   ): Promise<{
     content: string;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -77,41 +201,31 @@ export class NVIDIAOpenAIChat {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const allExecutedTools: Array<{ name: string; args: any; result: string }> =
       [];
-    const MAX_ITERATIONS = 5; // Prevent infinite loops
+    const MAX_ITERATIONS = 5;
     let iterations = 0;
 
     while (iterations < MAX_ITERATIONS) {
       iterations++;
 
-      const completion = await this.client.chat.completions.create({
-        model: this.model,
-        messages: conversationMessages,
-        tools,
-        tool_choice: "auto",
-        temperature: this.temperature,
-        max_tokens: this.maxTokens,
-      });
+      const completion = await this.executeWithRetry(() =>
+        this.client.chat.completions.create({
+          model: this.model,
+          messages: conversationMessages,
+          tools,
+          tool_choice: "auto",
+          temperature: this.temperature,
+          max_tokens: this.maxTokens,
+        }),
+      );
 
       const choice = completion.choices[0];
-      let toolCalls = choice.message?.tool_calls || [];
-      let content = choice.message.content || "";
-
-      // Check for raw tool call tokens in content if no structured tool calls found
-      if (
-        toolCalls.length === 0 &&
-        content.includes("<|tool_calls_section_begin|>")
-      ) {
-        const parsed = this.parseToolCallsFromContent(content);
-        if (parsed.toolCalls.length > 0) {
-          toolCalls = parsed.toolCalls;
-          content = parsed.cleanContent;
-        }
-      }
+      const toolCalls = choice.message?.tool_calls || [];
+      const content = choice.message?.content || "";
 
       // If no tool calls, we have our final answer
       if (toolCalls.length === 0) {
         return {
-          content: content,
+          content: this.sanitizeContent(content),
           toolCalls: allExecutedTools,
         };
       }
@@ -119,7 +233,7 @@ export class NVIDIAOpenAIChat {
       // Add assistant message with tool calls to history
       conversationMessages.push({
         role: "assistant",
-        content: content || "Calling tools...", // Ensure non-empty content
+        content: content || "Calling tools...",
         tool_calls: toolCalls,
       });
 
@@ -132,49 +246,32 @@ export class NVIDIAOpenAIChat {
           const rawArgs = toolCall.function.arguments;
           let parsed = JSON.parse(rawArgs);
 
-          // Handle double-encoded JSON (stringified JSON inside string)
           if (typeof parsed === "string") {
             try {
-              // Check if it looks like a JSON object or array
               if (
                 parsed.trim().startsWith("{") ||
                 parsed.trim().startsWith("[")
               ) {
                 parsed = JSON.parse(parsed);
               }
-            } catch (e) {
-              // Keep as string if second parse fails
+            } catch {
+              // Keep as string
             }
           }
 
           toolArgs = parsed;
-        } catch (e) {
-          // Fallback: Try to fix single quotes (common in some models)
+        } catch {
           try {
             const fixed = toolCall.function.arguments.replace(/'/g, '"');
             toolArgs = JSON.parse(fixed);
-          } catch (e2) {
+          } catch {
             console.error(
               `Failed to parse arguments for tool ${toolName}:`,
-              toolCall.function.arguments
+              toolCall.function.arguments,
             );
           }
         }
 
-        // Ensure toolArgs is an object (unless the tool specifically accepts a string, but standard is object)
-        if (typeof toolArgs !== "object" || toolArgs === null) {
-          // If it's a primitive, wrap it? Or just leave it and let validation fail?
-          // For now, let's assume it should be an object.
-          // If it's a string that wasn't JSON, maybe it's the value for the single argument?
-          // But we don't know the argument name.
-          // Let's just log a warning.
-          console.warn(
-            `Tool arguments for ${toolName} are not an object:`,
-            toolArgs
-          );
-        }
-
-        // Execute the tool
         let toolResult = "";
         try {
           toolResult = await toolExecutor(toolName, toolArgs);
@@ -188,7 +285,6 @@ export class NVIDIAOpenAIChat {
           result: toolResult,
         });
 
-        // Add tool result to conversation
         conversationMessages.push({
           role: "tool",
           tool_call_id: toolCall.id,
@@ -197,60 +293,47 @@ export class NVIDIAOpenAIChat {
       }
     }
 
-    // If we hit max iterations, return what we have
+    // Synthesize response if iterations limit was reached
+    if (allExecutedTools.length > 0) {
+      try {
+        conversationMessages.push({
+          role: "user",
+          content:
+            "Please summarize the results from the tools executed above into a helpful response.",
+        });
+        const summary = await this.invoke(conversationMessages);
+        return {
+          content: this.sanitizeContent(summary),
+          toolCalls: allExecutedTools,
+        };
+      } catch {
+        // Fallback
+      }
+    }
+
     const lastMsg = conversationMessages[conversationMessages.length - 1];
     return {
       content:
         lastMsg.role === "assistant" && lastMsg.content
-          ? String(lastMsg.content)
-          : "Max iterations reached without final response.",
+          ? this.sanitizeContent(String(lastMsg.content))
+          : "Completed tool operations.",
       toolCalls: allExecutedTools,
     };
   }
 
   /**
-   * Parse raw tool call tokens from content
-   * Format: <|tool_calls_section_begin|><|tool_call_begin|>name:id<|tool_call_argument_begin|>args<|tool_call_end|><|tool_calls_section_end|>
+   * Creates a LangChain ChatOpenAI instance with the resolved model & baseURL
    */
-  private parseToolCallsFromContent(content: string): {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    toolCalls: any[];
-    cleanContent: string;
-  } {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const toolCalls: any[] = [];
-    // Use [\s\S] to match any character including newlines
-    const toolCallRegex =
-      /<\|tool_call_begin\|>([\s\S]*?)<\|tool_call_argument_begin\|>([\s\S]*?)<\|tool_call_end\|>/g;
-    let match;
-
-    while ((match = toolCallRegex.exec(content)) !== null) {
-      const [_, nameAndId, args] = match;
-      // nameAndId might be "functions.tool_name:id" or just "tool_name:id"
-      const parts = nameAndId.trim().split(":");
-      const id = parts.pop() || "0";
-      const fnName = parts.join(":"); // Rejoin in case name has colons, though unlikely
-      const name = fnName.replace("functions.", "").trim();
-
-      toolCalls.push({
-        id: `call_${id}_${Math.random().toString(36).substr(2, 9)}`, // Generate unique ID
-        type: "function",
-        function: {
-          name: name,
-          arguments: args.trim(),
-        },
-      });
-    }
-
-    // Remove the tool calls section from content
-    const cleanContent = content
-      .replace(
-        /<\|tool_calls_section_begin\|>[\s\S]*?<\|tool_calls_section_end\|>/g,
-        ""
-      )
-      .trim();
-
-    return { toolCalls, cleanContent };
+  toLangChainChatModel(): ChatOpenAI {
+    return new ChatOpenAI({
+      apiKey: this.config.apiKey,
+      configuration: {
+        baseURL: this.config.baseURL,
+      },
+      model: this.model,
+      temperature: this.temperature,
+      maxTokens: this.maxTokens,
+    });
   }
 
   /**
@@ -262,12 +345,12 @@ export class NVIDIAOpenAIChat {
 }
 
 export function createNVIDIAOpenAIChat(
-  options: NVIDIAChatOptions = {}
+  options: NVIDIAChatOptions = {},
 ): NVIDIAOpenAIChat {
   return new NVIDIAOpenAIChat(options);
 }
 
 export const nvidiaChatDefaults = {
-  modelName: NVIDIA_CHAT_MODEL,
+  modelName: NVIDIA_DEFAULT_MODEL,
   baseURL: NVIDIA_BASE_URL,
 };

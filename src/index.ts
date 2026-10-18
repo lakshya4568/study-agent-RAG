@@ -94,18 +94,15 @@ logger.info("=".repeat(60));
 logger.info("🚀 AI Study Agent - Starting Up");
 logger.info("=".repeat(60));
 
-function connectConfiguredMcpServers(): void {
-  const mcpConfig = loadMcpConfig();
-  logger.info(`📋 Loading MCP configuration from mcp.json`);
-  logger.info(
-    `Found ${Object.keys(mcpConfig.mcpServers).length} MCP servers configured`,
-  );
+// Load MCP servers from config
+const mcpConfig = loadMcpConfig();
+logger.info(`📋 Loading MCP configuration from mcp.json`);
+logger.info(
+  `Found ${Object.keys(mcpConfig.mcpServers).length} MCP servers configured`,
+);
 
-  for (const [id, config] of Object.entries(mcpConfig.mcpServers)) {
-    if (!config.command) {
-      continue;
-    }
-
+for (const [id, config] of Object.entries(mcpConfig.mcpServers)) {
+  if (config.command) {
     logger.info(`🔌 Adding MCP server: ${id}`);
     logger.info(
       `   Command: ${config.command} ${(config.args || []).join(" ")}`,
@@ -133,37 +130,6 @@ const configManager = new ConfigManager();
 logger.info("📊 Study Agent ready for initialization");
 logger.info("=".repeat(60));
 
-async function bootstrapBackgroundServices(): Promise<void> {
-  connectConfiguredMcpServers();
-
-  // Start NVIDIA RAG service without blocking initial UI render.
-  try {
-    logger.info("🚀 Starting NVIDIA RAG service...");
-    await startRAGService();
-    logger.info("✅ NVIDIA RAG service started successfully");
-    logger.info("   Model: nvidia/llama-3.2-nemoretriever-300m-embed-v2");
-    logger.info("   LLM: meta/llama-3.3-70b-instruct (via OpenAI SDK)");
-  } catch (error) {
-    logger.error("❌ Failed to start NVIDIA RAG service:", error);
-    logger.error("   RAG features may not be available");
-  }
-
-  // Warm up the Study Agent in the background.
-  logger.info("\n🔥 Warming up Study Agent...");
-  studyAgentService
-    .initialize()
-    .then(() => {
-      logger.info("✅ Study Agent initialized and ready");
-      logger.info("=".repeat(60));
-      logger.info("🎉 All systems operational - Ready for queries!");
-      logger.info("=".repeat(60) + "\n");
-    })
-    .catch((error) => {
-      logger.error("❌ Study agent failed to initialize on startup:", error);
-      logger.warn("   Agent will initialize on first query instead");
-    });
-}
-
 function convertChatHistoryToMessages(
   history: ChatMessage[],
   excludeMessageId?: string,
@@ -182,15 +148,36 @@ function convertChatHistoryToMessages(
     });
 }
 
+let mainWindowInstance: BrowserWindow | null = null;
+
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (mainWindowInstance && !mainWindowInstance.isDestroyed()) {
+      if (mainWindowInstance.isMinimized()) mainWindowInstance.restore();
+      mainWindowInstance.focus();
+    }
+  });
+}
+
 const createWindow = (): void => {
+  if (mainWindowInstance && !mainWindowInstance.isDestroyed()) {
+    if (mainWindowInstance.isMinimized()) mainWindowInstance.restore();
+    mainWindowInstance.focus();
+    return;
+  }
+
   // Get primary display work area size
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
 
   // Create the browser window with dynamic screen dimensions
-  const mainWindow = new BrowserWindow({
+  mainWindowInstance = new BrowserWindow({
     width,
     height,
     autoHideMenuBar: true,
+    backgroundColor: "#18181b",
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
       contextIsolation: true,
@@ -201,11 +188,15 @@ const createWindow = (): void => {
     },
   });
 
+  mainWindowInstance.on("closed", () => {
+    mainWindowInstance = null;
+  });
+
   // and load the index.html of the app.
-  mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
+  mainWindowInstance.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
 
   if (isDev && shouldAutoOpenDevTools) {
-    mainWindow.webContents.openDevTools();
+    mainWindowInstance.webContents.openDevTools();
     logger.info("🪟 Main window created and DevTools opened");
   } else {
     logger.info("🪟 Main window created");
@@ -222,15 +213,19 @@ app.on("ready", async () => {
   logger.info("⚡ Electron App Ready - Initializing Services");
   logger.info("=".repeat(60));
 
-  // Initialize file logging in background so it never delays first paint.
-  void initializeFileLogging().then(() => {
-    logger.info("📝 File logging initialized");
-  });
+  // Initialize file logging now that app is ready
+  await initializeFileLogging();
+  logger.info("📝 File logging initialized");
 
   // Initialize database BEFORE registering IPC handlers
   try {
     dbManager.initialize();
+    const stats = dbManager.getStats();
     logger.info("💾 Database initialized successfully");
+    logger.info(`   Conversation threads: ${stats.threads}`);
+    logger.info(`   Total messages: ${stats.messages}`);
+    logger.info(`   Uploaded documents: ${stats.documents}`);
+    logger.info(`   Database size: ${stats.dbSizeMB.toFixed(2)} MB`);
   } catch (error) {
     logger.error("❌ Failed to initialize database:", error);
   }
@@ -239,13 +234,44 @@ app.on("ready", async () => {
   registerDatabaseHandlers();
   logger.info("🔌 IPC handlers registered");
 
-  // Show the UI immediately once core IPC is ready.
+  // Broadcast tool execution approval requests to renderer window
+  mcpToolService.onApprovalRequest((request) => {
+    if (mainWindowInstance && !mainWindowInstance.isDestroyed()) {
+      logger.info(`[IPC] Forwarding tool approval request to UI: ${request.toolName}`);
+      mainWindowInstance.webContents.send("mcp:toolApprovalRequest", request);
+    }
+  });
+
+  // Create window immediately so app appears instantly
   createWindow();
 
-  // Continue slower startup work in the background.
-  setImmediate(() => {
-    void bootstrapBackgroundServices();
-  });
+  // Start NVIDIA RAG service in background
+  startRAGService()
+    .then(() => {
+      logger.info("✅ NVIDIA RAG service started successfully");
+      logger.info("   Model: nvidia/llama-3.2-nemoretriever-300m-embed-v2");
+      logger.info("   LLM: moonshotai/kimi-k2-instruct (via OpenAI SDK)");
+    })
+    .catch((error) => {
+      logger.error("❌ Failed to start NVIDIA RAG service:", error);
+      logger.error("   RAG features may not be available");
+    })
+    .finally(() => {
+      // Warm up the Study Agent so the UI immediately shows status
+      logger.info("\n🔥 Warming up Study Agent...");
+      studyAgentService
+        .initialize()
+        .then(() => {
+          logger.info("✅ Study Agent initialized and ready");
+          logger.info("=".repeat(60));
+          logger.info("🎉 All systems operational - Ready for queries!");
+          logger.info("=".repeat(60) + "\n");
+        })
+        .catch((error) => {
+          logger.error("❌ Study agent failed to initialize on startup:", error);
+          logger.warn("   Agent will initialize on first query instead");
+        });
+    });
 });
 
 // Quit when all windows are closed.
@@ -254,9 +280,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("activate", () => {
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
-  if (BrowserWindow.getAllWindows().length === 0) {
+  if (!mainWindowInstance || mainWindowInstance.isDestroyed()) {
     createWindow();
   }
 });
@@ -479,12 +503,19 @@ ipcMain.handle(
   "agent:sendMessage",
   async (
     _,
-    payload: { threadId: string; message: string; messageId?: string },
+    payload: {
+      threadId: string;
+      message: string;
+      messageId?: string;
+      model?: string;
+      provider?: "groq" | "nvidia" | "auto";
+    },
   ) => {
     logger.info("\n" + "─".repeat(60));
     logger.info("💬 New Agent Query Received");
     logger.info("─".repeat(60));
     logger.info(`Thread ID: ${payload.threadId}`);
+    logger.info(`Requested Model: ${payload.model || "Default"} (${payload.provider || "Auto"})`);
     logger.info(
       `Message: ${payload.message.substring(0, 100)}${payload.message.length > 100 ? "..." : ""}`,
     );
@@ -506,13 +537,17 @@ ipcMain.handle(
       });
     }
 
-    logger.info("🤖 Invoking Study Agent with NVIDIA Kimi-K2-Instruct...");
+    logger.info(`🤖 Invoking Study Agent (Model: ${payload.model || "Dynamic"})...`);
     const startTime = Date.now();
 
     const result = await studyAgentService.invoke(
       payload.message,
       conversationHistory,
-      { threadId: payload.threadId },
+      {
+        threadId: payload.threadId,
+        model: payload.model,
+        provider: payload.provider,
+      },
     );
 
     const duration = Date.now() - startTime;

@@ -303,7 +303,7 @@ export class IntegratedToolCallService {
     args: Record<string, unknown>
   ): ToolValidationResult | null {
     if (!this.parser) {
-      throw new Error("Parser not initialized");
+      throw new Error("Parser Not Initialized");
     }
 
     return this.parser.validate({

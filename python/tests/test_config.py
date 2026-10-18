@@ -10,7 +10,6 @@ from unittest.mock import patch
 
 # Add parent to path for imports
 import sys
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from rag.config import (
@@ -105,27 +104,27 @@ class TestRAGConfig:
 
     def test_default_config(self):
         cfg = RAGConfig(nvidia_api_key="test-key")
-        assert cfg.embedding_model == "nv-embedqa-1b-v2"
-        assert cfg.reranking_model == "nv-rerankqa-1b-v2"
-        assert cfg.llm_model == "kimi-k2-instruct"
+        assert cfg.embedding_model == "nv-embedqa-e5-v5"
+        assert cfg.reranking_model == "nv-rerank-qa-mistral-4b"
+        assert cfg.llm_model == "llama-3.1-8b-instruct"
         assert cfg.enable_reranking is True
         assert cfg.enable_hybrid_search is True
 
     def test_get_embedding_model(self):
         cfg = RAGConfig(nvidia_api_key="test-key")
         model = cfg.get_embedding_model()
-        assert model.model_id == "nvidia/llama-nemotron-embed-1b-v2"
-        assert model.dimensions == 2048
+        assert model.model_id == "nvidia/nv-embedqa-e5-v5"
+        assert model.dimensions == 1024
 
     def test_get_reranking_model(self):
         cfg = RAGConfig(nvidia_api_key="test-key")
         model = cfg.get_reranking_model()
-        assert model.model_id == "nvidia/llama-nemotron-rerank-1b-v2"
+        assert model.model_id == "nv-rerank-qa-mistral-4b:1"
 
     def test_get_llm_model(self):
         cfg = RAGConfig(nvidia_api_key="test-key")
         model = cfg.get_llm_model()
-        assert model.model_id == "meta/llama-3.3-70b-instruct"
+        assert model.model_id == "meta/llama-3.1-8b-instruct"
 
     def test_invalid_embedding_model(self):
         cfg = RAGConfig(nvidia_api_key="test-key", embedding_model="nonexistent")
@@ -146,15 +145,12 @@ class TestRAGConfig:
         cfg = RAGConfig(nvidia_api_key="nvapi-test")
         cfg.validate()  # Should not raise
 
-    @patch.dict(
-        os.environ,
-        {
-            "NVIDIA_API_KEY": "nvapi-env-key",
-            "RAG_EMBEDDING_MODEL": "nemoretriever-300m-v2",
-            "RAG_ENABLE_RERANKING": "false",
-            "RAG_ENABLE_HYBRID": "false",
-        },
-    )
+    @patch.dict(os.environ, {
+        "NVIDIA_API_KEY": "nvapi-env-key",
+        "RAG_EMBEDDING_MODEL": "nemoretriever-300m-v2",
+        "RAG_ENABLE_RERANKING": "false",
+        "RAG_ENABLE_HYBRID": "false",
+    })
     def test_from_env(self):
         cfg = RAGConfig.from_env()
         assert cfg.nvidia_api_key == "nvapi-env-key"

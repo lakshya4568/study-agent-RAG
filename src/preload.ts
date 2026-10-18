@@ -113,6 +113,17 @@ contextBridge.exposeInMainWorld("mcpClient", {
   getPendingToolRequests: (): Promise<unknown[]> => {
     return ipcRenderer.invoke("mcp:getPendingToolRequests");
   },
+
+  /**
+   * Listen for incoming tool approval requests
+   */
+  onToolApprovalRequest: (callback: (request: unknown) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, request: unknown) => callback(request);
+    ipcRenderer.on("mcp:toolApprovalRequest", handler);
+    return () => {
+      ipcRenderer.removeListener("mcp:toolApprovalRequest", handler);
+    };
+  },
 });
 
 contextBridge.exposeInMainWorld("auth", {
@@ -120,7 +131,7 @@ contextBridge.exposeInMainWorld("auth", {
     ipcRenderer.invoke("auth:register", data),
   login: (data: { email: string; password: string }) =>
     ipcRenderer.invoke("auth:login", data),
-  getUser: (id: number) => ipcRenderer.invoke("auth:get-user", { id }),
+  getUser: (id: string) => ipcRenderer.invoke("auth:get-user", { id }),
 });
 
 contextBridge.exposeInMainWorld("studyAgent", {
@@ -128,6 +139,8 @@ contextBridge.exposeInMainWorld("studyAgent", {
     threadId: string;
     message: string;
     messageId?: string;
+    model?: string;
+    provider?: "groq" | "nvidia" | "auto";
   }) => {
     return ipcRenderer.invoke("agent:sendMessage", payload);
   },

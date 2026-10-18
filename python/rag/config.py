@@ -25,14 +25,26 @@ class ModelConfig:
 
 # ── Available NVIDIA Embedding Models ──────────────────────────────────────────
 EMBEDDING_MODELS = {
-    "nv-embedqa-1b-v2": ModelConfig(
-        model_id="nvidia/llama-nemotron-embed-1b-v2",
-        description="Multilingual QA retrieval with long context support (1B params)",
+    "nv-embedqa-e5-v5": ModelConfig(
+        model_id="nvidia/nv-embedqa-e5-v5",
+        description="English text QA embedding (E5-based, recommended)",
         max_tokens=512,
-        dimensions=2048,
+        dimensions=1024,
+    ),
+    "bge-m3": ModelConfig(
+        model_id="baai/bge-m3",
+        description="Dense, multi-vector, and sparse retrieval",
+        max_tokens=8192,
+        dimensions=1024,
+    ),
+    "nv-embedqa-1b-v2": ModelConfig(
+        model_id="nvidia/nv-embedqa-e5-v5",
+        description="Legacy alias mapped to active QA model",
+        max_tokens=512,
+        dimensions=1024,
     ),
     "nemoretriever-300m-v2": ModelConfig(
-        model_id="nvidia/llama-nemotron-embed-300m-v2",
+        model_id="nvidia/llama-3.2-nemoretriever-300m-embed-v2",
         description="Multilingual QA retrieval, lightweight (300M params)",
         max_tokens=512,
         dimensions=1024,
@@ -43,37 +55,44 @@ EMBEDDING_MODELS = {
         max_tokens=8192,
         dimensions=4096,
     ),
-    "nv-embedqa-e5-v5": ModelConfig(
-        model_id="nvidia/nv-embedqa-e5-v5",
-        description="English text QA embedding (E5-based)",
-        max_tokens=512,
-        dimensions=1024,
-    ),
-    "bge-m3": ModelConfig(
-        model_id="baai/bge-m3",
-        description="Dense, multi-vector, and sparse retrieval",
-        max_tokens=8192,
-        dimensions=1024,
-    ),
 }
 
 # ── Available NVIDIA Reranking Models ──────────────────────────────────────────
 RERANKING_MODELS = {
-    "nv-rerankqa-1b-v2": ModelConfig(
-        model_id="nvidia/llama-nemotron-rerank-1b-v2",
-        description="Multilingual, cross-lingual QA reranking (1B params)",
+    "nv-rerank-qa-mistral-4b": ModelConfig(
+        model_id="nv-rerank-qa-mistral-4b:1",
+        description="NVIDIA Mistral QA Reranker (active, recommended)",
     ),
-    "nemoretriever-500m-rerank-v2": ModelConfig(
-        model_id="nvidia/llama-nemotron-rerank-500m-v2",
-        description="GPU-accelerated passage reranking (500M params)",
+    "nv-rerankqa-mistral-4b-v3": ModelConfig(
+        model_id="nvidia/nv-rerankqa-mistral-4b-v3",
+        description="NVIDIA Mistral Reranker v3",
+    ),
+    "nv-rerankqa-1b-v2": ModelConfig(
+        model_id="nv-rerank-qa-mistral-4b:1",
+        description="Legacy alias mapped to active reranker",
     ),
 }
 
 # ── Available LLM Models ──────────────────────────────────────────────────────
 LLM_MODELS = {
-    "kimi-k2-instruct": ModelConfig(
+    "llama-3.1-70b-instruct": ModelConfig(
+        model_id="meta/llama-3.1-70b-instruct",
+        description="Meta Llama 3.1 70B Instruct - High precision study reasoning",
+        max_tokens=4096,
+    ),
+    "llama-3.1-8b-instruct": ModelConfig(
+        model_id="meta/llama-3.1-8b-instruct",
+        description="Meta Llama 3.1 8B Instruct - Fast lightweight generator",
+        max_tokens=4096,
+    ),
+    "llama-3.3-70b-instruct": ModelConfig(
         model_id="meta/llama-3.3-70b-instruct",
-        description="Kimi K2 Instruct - multi-modal reasoning",
+        description="Meta Llama 3.3 70B Instruct",
+        max_tokens=4096,
+    ),
+    "kimi-k2-instruct": ModelConfig(
+        model_id="meta/llama-3.1-70b-instruct",
+        description="Legacy alias mapped to active high-performance model",
         max_tokens=4096,
     ),
 }
@@ -86,29 +105,27 @@ class ChunkingConfig:
     chunk_size: int = 512  # tokens
     chunk_overlap: int = 128  # 25% overlap
     encoding_name: str = "cl100k_base"
-    separators: List[str] = field(
-        default_factory=lambda: [
-            "\n\n\n",  # Section breaks
-            "\n\n",  # Paragraph breaks
-            "\n",  # Line breaks
-            ". ",  # Sentence ends
-            "? ",  # Question ends
-            "! ",  # Exclamation ends
-            "; ",  # Semicolons
-            ", ",  # Commas
-            " ",  # Words
-            "",  # Characters (fallback)
-        ]
-    )
+    separators: List[str] = field(default_factory=lambda: [
+        "\n\n\n",  # Section breaks
+        "\n\n",    # Paragraph breaks
+        "\n",      # Line breaks
+        ". ",      # Sentence ends
+        "? ",      # Question ends
+        "! ",      # Exclamation ends
+        "; ",      # Semicolons
+        ", ",      # Commas
+        " ",       # Words
+        "",        # Characters (fallback)
+    ])
 
 
 @dataclass
 class RetrieverConfig:
     """Configuration for document retrieval."""
 
-    top_k: int = 10  # Initial retrieval count (before reranking)
-    top_n: int = 5  # Final count after reranking
-    use_hybrid: bool = True  # Enable hybrid (keyword + semantic) search
+    top_k: int = 10           # Initial retrieval count (before reranking)
+    top_n: int = 5            # Final count after reranking
+    use_hybrid: bool = True   # Enable hybrid (keyword + semantic) search
     keyword_weight: float = 0.3  # Weight for keyword search in hybrid mode
     semantic_weight: float = 0.7  # Weight for semantic search in hybrid mode
     similarity_threshold: float = 0.0  # Minimum similarity score
@@ -132,9 +149,9 @@ class RAGConfig:
     nvidia_api_key: str = field(default_factory=lambda: os.getenv("NVIDIA_API_KEY", ""))
 
     # Model selections (keys into the model registries above)
-    embedding_model: str = "nv-embedqa-1b-v2"
-    reranking_model: str = "nv-rerankqa-1b-v2"
-    llm_model: str = "kimi-k2-instruct"
+    embedding_model: str = "nv-embedqa-e5-v5"
+    reranking_model: str = "nv-rerank-qa-mistral-4b"
+    llm_model: str = "llama-3.1-8b-instruct"
 
     # Component configs
     chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
@@ -183,7 +200,7 @@ class RAGConfig:
         return LLM_MODELS[self.llm_model]
 
     def validate(self) -> None:
-        """Validate the configuration."""
+        """Validate configuration integrity."""
         if not self.nvidia_api_key:
             raise ValueError("NVIDIA_API_KEY is required")
         self.get_embedding_model()
@@ -195,13 +212,11 @@ class RAGConfig:
         """Create config from environment variables."""
         return cls(
             nvidia_api_key=os.getenv("NVIDIA_API_KEY", ""),
-            embedding_model=os.getenv("RAG_EMBEDDING_MODEL", "nv-embedqa-1b-v2"),
-            reranking_model=os.getenv("RAG_RERANKING_MODEL", "nv-rerankqa-1b-v2"),
-            llm_model=os.getenv("RAG_LLM_MODEL", "kimi-k2-instruct"),
+            embedding_model=os.getenv("RAG_EMBEDDING_MODEL", "nv-embedqa-e5-v5"),
+            reranking_model=os.getenv("RAG_RERANKING_MODEL", "nv-rerank-qa-mistral-4b"),
+            llm_model=os.getenv("RAG_LLM_MODEL", "llama-3.1-8b-instruct"),
             chroma_persist_dir=os.getenv("CHROMA_PERSIST_DIR", "./chroma_db"),
             collection_name=os.getenv("RAG_COLLECTION_NAME", "study_materials"),
-            enable_reranking=os.getenv("RAG_ENABLE_RERANKING", "true").lower()
-            == "true",
-            enable_hybrid_search=os.getenv("RAG_ENABLE_HYBRID", "true").lower()
-            == "true",
+            enable_reranking=os.getenv("RAG_ENABLE_RERANKING", "true").lower() == "true",
+            enable_hybrid_search=os.getenv("RAG_ENABLE_HYBRID", "true").lower() == "true",
         )

@@ -65,7 +65,20 @@ export class DatabaseManager {
   private dbPath: string;
 
   constructor() {
-    const userDataPath = app.getPath("userData");
+    let userDataPath = "";
+    try {
+      if (typeof app !== "undefined" && app && typeof app.getPath === "function") {
+        userDataPath = app.getPath("userData");
+      }
+    } catch {
+      userDataPath = "";
+    }
+
+    if (!userDataPath) {
+      userDataPath =
+        process.env.USER_DATA_DIR || path.join(process.cwd(), "userData");
+    }
+
     this.dbPath = path.join(userDataPath, "study-agent.db");
   }
 
@@ -79,6 +92,7 @@ export class DatabaseManager {
 
       this.db = new DatabaseConstructor(this.dbPath);
       this.db.pragma("journal_mode = WAL");
+      this.db.pragma("foreign_keys = ON");
       this.createTables();
     } catch (error) {
       console.error("Failed to initialize database:", error);
@@ -166,6 +180,12 @@ export class DatabaseManager {
         FOREIGN KEY(message_id) REFERENCES messages(id) ON DELETE CASCADE
       )
     `);
+
+    // Ensure default local-user exists
+    this.db.exec(`
+      INSERT OR IGNORE INTO users (id, email, username, password_hash, created_at)
+      VALUES ('local-user', 'scholar@study.local', 'Scholar', '', datetime('now'))
+    `);
   }
 
   // User methods
@@ -215,26 +235,25 @@ export class DatabaseManager {
   // Thread methods
   createThread(id: string, title: string, userId?: string) {
     if (!this.db) throw new Error("Database not initialized");
+    const targetUserId = userId || "local-user";
+    
+    // Ensure the target user exists so FK never fails
+    this.db.prepare(`
+      INSERT OR IGNORE INTO users (id, email, username, password_hash, created_at)
+      VALUES (?, ?, ?, '', datetime('now'))
+    `).run(targetUserId, `${targetUserId}@study.local`, targetUserId === "local-user" ? "Scholar" : targetUserId);
+
     const now = Date.now();
     const stmt = this.db.prepare(
       "INSERT OR REPLACE INTO threads (id, title, created_at, updated_at, user_id) VALUES (?, ?, ?, ?, ?)"
     );
-    stmt.run(id, title, now, now, userId || null);
+    stmt.run(id, title, now, now, targetUserId);
   }
 
   getAllThreads(userId?: string): ConversationThread[] {
     if (!this.db) throw new Error("Database not initialized");
-    let stmt;
-    let rows: ThreadRow[];
-    if (userId) {
-      stmt = this.db.prepare(
-        "SELECT * FROM threads WHERE user_id = ? ORDER BY updated_at DESC"
-      );
-      rows = stmt.all(userId) as ThreadRow[];
-    } else {
-      stmt = this.db.prepare("SELECT * FROM threads ORDER BY updated_at DESC");
-      rows = stmt.all() as ThreadRow[];
-    }
+    const stmt = this.db.prepare("SELECT * FROM threads ORDER BY updated_at DESC");
+    const rows = stmt.all() as ThreadRow[];
 
     return rows.map((row) => ({
       id: row.id,
@@ -498,17 +517,26 @@ export class DatabaseManager {
     );
     const rows = stmt.all(messageId) as FlashcardRow[];
 
-    return rows.map((row) => ({
-      id: row.id,
-      set_id: row.set_id,
-      question: row.question,
-      answer: row.answer,
-      difficulty: row.difficulty as "easy" | "medium" | "hard",
-      tags: JSON.parse(row.tags),
-      is_mastered: row.is_mastered === 1,
-      created_at: row.created_at,
-      message_id: row.message_id,
-    }));
+    return rows.map((row) => {
+      let parsedTags: string[] = [];
+      try {
+        parsedTags = Array.isArray(row.tags) ? row.tags : JSON.parse(row.tags || "[]");
+      } catch {
+        parsedTags = [];
+      }
+
+      return {
+        id: row.id,
+        set_id: row.set_id,
+        question: row.question,
+        answer: row.answer,
+        difficulty: row.difficulty as "easy" | "medium" | "hard",
+        tags: parsedTags,
+        is_mastered: row.is_mastered === 1,
+        created_at: row.created_at,
+        message_id: row.message_id,
+      };
+    });
   }
 
   updateFlashcardStatus(id: string, isMastered: boolean) {

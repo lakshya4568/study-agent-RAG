@@ -3,43 +3,172 @@ import { persist } from "zustand/middleware";
 import type { User } from "./types";
 
 interface AuthState {
-  user: User | null;
+  user: User;
   isAuthenticated: boolean;
-  login: (user: User) => void;
-  logout: () => void;
+  setUser: (user: User) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      user: null,
-      isAuthenticated: false,
-      login: (user) => set({ user, isAuthenticated: true }),
-      logout: () => set({ user: null, isAuthenticated: false }),
+      user: {
+        id: "local-user",
+        username: "Scholar",
+        email: "scholar@study.local",
+        created_at: new Date().toISOString(),
+      },
+      isAuthenticated: true,
+      setUser: (user) => set({ user }),
     }),
     {
       name: "auth-storage",
-    }
-  )
+    },
+  ),
 );
 
+export interface ModelOption {
+  id: string;
+  name: string;
+  provider: "groq" | "nvidia";
+  description: string;
+  tag: string;
+  badge: string;
+}
+
+export const AVAILABLE_MODELS: ModelOption[] = [
+  // Groq Models
+  {
+    id: "qwen/qwen3.6-27b",
+    name: "Qwen 3.6 27B",
+    provider: "groq",
+    description: "Multimodal fast reasoning with thinking modes & tool use",
+    tag: "⚡ Ultra-Fast",
+    badge: "Groq",
+  },
+  {
+    id: "openai/gpt-oss-120b",
+    name: "GPT OSS 120B",
+    provider: "groq",
+    description: "High capacity open-weight model with strong comprehension",
+    tag: "⚡ High Capacity",
+    badge: "Groq",
+  },
+  {
+    id: "openai/gpt-oss-20b",
+    name: "GPT OSS 20B",
+    provider: "groq",
+    description: "Lightweight, highly responsive everyday assistant",
+    tag: "⚡ Instant",
+    badge: "Groq",
+  },
+  {
+    id: "groq/compound",
+    name: "Groq Compound",
+    provider: "groq",
+    description: "Advanced compound routing and MoE synthesis",
+    tag: "⚡ Agentic MoE",
+    badge: "Groq",
+  },
+  // NVIDIA NIM Models
+  {
+    id: "nvidia/nemotron-3-super-120b-a12b",
+    name: "Nemotron 3 Super 120B",
+    provider: "nvidia",
+    description:
+      "Advanced NVIDIA reasoning model for complex study conversations",
+    tag: "🟢 Flagship",
+    badge: "NVIDIA",
+  },
+];
+
+export interface ThreadItem {
+  id: string;
+  title: string;
+  created_at: number;
+  updated_at?: number;
+  userId?: string;
+}
+
 interface ChatState {
+  threads: ThreadItem[];
   activeThreadId: string | null;
   selectedDocument: string | null;
+  theme: "dark" | "light" | "vibrant";
+  isSidebarExpanded: boolean;
+  selectedModel: string;
+  selectedProvider: "groq" | "nvidia" | "auto";
+  setThreads: (threads: ThreadItem[]) => void;
+  loadThreads: () => Promise<void>;
   setActiveThreadId: (id: string | null) => void;
   setSelectedDocument: (doc: string | null) => void;
+  setTheme: (theme: "dark" | "light" | "vibrant") => void;
+  toggleSidebar: () => void;
+  setSidebarExpanded: (expanded: boolean) => void;
+  setSelectedModel: (
+    model: string,
+    provider?: "groq" | "nvidia" | "auto",
+  ) => void;
+  deleteSession: (id: string) => Promise<void>;
 }
 
 export const useChatStore = create<ChatState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
+      threads: [],
       activeThreadId: null,
       selectedDocument: null,
+      theme: "dark",
+      isSidebarExpanded: true,
+      selectedModel: "qwen/qwen3.6-27b",
+      selectedProvider: "groq",
+      setThreads: (threads) => set({ threads }),
+      loadThreads: async () => {
+        try {
+          if (window.db?.getThreads) {
+            const res = await window.db.getThreads("local-user");
+            if (res && res.success && Array.isArray(res.threads)) {
+              set({ threads: res.threads });
+            }
+          }
+        } catch (err) {
+          console.error("Failed to load threads:", err);
+        }
+      },
       setActiveThreadId: (id) => set({ activeThreadId: id }),
       setSelectedDocument: (doc) => set({ selectedDocument: doc }),
+      setTheme: (theme) => set({ theme }),
+      toggleSidebar: () =>
+        set((state) => ({ isSidebarExpanded: !state.isSidebarExpanded })),
+      setSidebarExpanded: (expanded) => set({ isSidebarExpanded: expanded }),
+      setSelectedModel: (model, provider) => {
+        const found = AVAILABLE_MODELS.find((m) => m.id === model);
+        const resolvedProvider = provider || found?.provider || "auto";
+        set({ selectedModel: model, selectedProvider: resolvedProvider });
+      },
+      deleteSession: async (id: string) => {
+        try {
+          if (window.db?.deleteThread) {
+            await window.db.deleteThread(id);
+          }
+          const { activeThreadId, threads } = get();
+          set({
+            threads: threads.filter((t) => t.id !== id),
+            activeThreadId: activeThreadId === id ? null : activeThreadId,
+          });
+        } catch (err) {
+          console.error("Failed to delete session:", err);
+        }
+      },
     }),
     {
       name: "chat-storage",
-    }
-  )
+      partialize: (state) => ({
+        activeThreadId: state.activeThreadId,
+        theme: state.theme,
+        isSidebarExpanded: state.isSidebarExpanded,
+        selectedModel: state.selectedModel,
+        selectedProvider: state.selectedProvider,
+      }),
+    },
+  ),
 );

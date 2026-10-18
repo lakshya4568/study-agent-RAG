@@ -88,13 +88,22 @@ class SemanticChunker:
 
         # Create token-aware splitter
         if _TIKTOKEN_AVAILABLE and self._tokenizer:
-            splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
-                encoding_name=cfg.encoding_name,
-                chunk_size=cfg.chunk_size,
-                chunk_overlap=cfg.chunk_overlap,
-                separators=cfg.separators,
-                is_separator_regex=False,
-            )
+            try:
+                splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+                    encoding_name=cfg.encoding_name,
+                    chunk_size=cfg.chunk_size,
+                    chunk_overlap=cfg.chunk_overlap,
+                    separators=cfg.separators,
+                    is_separator_regex=False,
+                    disallowed_special=(),
+                )
+            except Exception:
+                splitter = RecursiveCharacterTextSplitter(
+                    chunk_size=cfg.chunk_size * 4,
+                    chunk_overlap=cfg.chunk_overlap * 4,
+                    separators=cfg.separators,
+                    is_separator_regex=False,
+                )
         else:
             # Fallback to character-based splitting (4 chars ≈ 1 token)
             splitter = RecursiveCharacterTextSplitter(

@@ -1,60 +1,81 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   MessageSquare,
   Blocks,
   Settings2,
-  Zap,
-  Plus,
-  History as HistoryIcon,
-  FlaskConical,
 } from "lucide-react";
-import { MainLayout, Sidebar, TopBar } from "./components/layout";
-import { Badge, Button } from "./components/ui";
+import { MainLayout, Sidebar } from "./components/layout";
 import { Chat } from "./views/Chat";
 import { ServerManager } from "./views/ServerManager";
 import { Settings } from "./views/Settings";
-import { RAGDashboard } from "./views/RAGDashboard";
-import { Login } from "./views/Login";
-import { Signup } from "./views/Signup";
-import { useAuthStore } from "./client/store";
+import { useChatStore } from "./client/store";
 
 export const App: React.FC = () => {
   const [activeView, setActiveView] = useState<
-    "chat" | "servers" | "settings" | "rag-dashboard"
+    "chat" | "servers" | "settings"
   >("chat");
-  const [authView, setAuthView] = useState<"login" | "signup">("login");
-  const { isAuthenticated, logout } = useAuthStore();
+
+  const { theme } = useChatStore();
+
+  // Sync theme to root html element
+  useEffect(() => {
+    if (theme === "light") {
+      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("theme-light", "light");
+    } else {
+      document.documentElement.classList.remove("theme-light", "light");
+      document.documentElement.classList.add("dark");
+    }
+  }, [theme]);
 
   const chatActionsRef = useRef<{
     createNewThread: () => void;
-    openHistory: () => void;
   }>({
-    createNewThread: () => {},
-    openHistory: () => {},
+    createNewThread: () => {
+      /* default no-op */
+    },
   });
 
-  if (!isAuthenticated) {
-    return authView === "login" ? (
-      <Login onNavigateToSignup={() => setAuthView("signup")} />
-    ) : (
-      <Signup onNavigateToLogin={() => setAuthView("login")} />
-    );
-  }
+  // Global Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey) {
+        if (e.key === "1") {
+          e.preventDefault();
+          setActiveView("chat");
+        } else if (e.key === "2") {
+          e.preventDefault();
+          setActiveView("servers");
+        } else if (e.key === "3") {
+          e.preventDefault();
+          setActiveView("settings");
+        } else if (e.key === "n" || e.key === "N") {
+          e.preventDefault();
+          chatActionsRef.current.createNewThread();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const sidebarItems = [
     {
       id: "chat",
       icon: MessageSquare,
       label: "Study Chat",
-      description: "AI Assistant",
+      description: "Cognitive Partner",
+      shortcut: "⌘1",
       onClick: () => setActiveView("chat"),
       active: activeView === "chat",
     },
     {
       id: "servers",
       icon: Blocks,
-      label: "Tools",
-      description: "Integrations",
+      label: "MCP Tools",
+      description: "Agent Skills",
+      shortcut: "⌘2",
       onClick: () => setActiveView("servers"),
       active: activeView === "servers",
     },
@@ -62,55 +83,27 @@ export const App: React.FC = () => {
       id: "settings",
       icon: Settings2,
       label: "Settings",
-      description: "Configuration",
+      description: "Keys, Memory & Vectors",
+      shortcut: "⌘3",
       onClick: () => setActiveView("settings"),
       active: activeView === "settings",
     },
-    {
-      id: "rag-dashboard",
-      icon: FlaskConical,
-      label: "RAG Dev",
-      description: "Pipeline Inspector",
-      onClick: () => setActiveView("rag-dashboard"),
-      active: activeView === "rag-dashboard",
-    },
   ];
-
-  const topBarActions = (
-    <>
-      <Button
-        variant="ghost"
-        size="sm"
-        icon={<Plus className="w-4 h-4" />}
-        onClick={() => chatActionsRef.current.createNewThread()}
-        className="rounded-full bg-background/50 backdrop-blur-sm border border-border/50 shadow-sm hover:bg-background hover:shadow-md transition-all duration-200"
-      >
-        New Chat
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        icon={<HistoryIcon className="w-4 h-4" />}
-        onClick={() => chatActionsRef.current.openHistory()}
-        className="rounded-full bg-background/50 backdrop-blur-sm border border-border/50 shadow-sm hover:bg-background hover:shadow-md transition-all duration-200"
-      >
-        History
-      </Button>
-      <Badge
-        variant="outline"
-        size="sm"
-        className="gap-1.5 bg-background/50 backdrop-blur-sm rounded-full"
-      >
-        <Zap className="w-3 h-3 text-yellow-500" />
-        Pro Plan
-      </Badge>
-    </>
-  );
 
   return (
     <MainLayout
-      sidebar={<Sidebar items={sidebarItems} onLogout={logout} />}
-      topBar={<TopBar title="StudyBuddy" actions={topBarActions} />}
+      sidebar={
+        <Sidebar
+          items={sidebarItems}
+          onNewSession={() => {
+            setActiveView("chat");
+            chatActionsRef.current.createNewThread();
+          }}
+          onSelectThread={() => {
+            setActiveView("chat");
+          }}
+        />
+      }
     >
       {activeView === "chat" && (
         <Chat
@@ -121,7 +114,9 @@ export const App: React.FC = () => {
       )}
       {activeView === "servers" && <ServerManager />}
       {activeView === "settings" && <Settings />}
-      {activeView === "rag-dashboard" && <RAGDashboard />}
     </MainLayout>
   );
 };
+
+export default App;
+

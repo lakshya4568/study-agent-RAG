@@ -169,7 +169,7 @@ export class StudyAgentService {
         const clients = this.mcpManager.getAllClients();
         for (const { client, serverId } of clients) {
           try {
-            const tools = await loadMcpTools(serverId, client as any);
+            const tools = await loadMcpTools(serverId, client);
             logger.info(`Loaded ${tools.length} tools from server ${serverId}`);
 
             // Sanitize schemas using raw definitions from MCP server
@@ -467,7 +467,6 @@ export class StudyAgentService {
       const toolDescription = tool.description;
 
       // We need to preserve the tool's properties so LangChain can inspect them
-      // Proxy is good for this
       return new Proxy(tool, {
         get(target, prop, receiver) {
           if (prop === "invoke") {
@@ -476,9 +475,8 @@ export class StudyAgentService {
               const serverId = target.serverId || "unknown";
               const serverName = target.serverName || "unknown";
 
-              logger.info(`Requesting approval for tool: ${toolName}`);
-
-              // Request approval
+              // Request user approval for all tool executions (Permission first)
+              logger.info(`[Tool] Requesting user approval for tool: ${toolName}`);
               const request = await mcpToolService.requestToolExecution(
                 toolName,
                 serverId,
@@ -487,19 +485,18 @@ export class StudyAgentService {
                 toolDescription
               );
 
-              // Wait for approval
+              // Wait for user approval from UI
               const { approved, result } = await mcpToolService.waitForApproval(
                 request.id
               );
 
               if (!approved) {
-                logger.info(`Tool execution denied: ${toolName}`);
+                logger.info(`[Tool] Execution denied by user: ${toolName}`);
                 return "Tool execution denied by user.";
               }
 
-              logger.info(`Tool execution approved: ${toolName}`);
+              logger.info(`[Tool] Execution approved by user: ${toolName}`);
 
-              // If result is provided (e.g. mock result), return it
               if (result !== undefined) {
                 return result;
               }
@@ -516,7 +513,7 @@ export class StudyAgentService {
   async invoke(
     userMessage: string,
     conversationHistory: BaseMessage[] = [],
-    options?: { threadId?: string }
+    options?: { threadId?: string; model?: string; provider?: "groq" | "nvidia" | "auto" }
   ): Promise<AgentInvocationResult> {
     const startTime = performance.now();
 
@@ -533,10 +530,12 @@ export class StudyAgentService {
       }
 
       if (!this.ragServiceConnected) {
-        throw new Error("RAG service not connected");
+        logger.warn("RAG service not connected - proceeding in direct LLM reasoning mode");
       }
 
-      logger.info(`Agent invoke: "${userMessage.substring(0, 100)}..."`);
+      logger.info(
+        `Agent invoke: "${userMessage.substring(0, 100)}..." [Requested Model: ${options?.model || "auto"}]`
+      );
 
       // Load persistent memory context
       let memoryContext = "";
@@ -558,11 +557,15 @@ export class StudyAgentService {
         route: "general",
         memoryContext,
         memoryCommand: "",
+        selectedModel: options?.model || "",
+        selectedProvider: options?.provider || "",
       };
 
-      const invokeConfig: RunnableConfig | undefined = options?.threadId
-        ? { configurable: { thread_id: options.threadId } }
-        : undefined;
+      const invokeConfig: RunnableConfig = {
+        configurable: {
+          thread_id: options?.threadId || "default-study-session",
+        },
+      };
 
       const result = await this.graph.invoke(input, invokeConfig);
 

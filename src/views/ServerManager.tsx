@@ -1,9 +1,16 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Blocks, Trash2, AlertCircle, Terminal, Package, Command, Plug } from "lucide-react";
+import {
+  Plus,
+  Blocks,
+  Trash2,
+  AlertCircle,
+  Package,
+  Plug,
+  Zap,
+} from "lucide-react";
 import { ContentContainer } from "../components/layout";
-import { Button, Card, Input, Badge } from "../components/ui";
+import { Button, Input } from "../components/ui";
 
 interface ServerConfig {
   id: string;
@@ -96,7 +103,7 @@ export const ServerManager: React.FC = () => {
   };
 
   const handleRemoveServer = async (serverId: string) => {
-    if (!confirm("Remove this tool?")) return;
+    if (!confirm("Disconnect and remove this tool server?")) return;
 
     try {
       await window.mcpClient.removeServer(serverId);
@@ -106,253 +113,245 @@ export const ServerManager: React.FC = () => {
     }
   };
 
-  const getStatusVariant = (
-    status: string
-  ): "success" | "warning" | "error" | "default" => {
-    switch (status) {
-      case "connected":
-        return "success";
-      case "connecting":
-        return "warning";
-      case "error":
-        return "error";
-      default:
-        return "default";
-    }
-  };
-
   return (
-    <ContentContainer className="max-w-5xl mx-auto p-6 md:p-8">
-      {/* Header with Add Button */}
-      <div className="flex items-center justify-between mb-8 pb-6">
+    <ContentContainer className="max-w-5xl mx-auto p-6 md:p-8 space-y-6 bg-background">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4 pb-5 border-b border-border">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
-            <Blocks className="w-8 h-8 text-primary" />
-            Tools & Integrations
+          <h2 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
+            <Blocks className="w-6 h-6 text-primary" />
+            MCP Tool Integrations
           </h2>
-          <p className="text-muted-foreground mt-2 text-lg">
-            Connect external apps to supercharge your study buddy.
+          <p className="text-xs text-muted-foreground mt-1 font-mono">
+            Model Context Protocol servers · Local tool execution & filesystem tools
           </p>
         </div>
         <Button
           icon={showAddForm ? undefined : <Plus className="w-4 h-4" />}
           onClick={() => setShowAddForm(!showAddForm)}
           variant={showAddForm ? "ghost" : "primary"}
-          className="rounded-full"
+          className="rounded-xl px-5 text-xs font-semibold"
         >
-          {showAddForm ? "Cancel" : "Add New Tool"}
+          {showAddForm ? "Cancel" : "Connect Tool Server"}
         </Button>
       </div>
 
-      {/* Add Server Form */}
+      {/* Add Server Form in Machined Bezel */}
       <AnimatePresence>
         {showAddForm && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="mb-8 overflow-hidden"
+            className="overflow-hidden"
           >
-            <Card className="bubbly-card p-6 border-primary/20 bg-primary/5">
-              <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-                <Plug className="w-6 h-6 text-primary" />
-                Connect New Tool
-              </h3>
-              <form onSubmit={handleAddServer} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Input
-                    label="Tool Name"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                    placeholder="e.g. Google Drive"
-                    required
-                    className="bg-background rounded-xl"
-                  />
+            <div className="neu-bezel mb-6">
+              <div className="neu-bezel-inner p-6 space-y-5">
+                <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                  <Plug className="w-5 h-5 text-primary" /> Connect New MCP Server
+                </h3>
 
-                  <Input
-                    label="ID (Optional)"
-                    value={formData.id}
-                    onChange={(e) =>
-                      setFormData({ ...formData, id: e.target.value })
-                    }
-                    placeholder="Auto-generated"
-                    className="bg-background rounded-xl"
-                  />
-                </div>
+                <form onSubmit={handleAddServer} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      label="Integration Name"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="e.g. Local Filesystem"
+                      required
+                    />
+                    <Input
+                      label="Server Identifier (Optional)"
+                      value={formData.id}
+                      onChange={(e) => setFormData({ ...formData, id: e.target.value })}
+                      placeholder="auto-generated"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Type
-                  </label>
-                  <div className="relative">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+                      Runtime Type
+                    </label>
                     <select
                       value={formData.command}
-                      onChange={(e) =>
-                        setFormData({ ...formData, command: e.target.value })
-                      }
-                      className="w-full px-4 py-2.5 rounded-xl border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 appearance-none"
+                      onChange={(e) => setFormData({ ...formData, command: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl neu-inset text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary/80 font-medium"
                       required
                     >
-                      <option value="node">Node.js Script</option>
-                      <option value="npx">NPX Package</option>
-                      <option value="python">Python Script</option>
+                      <option value="node">Node.js Binary</option>
+                      <option value="npx">NPX Package Execution</option>
+                      <option value="python">Python Interpreter</option>
                     </select>
-                    <Command className="absolute right-3 top-3 w-4 h-4 text-muted-foreground pointer-events-none" />
                   </div>
-                </div>
 
-                {formData.command === "npx" ? (
-                  <>
+                  {formData.command === "npx" ? (
+                    <div className="space-y-4">
+                      <Input
+                        label="NPX Package"
+                        value={formData.npxPackage}
+                        onChange={(e) => setFormData({ ...formData, npxPackage: e.target.value })}
+                        placeholder="@modelcontextprotocol/server-filesystem"
+                        required
+                      />
+                      <Input
+                        label="Allowed Directory / Arguments"
+                        value={formData.additionalArgs}
+                        onChange={(e) => setFormData({ ...formData, additionalArgs: e.target.value })}
+                        placeholder="/Users/username/Desktop/Notes"
+                      />
+                    </div>
+                  ) : (
                     <Input
-                      label="Package Name"
-                      value={formData.npxPackage}
-                      onChange={(e) =>
-                        setFormData({ ...formData, npxPackage: e.target.value })
-                      }
-                      placeholder="@modelcontextprotocol/server-filesystem"
+                      label="Executable Script Path"
+                      value={formData.serverPath}
+                      onChange={(e) => setFormData({ ...formData, serverPath: e.target.value })}
+                      placeholder="/absolute/path/to/server.js"
                       required
-                      className="bg-background rounded-xl"
                     />
-                    <Input
-                      label="Arguments (Optional)"
-                      value={formData.additionalArgs}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          additionalArgs: e.target.value,
-                        })
-                      }
-                      placeholder="e.g. /path/to/allowed/dir"
-                      className="bg-background rounded-xl"
-                    />
-                  </>
-                ) : (
-                  <Input
-                    label="Script Path"
-                    value={formData.serverPath}
-                    onChange={(e) =>
-                      setFormData({ ...formData, serverPath: e.target.value })
-                    }
-                    placeholder="/absolute/path/to/server.js"
-                    required
-                    className="bg-background rounded-xl"
-                  />
-                )}
+                  )}
 
-                {error && (
-                  <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                    <span>{error}</span>
+                  {error && (
+                    <div className="p-3 neu-inset bg-rose-500/10 border border-rose-500/25 rounded-xl text-rose-500 dark:text-rose-300 text-xs flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{error}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2.5 pt-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setShowAddForm(false)}
+                      size="sm"
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" loading={loading} size="sm" className="px-6">
+                      Launch & Connect
+                    </Button>
                   </div>
-                )}
-
-                <div className="flex gap-3 pt-2">
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    loading={loading}
-                    className="flex-1 rounded-xl"
-                  >
-                    Connect Tool
-                  </Button>
-                </div>
-              </form>
-            </Card>
+                </form>
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Servers Grid */}
+      {/* Servers Listing */}
       {servers.length === 0 ? (
-        <Card className="text-center py-16 border-dashed border-2 bg-muted/5 rounded-3xl">
-          <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mx-auto mb-6">
-            <Blocks className="w-10 h-10 text-muted-foreground" />
+        <div className="neu-bezel text-center p-6">
+          <div className="neu-bezel-inner p-10 flex flex-col items-center max-w-md mx-auto">
+            <Blocks className="w-12 h-12 text-muted-foreground/30 mb-3" />
+            <h3 className="text-base font-bold text-foreground">No MCP Tool Servers Connected</h3>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed mb-5 text-center">
+              Equip your study agent with external tools like filesystem access or web search by
+              connecting an MCP server.
+            </p>
+            <Button
+              onClick={() => setShowAddForm(true)}
+              icon={<Plus className="w-4 h-4" />}
+              size="sm"
+              className="px-5"
+            >
+              Connect First Tool Server
+            </Button>
           </div>
-          <h3 className="text-xl font-bold text-foreground mb-2">
-            No Tools Connected
-          </h3>
-          <p className="text-muted-foreground mb-8 text-base max-w-md mx-auto">
-            Add a tool to give your study buddy more capabilities, like reading files or searching the web.
-          </p>
-          <Button
-            onClick={() => setShowAddForm(true)}
-            icon={<Plus className="w-4 h-4" />}
-            className="rounded-full"
-          >
-            Add First Tool
-          </Button>
-        </Card>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <AnimatePresence>
-            {servers.map((server, index) => (
-              <motion.div
-                key={server.config.id}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <Card hoverable className="h-full flex flex-col border-border shadow-sm hover:shadow-lg transition-all group bubbly-card p-5">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1 min-w-0 pr-3">
-                      <h3 className="text-lg font-bold text-foreground truncate">
-                        {server.config.name}
-                      </h3>
-                      <div className="mt-1">
-                        <Badge
-                          variant={getStatusVariant(server.status)}
-                          size="sm"
-                          className="rounded-full px-2"
-                        >
-                          {server.status === "connected" ? "Active" : server.status}
-                        </Badge>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {servers.map((server) => {
+            const hasTools = server.tools && server.tools.length > 0;
+            return (
+              <div key={server.config.id} className="neu-bezel group">
+                <div className="neu-bezel-inner p-5 flex flex-col justify-between space-y-4">
+                  <div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="text-base font-bold text-foreground truncate">
+                          {server.config.name}
+                        </h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span
+                            className={`inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border neu-raised-sm ${
+                              server.status === "connected"
+                                ? "bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border-emerald-500/25"
+                                : "bg-secondary text-muted-foreground border-border"
+                            }`}
+                          >
+                            <Zap className="w-2.5 h-2.5" />
+                            {server.status === "connected" ? "Connected" : server.status}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground font-mono">
+                            {server.config.command} {server.config.args?.slice(0, 1).join(" ")}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="w-9 h-9 rounded-xl neu-inset-sm text-primary flex items-center justify-center shrink-0 border border-border">
+                        <Package className="w-4 h-4" />
                       </div>
                     </div>
-                    <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                      <Package className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors" />
+
+                    {/* Connected Tools Breakdown */}
+                    <div className="mt-4 space-y-2">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground font-medium pb-1 border-b border-border">
+                        <span className="font-semibold text-foreground/80">Exposed Tools ({server.tools?.length || 0})</span>
+                        <span className="text-[10px] font-mono text-emerald-500 dark:text-emerald-400 font-bold">Active in Graph</span>
+                      </div>
+
+                      {hasTools ? (
+                        <div className="space-y-1.5 max-h-56 overflow-y-auto custom-scrollbar pr-1">
+                          {server.tools.map((t: any, idx: number) => (
+                            <div
+                              key={t.name || idx}
+                              className="p-2.5 rounded-xl neu-inset-sm border border-border"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-mono text-xs font-bold text-primary">
+                                  {t.name}
+                                </span>
+                                {t.inputSchema?.properties && (
+                                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border font-semibold">
+                                    {Object.keys(t.inputSchema.properties).length} params
+                                  </span>
+                                )}
+                              </div>
+                              {t.description && (
+                                <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5 line-clamp-2">
+                                  {t.description}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground italic py-2">
+                          No individual tool definitions reported.
+                        </p>
+                      )}
                     </div>
                   </div>
 
-                  <div className="space-y-3 text-sm text-muted-foreground mb-6 flex-1">
-                    <div className="flex justify-between items-center py-1 border-b border-border/30">
-                      <span className="text-xs font-medium">Type</span>
-                      <span className="text-xs opacity-70">
-                        {server.config.command === "node" ? "Node.js" : server.config.command === "npx" ? "NPX" : "Python"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center py-1">
-                      <span className="text-xs font-medium">Capabilities</span>
-                      <Badge variant="outline" size="sm" className="rounded-full">
-                        {server.tools.length} skills
-                      </Badge>
-                    </div>
+                  <div className="pt-3 border-t border-border flex justify-end">
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => handleRemoveServer(server.config.id)}
+                      className="text-xs"
+                      icon={<Trash2 className="w-3.5 h-3.5" />}
+                    >
+                      Disconnect
+                    </Button>
                   </div>
-
-                  {server.error && (
-                    <div className="mb-4 p-2 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-xs flex items-start gap-2">
-                      <AlertCircle className="w-3 h-3 shrink-0 mt-0.5" />
-                      <span className="break-all">{server.error}</span>
-                    </div>
-                  )}
-
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    icon={<Trash2 className="w-4 h-4" />}
-                    onClick={() => handleRemoveServer(server.config.id)}
-                    className="w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl"
-                  >
-                    Disconnect
-                  </Button>
-                </Card>
-              </motion.div>
-            ))}
-          </AnimatePresence>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </ContentContainer>
   );
 };
+
+export default ServerManager;
+

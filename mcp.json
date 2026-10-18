@@ -15,12 +15,6 @@
         "@theo.foobar/mcp-time"
       ],
       "env": {}
-    },
-    "google-forms": {
-      "command": "node",
-      "args": [
-        "/Users/proximus/Desktop/AI STUDY AGENT/scripts/google-forms-wrapper.js"
-      ]
     }
   }
 }

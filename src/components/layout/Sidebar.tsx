@@ -1,8 +1,15 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { cn } from '../../lib/utils';
-import { LucideIcon, ChevronLeft, ChevronRight, GraduationCap, LogOut } from 'lucide-react';
-
+import React, { useState, useEffect } from "react";
+import { cn } from "../../lib/utils";
+import {
+  LucideIcon,
+  Plus,
+  PanelLeftClose,
+  MessageSquare,
+  Trash2,
+  Sun,
+  Moon,
+} from "lucide-react";
+import { useChatStore } from "../../client/store";
 
 interface SidebarProps {
   items: Array<{
@@ -10,119 +17,301 @@ interface SidebarProps {
     icon: LucideIcon;
     label: string;
     description?: string;
+    shortcut?: string;
     onClick: () => void;
     active?: boolean;
   }>;
-  onLogout?: () => void;
+  onNewSession?: () => void;
+  onSelectThread?: (threadId: string) => void;
   className?: string;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   items,
-  onLogout,
+  onNewSession,
+  onSelectThread,
   className,
 }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const {
+    isSidebarExpanded,
+    toggleSidebar,
+    activeThreadId,
+    setActiveThreadId,
+    threads,
+    loadThreads,
+    deleteSession,
+    theme,
+    setTheme,
+  } = useChatStore();
+  const [searchQuery] = useState("");
+
+  const toggleTheme = () => {
+    if (theme === "dark") {
+      setTheme("light");
+      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("theme-light", "light");
+    } else {
+      setTheme("dark");
+      document.documentElement.classList.remove("theme-light", "light");
+      document.documentElement.classList.add("dark");
+    }
+  };
+
+  useEffect(() => {
+    loadThreads();
+  }, [loadThreads]);
+
+  const handleDeleteThread = async (e: React.MouseEvent, threadId: string) => {
+    e.stopPropagation();
+    await deleteSession(threadId);
+  };
+
+  const filteredThreads = threads.filter((t) =>
+    (t.title || "Untitled Session").toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <motion.aside
-      initial={{ width: 260 }}
-      animate={{ width: isCollapsed ? 80 : 260 }}
-      transition={{ duration: 0.3, ease: "easeInOut" }}
+    <aside
       className={cn(
-        'flex flex-col h-full backdrop-blur-md border-r border-border/50 shadow-sm z-50 relative transition-all',
-        'bg-gradient-to-b from-emerald-50/40 via-orange-50/30 to-rose-100/50 dark:from-emerald-950/20 dark:via-orange-950/10 dark:to-rose-950/20',
+        "h-full flex flex-col py-3 sidebar-deck select-none shrink-0 justify-between z-40 relative transition-[width] duration-200 ease-in-out",
+        isSidebarExpanded ? "w-64 px-3" : "w-[60px] px-2 items-center",
         className
       )}
     >
-      {/* Toggle Button */}
-      <button
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute -right-3 top-6 bg-card border border-border rounded-full p-1.5 shadow-md hover:bg-muted transition-colors z-50 text-muted-foreground hover:text-primary"
-      >
-        {isCollapsed ? (
-          <ChevronRight className="w-3.5 h-3.5" />
-        ) : (
-          <ChevronLeft className="w-3.5 h-3.5" />
-        )}
-      </button>
+      {/* Top Section: Brand Header & + New Session */}
+      <div className="flex flex-col gap-2.5 w-full min-h-0 flex-1 overflow-hidden">
+        {/* Brand Header */}
+        <div
+          className={cn(
+            "flex items-center gap-2.5 px-1 py-1 shrink-0",
+            isSidebarExpanded ? "justify-between" : "justify-center"
+          )}
+        >
+          <div className="flex items-center gap-2.5 overflow-hidden">
+            {/* Tactile 8-pointed geometric emblem */}
+            <div
+              className="w-9 h-9 rounded-xl neu-raised-sm flex items-center justify-center text-foreground hover:brightness-110 active:scale-95 transition-all cursor-pointer shrink-0 border border-border"
+              title="Study Agent"
+              onClick={toggleSidebar}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="w-4.5 h-4.5 text-primary"
+              >
+                <path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07l14.14-14.14" />
+                <circle cx="12" cy="12" r="3" fill="currentColor" fillOpacity="0.2" />
+              </svg>
+            </div>
 
-      {/* Header */}
-      <div className={cn("p-6 flex items-center", isCollapsed ? "justify-center" : "gap-3")}>
-        <div className="w-10 h-10 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
-          <GraduationCap className="w-6 h-6" />
+            {isSidebarExpanded && (
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-bold tracking-tight text-foreground truncate">
+                  Study Agent
+                </span>
+                <span className="text-[10px] text-muted-foreground/80 truncate font-mono">
+                  Autonomous Tutor
+                </span>
+              </div>
+            )}
+          </div>
+
+          {isSidebarExpanded && (
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className="w-7 h-7 rounded-lg neu-raised-sm flex items-center justify-center text-muted-foreground hover:text-foreground active:scale-95 transition-all cursor-pointer border border-border"
+              title="Collapse sidebar"
+            >
+              <PanelLeftClose className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
-        <AnimatePresence mode="wait">
-          {!isCollapsed && (
-            <motion.div
-              initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: 1, width: "auto" }}
-              exit={{ opacity: 0, width: 0 }}
-              className="overflow-hidden whitespace-nowrap"
-            >
-              <h1 className="font-bold text-lg tracking-tight text-foreground">StudyBuddy</h1>
-              <p className="text-xs text-muted-foreground">AI Companion</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+        {/* + New Session Button */}
+        {isSidebarExpanded ? (
+          <button
+            type="button"
+            onClick={onNewSession}
+            className="w-full h-9 px-3 rounded-xl neu-convex text-foreground flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer group shrink-0 border border-border"
+            title="New Study Session (⌘N)"
+          >
+            <div className="flex items-center gap-2 font-semibold text-xs text-foreground">
+              <Plus className="w-3.5 h-3.5 text-primary group-hover:rotate-90 transition-transform duration-200" />
+              <span>New Session</span>
+            </div>
+            <span className="text-[10px] text-muted-foreground font-mono neu-inset-sm px-1.5 py-0.5 rounded border border-border">
+              ⌘N
+            </span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onNewSession}
+            className="w-9 h-9 rounded-full neu-convex text-foreground flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer group shrink-0 border border-border"
+            title="New Study Session (⌘N)"
+          >
+            <Plus className="w-4 h-4 text-primary group-hover:rotate-90 transition-transform duration-200" />
+          </button>
+        )}
 
-      {/* Navigation Items */}
-      <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto custom-scrollbar">
-        <AnimatePresence mode='wait'>
+        {/* Working Deck Divider */}
+        <div className="w-full h-px bg-border my-0.5 shrink-0" />
+
+        {/* Navigation Items */}
+        <nav className="flex flex-col gap-1.5 w-full shrink-0">
           {items.map((item) => {
             const Icon = item.icon;
+            if (isSidebarExpanded) {
+              return (
+                <button
+                  type="button"
+                  key={item.id}
+                  onClick={item.onClick}
+                  className={cn(
+                    "w-full h-8.5 px-3 rounded-xl flex items-center justify-between transition-all duration-150 relative cursor-pointer text-left select-none",
+                    item.active
+                      ? "neu-convex text-foreground font-semibold border border-border shadow-xs"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                  )}
+                  title={item.label}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Icon className={cn("w-4 h-4 shrink-0", item.active ? "text-primary" : "text-muted-foreground/80")} />
+                    <span className="text-xs truncate">{item.label}</span>
+                  </div>
+                  {item.shortcut && (
+                    <span className="text-[10px] text-muted-foreground/70 font-mono">
+                      {item.shortcut}
+                    </span>
+                  )}
+                </button>
+              );
+            }
+
             return (
-              <motion.button
+              <button
+                type="button"
                 key={item.id}
-                layout
                 onClick={item.onClick}
                 className={cn(
-                  'w-full flex items-center gap-3 px-3 py-3 rounded-2xl transition-all duration-200 group relative overflow-hidden',
+                  "w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-150 relative group cursor-pointer select-none",
                   item.active
-                    ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
-                  isCollapsed ? 'justify-center' : ''
+                    ? "neu-convex text-primary font-semibold border border-border"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
                 )}
-                title={isCollapsed ? item.label : undefined}
+                title={`${item.label} ${item.shortcut ? `(${item.shortcut})` : ""}`}
               >
-                <Icon className={cn("w-5 h-5 flex-shrink-0 transition-colors", item.active ? "text-primary-foreground" : "text-muted-foreground group-hover:text-primary")} />
-
-                {!isCollapsed && (
-                  <motion.div
-                    initial={{ opacity: 0, width: 0 }}
-                    animate={{ opacity: 1, width: "auto" }}
-                    exit={{ opacity: 0, width: 0 }}
-                    className="flex-1 text-left overflow-hidden whitespace-nowrap"
-                  >
-                    <span className={cn("text-sm font-medium", item.active ? "font-semibold" : "")}>{item.label}</span>
-                  </motion.div>
-                )}
-              </motion.button>
+                <Icon className={cn("w-4 h-4", item.active ? "text-primary" : "")} />
+              </button>
             );
           })}
-        </AnimatePresence>
-      </nav>
+        </nav>
 
-      {/* Footer / Theme Switcher */}
-      <div className="mt-auto p-4 border-t border-border/50 space-y-2">
+        {/* Recent Session History Section (Expanded View) */}
+        {isSidebarExpanded && (
+          <div className="flex flex-col min-h-0 flex-1 pt-2.5 border-t border-border">
+            <div className="flex items-center justify-between px-1.5 pb-1.5 shrink-0">
+              <span className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">
+                Recent Sessions
+              </span>
+              <span className="text-[10px] text-muted-foreground/70 font-mono">
+                {threads.length}
+              </span>
+            </div>
 
+            {/* Scrollable Session List */}
+            <div className="flex-1 overflow-y-auto space-y-1 custom-scrollbar pr-0.5">
+              {filteredThreads.length === 0 ? (
+                <div className="text-center py-6 px-2 text-muted-foreground/60 text-[11px]">
+                  No past sessions yet.
+                </div>
+              ) : (
+                filteredThreads.map((thread) => {
+                  const isActive = activeThreadId === thread.id;
+                  return (
+                    <div
+                      key={thread.id}
+                      onClick={() => {
+                        setActiveThreadId(thread.id);
+                        if (onSelectThread) onSelectThread(thread.id);
+                      }}
+                      className={cn(
+                        "group w-full px-2.5 py-1.5 rounded-xl flex items-center justify-between text-xs transition-all cursor-pointer text-left select-none",
+                        isActive
+                          ? "neu-inset-sm text-foreground font-semibold border border-border shadow-xs"
+                          : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                      )}
+                      title={thread.title}
+                    >
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <MessageSquare
+                          className={cn(
+                            "w-3.5 h-3.5 shrink-0",
+                            isActive ? "text-primary" : "text-muted-foreground/60"
+                          )}
+                        />
+                        <span className="truncate text-xs">
+                          {thread.title || "Untitled Session"}
+                        </span>
+                      </div>
 
-        {onLogout && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteThread(e, thread.id)}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-rose-400 rounded transition-opacity shrink-0 ml-1 cursor-pointer"
+                        title="Delete session"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Section: Theme Toggle Button */}
+      <div className="pt-2 border-t border-border w-full shrink-0">
+        {isSidebarExpanded ? (
           <button
-            onClick={onLogout}
-            className={cn(
-              "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors group",
-              isCollapsed ? "justify-center" : ""
-            )}
-            title="Sign Out"
+            type="button"
+            onClick={toggleTheme}
+            className="w-full h-8.5 px-3 rounded-xl flex items-center gap-2.5 text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-all cursor-pointer text-xs font-medium"
+            title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
           >
-            <LogOut className="w-5 h-5 group-hover:scale-110 transition-transform" />
-            {!isCollapsed && <span className="text-sm font-medium">Sign Out</span>}
+            {theme === "dark" ? (
+              <Sun className="w-4 h-4 text-amber-400 shrink-0" />
+            ) : (
+              <Moon className="w-4 h-4 text-emerald-500 shrink-0" />
+            )}
+            <span className="truncate">
+              {theme === "dark" ? "Light theme" : "Dark theme"}
+            </span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-all cursor-pointer"
+            title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+          >
+            {theme === "dark" ? (
+              <Sun className="w-4 h-4 text-amber-400" />
+            ) : (
+              <Moon className="w-4 h-4 text-emerald-500" />
+            )}
           </button>
         )}
       </div>
-    </motion.aside>
+    </aside>
   );
 };
+
+

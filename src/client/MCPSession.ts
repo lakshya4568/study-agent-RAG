@@ -159,14 +159,32 @@ export class MCPSession {
 
     try {
       console.log(`[MCPSession] Executing tool: ${toolName}`, args);
+      // The model sends null for optional fields it leaves out; MCP servers expect them omitted
+      const cleanArgs = Object.fromEntries(
+        Object.entries(args ?? {}).filter(([, value]) => value !== null)
+      );
       const result = await this.client.callTool({
         name: toolName,
-        arguments: args,
+        arguments: cleanArgs,
       });
+
+      // Tool errors arrive as content with isError set; pass the text through so callers can show it
+      const blocks: Array<{ type: string; text?: string }> = Array.isArray(
+        result.content
+      )
+        ? result.content
+        : [];
+      const errorText = result.isError
+        ? blocks
+            .map((block) => block.text ?? "")
+            .filter(Boolean)
+            .join("\n")
+        : undefined;
 
       return {
         success: !result.isError,
         content: result.content,
+        error: result.isError ? errorText || "Tool returned an error" : undefined,
       };
     } catch (error) {
       console.error(`[MCPSession] Tool execution failed:`, error);

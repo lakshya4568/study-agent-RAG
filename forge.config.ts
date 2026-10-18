@@ -5,7 +5,6 @@ import { MakerDeb } from "@electron-forge/maker-deb";
 import { MakerRpm } from "@electron-forge/maker-rpm";
 import { MakerDMG } from "@electron-forge/maker-dmg";
 import { WebpackPlugin } from "@electron-forge/plugin-webpack";
-import { AutoUnpackNativesPlugin } from "@electron-forge/plugin-auto-unpack-natives";
 import { existsSync } from "fs";
 
 import { mainConfig } from "./webpack.main.config";
@@ -55,6 +54,7 @@ const config: ForgeConfig = {
   plugins: [
     new WebpackPlugin({
       mainConfig,
+      port: Number(process.env.DEV_PORT) || 3001,
       devContentSecurityPolicy:
         "default-src 'self' 'unsafe-inline' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; font-src 'self' data:; style-src 'self' 'unsafe-inline'; img-src 'self' data:;",
       renderer: {

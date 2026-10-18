@@ -9,6 +9,7 @@ import { IConfigManager, ConfigSummaryItem } from "./types";
 
 const SECRET_KEYS = new Set([
   "NVIDIA_API_KEY",
+  "GROQ_API_KEY",
   "GEMINI_API_KEY",
   "ANTHROPIC_API_KEY",
   "OPENAI_API_KEY",
@@ -17,7 +18,11 @@ const SECRET_KEYS = new Set([
 const KNOWN_KEYS: Array<{ key: string; description?: string }> = [
   {
     key: "NVIDIA_API_KEY",
-    description: "Required for NVIDIA NIM chat + embeddings",
+    description: "NVIDIA NIM inference & embedding services",
+  },
+  {
+    key: "GROQ_API_KEY",
+    description: "Groq ultra-fast LPU inference (LangChain & flashcard acceleration)",
   },
   {
     key: "GEMINI_API_KEY",

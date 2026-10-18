@@ -42,9 +42,17 @@ export class MCPToolService {
     }
   >();
   private mcpManager?: MCPClientManager;
+  private approvalListeners: Array<(request: PendingToolCall) => void> = [];
 
   setMCPManager(manager: MCPClientManager) {
     this.mcpManager = manager;
+  }
+
+  onApprovalRequest(listener: (request: PendingToolCall) => void): () => void {
+    this.approvalListeners.push(listener);
+    return () => {
+      this.approvalListeners = this.approvalListeners.filter((l) => l !== listener);
+    };
   }
 
   /**
@@ -71,6 +79,17 @@ export class MCPToolService {
     };
 
     this.pendingRequests.set(requestId, request);
+
+    // Notify listeners (including Electron renderer)
+    const pendingCall = this.toPendingToolCall(request);
+    this.approvalListeners.forEach((listener) => {
+      try {
+        listener(pendingCall);
+      } catch (err) {
+        console.error("Error in tool approval listener:", err);
+      }
+    });
+
     return request;
   }
 

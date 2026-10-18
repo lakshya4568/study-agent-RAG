@@ -21,6 +21,12 @@ export const StudyAgentState = Annotation.Root({
   memoryCommand: Annotation<string>({
     reducer: (_state, update) => update ?? "",
   }),
+  selectedModel: Annotation<string>({
+    reducer: (_state, update) => update ?? "",
+  }),
+  selectedProvider: Annotation<string>({
+    reducer: (_state, update) => update ?? "",
+  }),
 });
 
 export type StudyAgentStateType = typeof StudyAgentState.State;
