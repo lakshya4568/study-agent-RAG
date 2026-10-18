@@ -13,6 +13,8 @@ import {
   enrichAllTools,
   toOpenAIToolFormat,
   createToolAwareSystemPrompt,
+  describeToolSignature,
+  repairToolArguments,
   validateToolArguments,
   mergeWithDefaults,
 } from "../tools/tool-schema-enricher";
@@ -372,11 +374,19 @@ export function createQueryNode(tools: StructuredTool[]) {
         temperature: 0.3,
       });
 
-      const mcpTools: Tool[] = tools.map((tool) => ({
-        name: tool.name,
-        description: tool.description,
-        inputSchema: tool.schema as Tool["inputSchema"],
-      }));
+      const mcpTools: Tool[] = tools.map((tool) => {
+        // The server's JSON Schema has the parameter names and types. tool.schema is the Zod
+        // copy used for validation and has no properties the model can read.
+        const jsonSchema = (tool as { jsonSchema?: Tool["inputSchema"] }).jsonSchema;
+        if (!jsonSchema) {
+          logger.warn(`[QueryNode] No JSON schema for ${tool.name}; the model will not see its parameters`);
+        }
+        return {
+          name: tool.name,
+          description: tool.description,
+          inputSchema: (jsonSchema ?? tool.schema) as Tool["inputSchema"],
+        };
+      });
 
       const enrichedTools = enrichAllTools(mcpTools);
       const openAITools: ChatCompletionTool[] =
@@ -432,18 +442,27 @@ export function createQueryNode(tools: StructuredTool[]) {
             throw new Error(`Tool ${toolName} not found`);
           }
 
+          let finalArgs = args ?? {};
           const enrichedSchema = enrichedTools.find((t) => t.name === toolName);
           if (enrichedSchema) {
-            const validation = validateToolArguments(
-              toolName,
-              args,
-              enrichedSchema
-            );
-            args = mergeWithDefaults(args, validation.defaults);
+            // Fix common model mistakes (wrong case, "True" for true, JSON text for arrays, ...)
+            const repaired = repairToolArguments(finalArgs, enrichedSchema);
+            if (repaired.changes.length > 0) {
+              logger.info(`[QueryNode] Fixed arguments for ${toolName}: ${repaired.changes.join("; ")}`);
+            }
+            const validation = validateToolArguments(toolName, repaired.args, enrichedSchema);
+            if (!validation.valid) {
+              // The model reads this message and tries again, so say what the correct call looks like
+              throw new Error(
+                `Invalid arguments: ${validation.errors.join("; ")}. ` +
+                  `Correct format: ${describeToolSignature(enrichedSchema)}`
+              );
+            }
+            finalArgs = mergeWithDefaults(repaired.args, validation.defaults);
           }
 
-          logger.info(`[QueryNode] Executing tool: ${toolName}`, args);
-          const result = await tool.invoke(args);
+          logger.info(`[QueryNode] Executing tool: ${toolName}`, finalArgs);
+          const result = await tool.invoke(finalArgs);
           return typeof result === "string" ? result : JSON.stringify(result);
         };
 

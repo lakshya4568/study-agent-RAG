@@ -186,6 +186,8 @@ export class StudyAgentService {
               for (const tool of tools) {
                 const rawSchema = rawSchemas.get(tool.name);
                 if (rawSchema) {
+                  // Keep the server's JSON Schema so the model sees the real parameters (see createQueryNode)
+                  (tool as { jsonSchema?: unknown }).jsonSchema = rawSchema;
                   try {
                     logger.info(`Sanitizing schema for tool: ${tool.name}`);
                     const sanitized = sanitizeSchema(rawSchema);
